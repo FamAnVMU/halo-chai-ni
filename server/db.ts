@@ -797,6 +797,79 @@ db.exec(`
     resolved_at INTEGER
   );
 
+  -- ========================================================================
+  -- LEARNING EVIDENCE SYSTEM (HỆ THỐNG GHI NHẬN BẰNG CHỨNG HỌC TẬP THỰC TẾ)
+  -- ========================================================================
+
+  -- 1. Learning Evidences (Bằng chứng học tập bất biến Append-Only)
+  CREATE TABLE IF NOT EXISTS learning_evidences (
+    id TEXT PRIMARY KEY,
+    knowledge_id TEXT NOT NULL REFERENCES knowledge_items(id) ON DELETE RESTRICT,
+    evidence_type TEXT NOT NULL, -- 'exposure', 'instruction', 'recognition', 'recall', 'application', 'pronunciation', 'listening_reading', 'review'
+    action TEXT NOT NULL, -- 'dictionary_lookup', 'lesson_view', 'lesson_exercise', 'srs_review', 'chat_utterance', 'pronunciation_trial', 'shadowing_repeat', 'reading_question_answer'
+    source_module TEXT NOT NULL, -- 'ai_tutor', 'voice_chat', 'dictionary', 'lesson', 'placement', 'srs', 'pronunciation_lab', 'shadowing', 'reading'
+    session_id TEXT,
+    attempt_id TEXT,
+    idempotency_key TEXT UNIQUE,
+    observed_data_json TEXT NOT NULL, -- Dữ liệu quan sát thực tế (lời nói, văn bản, lựa chọn, âm học)
+    assessment_data_json TEXT NOT NULL, -- Kết quả chấm/đánh giá (đúng/sai, điểm, match rate, lỗi)
+    inference_data_json TEXT, -- Giả thuyết sư phạm / phạm vi áp dụng (không gán bừa mastery)
+    assessment_method TEXT NOT NULL, -- 'deterministic_rule', 'ai_evaluation', 'audio_evaluation', 'human_confirmation', 'imported_baseline'
+    evaluator TEXT NOT NULL, -- 'sm2_engine', 'acoustic_analyzer', 'gemini_text', 'placement_grader', 'reading_grader', 'user_self_report'
+    confidence REAL NOT NULL DEFAULT 1.0, -- Mức độ tin cậy của đánh giá (0.0 - 1.0)
+    status TEXT NOT NULL DEFAULT 'valid', -- 'valid', 'invalidated', 'corrected'
+    correction_reason TEXT,
+    schema_version INTEGER NOT NULL DEFAULT 1,
+    created_at INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_evi_knowledge ON learning_evidences(knowledge_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_evi_type ON learning_evidences(evidence_type, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_evi_source ON learning_evidences(source_module, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_evi_session ON learning_evidences(session_id);
+  CREATE INDEX IF NOT EXISTS idx_evi_idempotency ON learning_evidences(idempotency_key);
+  CREATE INDEX IF NOT EXISTS idx_evi_status ON learning_evidences(status);
+
+  -- 2. Evidence Sources (Lưu vết phiên học và siêu dữ liệu môi trường)
+  CREATE TABLE IF NOT EXISTS evidence_sources (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    source_module TEXT NOT NULL,
+    user_id TEXT DEFAULT 'default',
+    start_time INTEGER NOT NULL,
+    end_time INTEGER,
+    item_count INTEGER DEFAULT 0,
+    metadata_json TEXT
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_evsrc_session ON evidence_sources(session_id);
+
+  -- 3. Evidence Corrections (Nhật ký đính chính / vô hiệu hóa bằng chứng)
+  CREATE TABLE IF NOT EXISTS evidence_corrections (
+    id TEXT PRIMARY KEY,
+    evidence_id TEXT NOT NULL REFERENCES learning_evidences(id) ON DELETE CASCADE,
+    correction_type TEXT NOT NULL, -- 'invalidate', 'score_rectification', 'label_correction'
+    previous_data_json TEXT NOT NULL,
+    new_data_json TEXT,
+    reason TEXT NOT NULL,
+    corrected_by TEXT NOT NULL, -- 'user', 'system_audit', 'admin'
+    created_at INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_evcor_evidence ON evidence_corrections(evidence_id);
+
+  -- 4. Evidence Relations (Liên kết chuỗi bằng chứng: sai -> sửa, thử lại, dẫn xuất)
+  CREATE TABLE IF NOT EXISTS evidence_relations (
+    id TEXT PRIMARY KEY,
+    source_evidence_id TEXT NOT NULL REFERENCES learning_evidences(id) ON DELETE CASCADE,
+    target_evidence_id TEXT NOT NULL REFERENCES learning_evidences(id) ON DELETE CASCADE,
+    relation_type TEXT NOT NULL, -- 'remedies_error', 'retry_of', 'subsequent_review', 'derived_from'
+    created_at INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_evrel_source ON evidence_relations(source_evidence_id);
+  CREATE INDEX IF NOT EXISTS idx_evrel_target ON evidence_relations(target_evidence_id);
+
   CREATE INDEX IF NOT EXISTS idx_reading_level ON reading_passages(level, hsk_level);
   CREATE INDEX IF NOT EXISTS idx_reading_topic ON reading_passages(topic);
   CREATE INDEX IF NOT EXISTS idx_reading_genre ON reading_passages(genre);

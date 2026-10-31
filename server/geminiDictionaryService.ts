@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { db } from './db.js';
 import { geminiTextService } from './geminiTextService.js';
+import { learningEvidenceService } from './learningEvidenceService.js';
 import {
   SEED_DICTIONARY_ENTRIES,
   DictionaryEntry,
@@ -306,6 +307,28 @@ export class GeminiDictionaryService {
           VALUES (?, 'default', ?, 0, '', '[]', 1, ?, ?, ?)
         `).run(noteId, id, now, now, now);
       }
+
+      // Ghi nhận Exposure Evidence (Phase A2)
+      const kid = row.knowledge_id || null;
+      learningEvidenceService.recordEvidence({
+        knowledgeId: kid || undefined,
+        rawText: !kid ? row.simplified : undefined,
+        evidenceType: 'exposure',
+        action: 'dictionary_lookup',
+        sourceModule: 'dictionary',
+        observedData: {
+          speaker: 'user',
+          userText: row.simplified,
+          contextSentence: row.meaning_vi
+        },
+        assessmentData: {
+          isCorrect: null,
+          timeSpentMs: 0
+        },
+        assessmentMethod: 'deterministic_rule',
+        evaluator: 'dictionary_service',
+        confidence: 1.0
+      });
     } catch {}
 
     const personal = db.prepare('SELECT * FROM dictionary_personal_notes WHERE entry_id = ?').get(id) as any;

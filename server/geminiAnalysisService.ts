@@ -2,6 +2,7 @@ import { GoogleGenAI } from '@google/genai';
 import { db } from './db.js';
 import { geminiTextService } from './geminiTextService.js';
 import { geminiSrsService } from './geminiSrsService.js';
+import { learningEvidenceService } from './learningEvidenceService.js';
 
 export type VocabCategory = 'A_mastered_used_well' | 'B_known_used_inaccurately' | 'C_newly_exposed' | 'D_needs_review';
 export type ErrorCategory = 'vocabulary' | 'grammar' | 'word_order' | 'particle' | 'sentence_structure' | 'unnatural_expression' | 'misunderstanding' | 'pronunciation';
@@ -415,6 +416,46 @@ Hãy trả lời HOÀN TOÀN bằng định dạng JSON thuần túy (không mar
           masteryTarget,
           sessionId
         );
+
+        // Ghi nhận Learning Evidence vào hệ thống bằng chứng (Phase A2)
+        try {
+          const eviType =
+            v.category === 'A_mastered_used_well'
+              ? 'application'
+              : v.category === 'B_known_used_inaccurately'
+              ? 'application'
+              : v.category === 'C_newly_exposed'
+              ? 'instruction'
+              : 'recall';
+
+          const isPass = v.category === 'A_mastered_used_well';
+          learningEvidenceService.recordEvidence({
+            rawText: v.simplified,
+            evidenceType: eviType,
+            action: 'chat_utterance',
+            sourceModule: sessionType === 'voice' ? 'voice_chat' : 'ai_tutor',
+            sessionId,
+            idempotencyKey: `chat_vocab_${sessionId}_${v.simplified}`,
+            observedData: {
+              speaker: 'user',
+              userUtterance: v.contextSnippet || v.simplified,
+              promptZh: v.simplified,
+              pinyinExpected: v.pinyin
+            },
+            assessmentData: {
+              isCorrect: isPass,
+              score: isPass ? 95 : (v.category === 'B_known_used_inaccurately' ? 45 : 30),
+              mistakeTypes: isPass ? [] : ['usage_inaccuracy']
+            },
+            inferenceData: {
+              pedagogicClaim: `Học viên sử dụng từ "${v.simplified}" trong hội thoại (${v.category})`,
+              scopeOfApplication: v.contextSnippet || 'Hội thoại'
+            },
+            assessmentMethod: 'ai_evaluation',
+            evaluator: 'ai_tutor_conversation_analysis',
+            confidence: v.confidence || 0.9
+          });
+        } catch {}
       }
     }
 

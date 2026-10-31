@@ -1958,6 +1958,82 @@ export class LocalBackendClient {
       return { success: false, error: e.message };
     }
   }
+
+  // ========================================================================
+  // LEARNING EVIDENCE METHODS (PHASE A2)
+  // ========================================================================
+
+  public async recordLearningEvidence(data: any): Promise<{
+    success: boolean;
+    data?: any;
+    isDuplicate?: boolean;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/evidence`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getEvidenceStats(): Promise<{ success: boolean; data?: any; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/evidence/stats`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getEvidenceTimeline(knowledgeId: string): Promise<{
+    success: boolean;
+    count?: number;
+    data?: any[];
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/evidence/timeline/${encodeURIComponent(knowledgeId)}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getEvidenceByKnowledge(
+    knowledgeId: string,
+    options?: { limit?: number; type?: string }
+  ): Promise<{ success: boolean; count?: number; data?: any[]; error?: string }> {
+    try {
+      const q = new URLSearchParams();
+      if (options?.limit) q.set('limit', String(options.limit));
+      if (options?.type) q.set('type', options.type);
+      const res = await fetch(`${this.getBaseUrl()}/api/evidence/knowledge/${encodeURIComponent(knowledgeId)}?${q.toString()}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async invalidateEvidence(
+    evidenceId: string,
+    reason: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/evidence/${encodeURIComponent(evidenceId)}/invalidate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
 }
 
 export const backendClient = new LocalBackendClient();

@@ -44,7 +44,10 @@ export type KnowledgePrefix =
   | 'SNS' // Sense (Ý nghĩa cụ thể)
   | 'REL' // Relation (Quan hệ tri thức)
   | 'ALI' // Alias (Tên gọi khác / phiên âm)
-  | 'DUP'; // Duplicate candidate
+  | 'DUP' // Duplicate candidate
+  | 'EVI' // Learning Evidence (Bằng chứng học tập)
+  | 'COR' // Evidence Correction (Đính chính / vô hiệu hóa bằng chứng)
+  | 'EVR'; // Evidence Relation (Quan hệ giữa các bằng chứng)
 
 /**
  * Tạo định danh kiến thức thống nhất có prefix nhận diện

@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { db } from './db.js';
 import { geminiTextService } from './geminiTextService.js';
+import { learningEvidenceService } from './learningEvidenceService.js';
 
 export type SrsItemType = 'vocabulary' | 'grammar' | 'phrase' | 'error';
 export type SrsUserRating = 'again' | 'hard' | 'good' | 'easy';
@@ -518,13 +519,47 @@ export class GeminiSrsService {
       );
     }
 
+    // D. Ghi nhận Learning Evidence vào hệ thống bằng chứng học tập (Phase A2)
+    try {
+      const kid = row.knowledge_id || null;
+      if (kid || row.prompt_zh) {
+        learningEvidenceService.recordEvidence({
+          knowledgeId: kid || undefined,
+          rawText: !kid ? row.prompt_zh : undefined,
+          evidenceType: 'review',
+          action: 'srs_rating',
+          sourceModule: 'srs',
+          sessionId: params.sessionId,
+          idempotencyKey: `srs_rev_${params.itemId}_${now}`,
+          observedData: {
+            speaker: 'user',
+            providedAnswer: params.userAnswer,
+            promptZh: row.prompt_zh
+          },
+          assessmentData: {
+            isCorrect: !isObjectiveFailed,
+            score: sm2.quality * 20,
+            srsRating: params.userRating,
+            intervalDays: sm2.newInterval,
+            easeFactor: sm2.newEF,
+            timeSpentMs: params.durationMs || 0
+          },
+          assessmentMethod: 'deterministic_rule',
+          evaluator: 'sm2_engine',
+          confidence: 1.0
+        });
+      }
+    } catch (e) {
+      console.warn('Lỗi ghi nhận learning evidence SRS:', e);
+    }
+
     // D. Đồng bộ ngược lại Long-Term Memory
     if (row.item_type === 'vocabulary') {
       try {
         db.prepare(`
           UPDATE vocabulary_memory
           SET mastery_level = ?,
-              recall_count = recall_count + 1,
+              review_count = review_count + 1,
               last_reviewed_at = ?
           WHERE id = ? OR simplified = ?
         `).run(
@@ -541,6 +576,7 @@ export class GeminiSrsService {
         db.prepare(`
           UPDATE grammar_memory
           SET mastery_level = ?,
+              review_count = review_count + 1,
               last_reviewed_at = ?
           WHERE id = ? OR pattern_name = ?
         `).run(

@@ -22,6 +22,7 @@ import { geminiDictionaryService } from './geminiDictionaryService.js';
 import { geminiReadingService } from './geminiReadingService.js';
 import { aiTutorEngine } from './aiTutorEngine.js';
 import { knowledgeRegistryService } from './knowledgeRegistryService.js';
+import { learningEvidenceService } from './learningEvidenceService.js';
 import { tokenizeChinese } from '../src/data/seedDictionary.js';
 
 const app = express();
@@ -1693,6 +1694,111 @@ app.post('/api/knowledge/merge', (req, res) => {
 app.post('/api/knowledge/:id/archive', (req, res) => {
   try {
     const ok = knowledgeRegistryService.archiveKnowledge(req.params.id);
+    res.json({ success: ok });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ========================================================================
+// LEARNING EVIDENCE SYSTEM APIS (HỆ THỐNG GHI NHẬN BẰNG CHỨNG HỌC TẬP)
+// ========================================================================
+
+// 1. Ghi nhận một Bằng chứng học tập mới (Append-Only)
+app.post('/api/evidence', (req, res) => {
+  try {
+    const result = learningEvidenceService.recordEvidence(req.body);
+    res.json({ success: true, data: result.evidence, isDuplicate: result.isDuplicate });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 2. Thống kê toàn cảnh hệ thống bằng chứng học tập (Audit Stats)
+app.get('/api/evidence/stats', (_req, res) => {
+  try {
+    const stats = learningEvidenceService.getEvidenceStatistics();
+    res.json({ success: true, data: stats });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 3. Lấy danh sách bằng chứng gần đây
+app.get('/api/evidence/recent', (req, res) => {
+  try {
+    const limit = Number(req.query.limit || 50);
+    const filterType = req.query.type ? (String(req.query.type) as any) : undefined;
+    const evidences = learningEvidenceService.getRecentEvidence(limit, filterType);
+    res.json({ success: true, count: evidences.length, data: evidences });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 4. Lấy lịch sử bằng chứng theo Knowledge ID
+app.get('/api/evidence/knowledge/:knowledgeId', (req, res) => {
+  try {
+    const { limit, offset, type, includeInvalidated } = req.query;
+    const evidences = learningEvidenceService.getEvidenceByKnowledge(req.params.knowledgeId, {
+      limit: limit ? Number(limit) : undefined,
+      offset: offset ? Number(offset) : undefined,
+      type: type ? (String(type) as any) : undefined,
+      includeInvalidated: includeInvalidated === 'true'
+    });
+    res.json({ success: true, count: evidences.length, data: evidences });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 5. Trích xuất Timeline tiến trình học tập của một kiến thức
+app.get('/api/evidence/timeline/:knowledgeId', (req, res) => {
+  try {
+    const timeline = learningEvidenceService.getEvidenceTimeline(req.params.knowledgeId);
+    res.json({ success: true, count: timeline.length, data: timeline });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 6. Lấy bằng chứng theo Phiên học (Session ID)
+app.get('/api/evidence/session/:sessionId', (req, res) => {
+  try {
+    const evidences = learningEvidenceService.getEvidenceBySession(req.params.sessionId);
+    res.json({ success: true, count: evidences.length, data: evidences });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 7. Lấy bằng chứng theo Module Nguồn
+app.get('/api/evidence/source/:sourceModule', (req, res) => {
+  try {
+    const limit = req.query.limit ? Number(req.query.limit) : undefined;
+    const evidences = learningEvidenceService.getEvidenceBySource(req.params.sourceModule as any, { limit });
+    res.json({ success: true, count: evidences.length, data: evidences });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 8. Vô hiệu hóa một bằng chứng (Invalidate Evidence - Không xóa dòng)
+app.post('/api/evidence/:id/invalidate', (req, res) => {
+  try {
+    const { reason, correctedBy } = req.body;
+    const ok = learningEvidenceService.invalidateEvidence(req.params.id, reason, correctedBy);
+    res.json({ success: ok });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 9. Liên kết quan hệ chuỗi bằng chứng (Error -> Correction, Retry...)
+app.post('/api/evidence/link', (req, res) => {
+  try {
+    const { sourceId, targetId, relationType } = req.body;
+    const ok = learningEvidenceService.linkRelatedEvidences(sourceId, targetId, relationType);
     res.json({ success: ok });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });

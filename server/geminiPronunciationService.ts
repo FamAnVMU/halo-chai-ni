@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { db } from './db.js';
 import { geminiTextService } from './geminiTextService.js';
+import { learningEvidenceService } from './learningEvidenceService.js';
 
 export interface PronunciationEvaluationInput {
   targetText: string;
@@ -250,6 +251,42 @@ Quy tắc: Tiếng Việt sư phạm, gần gũi, chỉ rõ lỗi âm uốn lư�
 
     // 6. Cập nhật bảng điểm yếu phát âm `pronunciation_weaknesses` và liên thông bộ nhớ dài hạn
     this.updateWeaknessTracking(input, calculatedScore, detectedSoundKeys, now);
+
+    // 7. Ghi nhận Pronunciation Evidence vào Learning Evidence System (Phase A2)
+    try {
+      learningEvidenceService.recordEvidence({
+        rawText: input.targetText,
+        evidenceType: 'pronunciation',
+        action: 'pronunciation_trial',
+        sourceModule: 'pronunciation_lab',
+        idempotencyKey: `pro_eval_${recordId}`,
+        observedData: {
+          speaker: 'user',
+          userUtterance: cleanSpoken,
+          promptZh: input.targetText,
+          pinyinExpected: input.targetPinyin,
+          audioMetrics: {
+            actualDurationMs,
+            expectedDurationMs,
+            durationRatio: Math.round(durationRatio * 100) / 100,
+            speedPacing
+          }
+        },
+        assessmentData: {
+          isCorrect: isMatch,
+          score: calculatedScore,
+          acousticAccuracy: accuracyGrade,
+          matchRate: isMatch ? 1.0 : calculatedScore / 100,
+          timeSpentMs: actualDurationMs,
+          charMatches: wordAnalysis
+        },
+        assessmentMethod: 'audio_evaluation',
+        evaluator: 'acoustic_analyzer',
+        confidence: 0.95
+      });
+    } catch (e) {
+      console.warn('Lỗi ghi nhận learning evidence Pronunciation:', e);
+    }
 
     return {
       recordId,

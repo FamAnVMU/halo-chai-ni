@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { db } from './db.js';
 import { geminiTextService } from './geminiTextService.js';
+import { learningEvidenceService } from './learningEvidenceService.js';
 import {
   SEED_READING_PASSAGES,
   ReadingPassageItem,
@@ -961,6 +962,32 @@ Trả về JSON DUY NHẤT:
       now,
       now
     );
+
+    // 3. Ghi nhận Learning Evidence vào hệ thống bằng chứng (Phase A2)
+    try {
+      learningEvidenceService.recordEvidence({
+        rawText: wordZh,
+        evidenceType: 'recognition',
+        action: 'reading_word_save',
+        sourceModule: 'reading',
+        observedData: {
+          speaker: 'user',
+          promptZh: wordZh,
+          pinyinExpected: wordPinyin,
+          userText: wordZh
+        },
+        assessmentData: {
+          isCorrect: true,
+          score: 100
+        },
+        inferenceData: {
+          pedagogicClaim: `Người học nhận diện và lưu từ "${wordZh}" từ bài đọc vào hàng đợi ôn tập.`
+        },
+        assessmentMethod: 'human_confirmation',
+        evaluator: 'user_self_report',
+        confidence: 0.95
+      });
+    } catch {}
 
     return {
       success: true,
