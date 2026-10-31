@@ -13,6 +13,7 @@ import { geminiTextService } from './geminiTextService.js';
 import { geminiLiveService } from './geminiLiveService.js';
 import { geminiLessonService } from './geminiLessonService.js';
 import { geminiPlacementService } from './geminiPlacementService.js';
+import { geminiPathService } from './geminiPathService.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -730,7 +731,137 @@ app.post('/api/placement/sync-profile', async (req, res) => {
   try {
     const { testId } = req.body;
     const syncResult = await geminiPlacementService.syncResultToLearnerProfile(testId);
+    
+    // Tự động khởi tạo hoặc cập nhật lại lộ trình thích ứng theo kết quả khảo sát
+    try {
+      await geminiPathService.generateAdaptivePath({
+        forceNew: true,
+        targetHsk: syncResult.targetHsk
+      });
+    } catch (e: any) {
+      console.warn('Lỗi tự động sinh lộ trình thích ứng sau sync placement:', e.message);
+    }
+
     res.json({ success: true, data: syncResult });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==================== ADAPTIVE LEARNING PATH ROUTES ====================
+
+// Lấy thông tin chi tiết lộ trình thích ứng hiện tại
+app.get('/api/path/current', async (req, res) => {
+  try {
+    const pathDetail = await geminiPathService.getPathDetail();
+    res.json({ success: true, data: pathDetail });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Sinh mới hoặc tái tạo lộ trình học thích ứng theo mục tiêu
+app.post('/api/path/generate', async (req, res) => {
+  try {
+    const result = await geminiPathService.generateAdaptivePath(req.body || {});
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// AI phân tích và tái cân bằng lộ trình (Dynamic Rebalance)
+app.post('/api/path/rebalance', async (req, res) => {
+  try {
+    const result = await geminiPathService.rebalancePath(req.body || {});
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Cập nhật mục tiêu cá nhân (thời hạn, số phút/ngày, số ngày/tuần, HSK đích)
+app.post('/api/path/update-goals', async (req, res) => {
+  try {
+    const result = await geminiPathService.updateGoals(req.body);
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Khóa hoặc mở khóa một giai đoạn học (Lock stage)
+app.post('/api/path/lock-stage', async (req, res) => {
+  try {
+    const { stageId, isLocked } = req.body;
+    if (!stageId) {
+      return res.status(400).json({ success: false, error: 'Thiếu stageId' });
+    }
+    const result = await geminiPathService.lockStage(stageId, Boolean(isLocked));
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Dời lịch học sang ngày khác trong tuần
+app.post('/api/path/reschedule-item', async (req, res) => {
+  try {
+    const { scheduleId, newDayOfWeek } = req.body;
+    if (!scheduleId || newDayOfWeek === undefined) {
+      return res.status(400).json({ success: false, error: 'Thiếu scheduleId hoặc newDayOfWeek' });
+    }
+    const result = await geminiPathService.rescheduleItem(scheduleId, Number(newDayOfWeek));
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Đánh dấu hoàn thành một mục trong lịch học tuần
+app.post('/api/path/complete-schedule-item', async (req, res) => {
+  try {
+    const { scheduleId } = req.body;
+    if (!scheduleId) {
+      return res.status(400).json({ success: false, error: 'Thiếu scheduleId' });
+    }
+    const result = await geminiPathService.completeScheduleItem(scheduleId);
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Bắt đầu học một bài trong lộ trình (Tự động gọi Gemini sinh bài nếu chưa có)
+app.post('/api/path/item/:itemId/start', async (req, res) => {
+  try {
+    const { itemId } = req.params;
+    const result = await geminiPathService.startPathItem(itemId);
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Xem lịch sử các phiên bản lộ trình
+app.get('/api/path/versions/:pathId', async (req, res) => {
+  try {
+    const versions = await geminiPathService.getVersions(req.params.pathId);
+    res.json({ success: true, data: versions });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Khôi phục một phiên bản lộ trình trước đó
+app.post('/api/path/restore-version', async (req, res) => {
+  try {
+    const { versionId } = req.body;
+    if (!versionId) {
+      return res.status(400).json({ success: false, error: 'Thiếu versionId' });
+    }
+    const result = await geminiPathService.restoreVersion(versionId);
+    res.json({ success: true, data: result });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }

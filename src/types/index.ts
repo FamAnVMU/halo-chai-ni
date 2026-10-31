@@ -341,3 +341,105 @@ export interface PlacementHistoryItem {
   weaknessesCount: number;
   syncedToProfile: boolean;
 }
+
+// ==================== ADAPTIVE LEARNING PATH TYPES ====================
+
+export interface PathStage {
+  id: string;
+  pathId: string;
+  stageNumber: number;
+  title: string;
+  descriptionVi: string;
+  stageType: 'foundation_reinforce' | 'expansion' | 'application' | 'mastery_review';
+  status: 'locked' | 'unlocked' | 'in_progress' | 'completed';
+  isLockedByUser: boolean;
+  progressPercent: number;
+  orderIndex: number;
+  items: PathItem[];
+}
+
+export interface PathItem {
+  id: string;
+  stageId: string;
+  pathId: string;
+  title: string;
+  itemType: 'lesson' | 'review_srs' | 'error_remediation' | 'practice_drill' | 'checkpoint_exam';
+  hskLevel: number;
+  estimatedMinutes: number;
+  recommendationReason: string;
+  prerequisites: string[];
+  targetKnowledge: string[];
+  lessonId?: string;
+  status: 'locked' | 'available' | 'in_progress' | 'needs_review' | 'completed';
+  score?: number;
+  orderIndex: number;
+  completedAt?: number;
+}
+
+export interface PathMilestone {
+  id: string;
+  pathId: string;
+  title: string;
+  descriptionVi: string;
+  targetType: 'topic_complete' | 'vocab_mastery' | 'grammar_mastery' | 'stage_complete' | 'score_target' | 'exam_pass';
+  requiredCriteria: string[];
+  progressPercent: number;
+  status: 'pending' | 'achieved';
+  achievedAt?: number;
+  orderIndex: number;
+}
+
+export interface ScheduleItem {
+  id: string;
+  pathId: string;
+  itemId?: string;
+  dayOfWeek: number;
+  dayName: string;
+  scheduledDate?: string;
+  activityTitle: string;
+  activityType: 'vocab_review' | 'grammar_lesson' | 'listening_drill' | 'conversation_tutor' | 'reading_writing' | 'comprehensive_quiz';
+  estimatedMinutes: number;
+  reason: string;
+  isCompleted: boolean;
+  completedAt?: number;
+}
+
+export interface PathVersion {
+  id: string;
+  versionNumber: number;
+  triggerReason: string;
+  changesSummary: string;
+  createdAt: number;
+}
+
+export interface AdaptiveLearningPathDetail {
+  id: string;
+  userId: string;
+  title: string;
+  currentHsk: number;
+  targetHsk: number;
+  primaryGoal: 'hsk_exam' | 'daily_communication' | 'business_work' | 'travel_study';
+  dailyMinutes: number;
+  daysPerWeek: number;
+  targetCompletionDate?: string;
+  status: 'active' | 'paused' | 'completed';
+  currentStageId?: string;
+  progressPercent: number;
+  version: number;
+  stages: PathStage[];
+  milestones: PathMilestone[];
+  schedule: ScheduleItem[];
+  nextRecommendedItem?: PathItem;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface UpdateGoalsParams {
+  pathId?: string;
+  targetHsk?: number;
+  primaryGoal?: 'hsk_exam' | 'daily_communication' | 'business_work' | 'travel_study';
+  dailyMinutes?: number;
+  daysPerWeek?: number;
+  targetCompletionDate?: string;
+}
+

@@ -94,6 +94,27 @@ export class GeminiTextService {
     const weaknesses = profile.weaknesses_json ? JSON.parse(profile.weaknesses_json) : [];
     const strengths = profile.strengths_json ? JSON.parse(profile.strengths_json) : [];
 
+    // Lấy thông tin bài học và giai đoạn trong lộ trình thích ứng hiện tại
+    let activeStageName = '';
+    let activeItemTitle = '';
+    let activeItemGoal = '';
+    try {
+      const currentPath = db.prepare(`SELECT id, target_hsk FROM adaptive_learning_paths WHERE status = 'active' ORDER BY created_at DESC LIMIT 1`).get() as any;
+      if (currentPath) {
+        const activeStage = db.prepare(`SELECT id, stage_name, title FROM learning_path_stages WHERE path_id = ? AND status = 'in_progress' LIMIT 1`).get(currentPath.id) as any;
+        if (activeStage) {
+          activeStageName = `${activeStage.stage_name} - ${activeStage.title}`;
+        }
+        const activeItem = db.prepare(`SELECT title, target_concept, reason_recommendation FROM learning_path_items WHERE path_id = ? AND status IN ('in_progress', 'ready') ORDER BY order_index ASC LIMIT 1`).get(currentPath.id) as any;
+        if (activeItem) {
+          activeItemTitle = activeItem.title;
+          activeItemGoal = `${activeItem.target_concept} (${activeItem.reason_recommendation})`;
+        }
+      }
+    } catch (e) {
+      // Silent fallback
+    }
+
     const systemPrompt = `
 Bạn là "Lão Sư AI" (老师) - Giáo viên dạy tiếng Trung cá nhân tận tâm, kiên nhẫn, thân thiện dành riêng cho người Việt Nam.
 Trình độ người học: HSK ${profile.current_hsk || hskLevel} (Mục tiêu: HSK ${profile.target_hsk || 3}).
@@ -111,6 +132,11 @@ Chế độ học tập hiện tại: ${mode} ${scenario ? `(Tình huống đón
    - LỖI SAI THƯỜNG GẶP CẦN ĐỂ Ý ĐẶC BIỆT:
      ${pendingErrors.map(e => `* ${e.title} -> Câu sai: "${e.user_sentence}" (Đúng: "${e.corrected_sentence}")`).join('\n     ') || 'Chưa có lỗi nào được ghi nhận'}
    - Điểm yếu chung: ${weaknesses.join(', ') || 'Chưa có'}
+
+3. LỘ TRÌNH HỌC TẬP THÍCH ỨNG HIỆN TẠI (Adaptive Learning Path):
+   - Giai đoạn đang học: ${activeStageName || 'Giai đoạn khởi động'}
+   - Bài học/Chủ đề trọng tâm đang thực hiện: ${activeItemTitle || 'Hội thoại tự do'} ${activeItemGoal ? `[Mục tiêu: ${activeItemGoal}]` : ''}
+   - Hãy chủ động lồng ghép khéo léo từ vựng, cấu trúc ngữ pháp của bài học này vào cuộc trò chuyện để giúp học viên thực hành và ghi nhớ sâu sắc!
 
 QUY TẮC BẮT BUỘC:
 1. Luôn sử dụng tiếng Trung phù hợp với cấp độ HSK ${hskLevel} của người học. Đừng dùng từ quá cao siêu hoặc văn phong quá hàn lâm trừ khi ở cấp cao.

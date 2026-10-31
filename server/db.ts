@@ -246,6 +246,112 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_placement_questions_test ON placement_questions(test_id);
   CREATE INDEX IF NOT EXISTS idx_placement_answers_test ON placement_answers(test_id);
   CREATE INDEX IF NOT EXISTS idx_placement_results_test ON placement_results(test_id);
+
+  -- ==================== ADAPTIVE LEARNING PATH TABLES ====================
+  -- Core Path Configuration
+  CREATE TABLE IF NOT EXISTS adaptive_learning_paths (
+    id TEXT PRIMARY KEY,
+    user_id TEXT DEFAULT 'default',
+    title TEXT NOT NULL,
+    current_hsk INTEGER NOT NULL DEFAULT 1,
+    target_hsk INTEGER NOT NULL DEFAULT 3,
+    primary_goal TEXT DEFAULT 'hsk_exam', -- 'hsk_exam', 'daily_communication', 'business_work', 'travel_study'
+    daily_minutes INTEGER DEFAULT 30,
+    days_per_week INTEGER DEFAULT 5,
+    target_completion_date TEXT,
+    status TEXT DEFAULT 'active', -- 'active', 'paused', 'completed'
+    current_stage_id TEXT,
+    progress_percent REAL DEFAULT 0,
+    version INTEGER DEFAULT 1,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+
+  -- Learning Stages (Giai đoạn lộ trình)
+  CREATE TABLE IF NOT EXISTS learning_path_stages (
+    id TEXT PRIMARY KEY,
+    path_id TEXT NOT NULL,
+    stage_number INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    description_vi TEXT NOT NULL,
+    stage_type TEXT NOT NULL, -- 'foundation_reinforce', 'expansion', 'application', 'mastery_review'
+    status TEXT DEFAULT 'locked', -- 'locked', 'unlocked', 'in_progress', 'completed'
+    is_locked_by_user INTEGER DEFAULT 0,
+    progress_percent REAL DEFAULT 0,
+    order_index INTEGER NOT NULL,
+    FOREIGN KEY(path_id) REFERENCES adaptive_learning_paths(id) ON DELETE CASCADE
+  );
+
+  -- Learning Items (Bài học & Hoạt động cụ thể trong giai đoạn)
+  CREATE TABLE IF NOT EXISTS learning_path_items (
+    id TEXT PRIMARY KEY,
+    stage_id TEXT NOT NULL,
+    path_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    item_type TEXT NOT NULL, -- 'lesson', 'review_srs', 'error_remediation', 'practice_drill', 'checkpoint_exam'
+    hsk_level INTEGER NOT NULL,
+    estimated_minutes INTEGER DEFAULT 25,
+    recommendation_reason TEXT NOT NULL,
+    prerequisites_json TEXT, -- array of prerequisite descriptions or item ids
+    target_knowledge_json TEXT, -- array of vocab/grammar tags
+    lesson_id TEXT, -- link to generated_lessons if created
+    status TEXT DEFAULT 'locked', -- 'locked', 'available', 'in_progress', 'needs_review', 'completed'
+    score INTEGER,
+    order_index INTEGER NOT NULL,
+    completed_at INTEGER,
+    FOREIGN KEY(stage_id) REFERENCES learning_path_stages(id) ON DELETE CASCADE,
+    FOREIGN KEY(path_id) REFERENCES adaptive_learning_paths(id) ON DELETE CASCADE
+  );
+
+  -- Milestones (Cột mốc tiến bộ)
+  CREATE TABLE IF NOT EXISTS learning_path_milestones (
+    id TEXT PRIMARY KEY,
+    path_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description_vi TEXT NOT NULL,
+    target_type TEXT NOT NULL, -- 'topic_complete', 'vocab_mastery', 'grammar_mastery', 'stage_complete', 'score_target', 'exam_pass'
+    required_criteria_json TEXT NOT NULL,
+    progress_percent REAL DEFAULT 0,
+    status TEXT DEFAULT 'pending', -- 'pending', 'achieved'
+    achieved_at INTEGER,
+    order_index INTEGER NOT NULL,
+    FOREIGN KEY(path_id) REFERENCES adaptive_learning_paths(id) ON DELETE CASCADE
+  );
+
+  -- Learning Schedule (Lịch học thông minh theo ngày/tuần)
+  CREATE TABLE IF NOT EXISTS learning_schedule_items (
+    id TEXT PRIMARY KEY,
+    path_id TEXT NOT NULL,
+    item_id TEXT,
+    day_of_week INTEGER NOT NULL, -- 1 = Thứ 2, 2 = Thứ 3, ..., 7 = Chủ nhật
+    scheduled_date TEXT, -- YYYY-MM-DD
+    activity_title TEXT NOT NULL,
+    activity_type TEXT NOT NULL, -- 'vocab_review', 'grammar_lesson', 'listening_drill', 'conversation_tutor', 'reading_writing', 'comprehensive_quiz'
+    estimated_minutes INTEGER NOT NULL DEFAULT 30,
+    reason TEXT NOT NULL,
+    is_completed INTEGER DEFAULT 0,
+    completed_at INTEGER,
+    FOREIGN KEY(path_id) REFERENCES adaptive_learning_paths(id) ON DELETE CASCADE
+  );
+
+  -- Path Version History (Lưu lịch sử điều chỉnh của AI)
+  CREATE TABLE IF NOT EXISTS learning_path_versions (
+    id TEXT PRIMARY KEY,
+    path_id TEXT NOT NULL,
+    version_number INTEGER NOT NULL,
+    trigger_reason TEXT NOT NULL,
+    changes_summary TEXT NOT NULL,
+    snapshot_json TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY(path_id) REFERENCES adaptive_learning_paths(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_path_user ON adaptive_learning_paths(user_id);
+  CREATE INDEX IF NOT EXISTS idx_stages_path ON learning_path_stages(path_id);
+  CREATE INDEX IF NOT EXISTS idx_items_stage ON learning_path_items(stage_id);
+  CREATE INDEX IF NOT EXISTS idx_milestones_path ON learning_path_milestones(path_id);
+  CREATE INDEX IF NOT EXISTS idx_schedule_path ON learning_schedule_items(path_id);
+  CREATE INDEX IF NOT EXISTS idx_path_versions ON learning_path_versions(path_id);
 `);
 
 // Seed default learner profile if empty

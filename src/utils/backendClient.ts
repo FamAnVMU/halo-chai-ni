@@ -410,6 +410,146 @@ export class LocalBackendClient {
       return { success: false, error: e.message };
     }
   }
+
+  // ==================== ADAPTIVE LEARNING PATH ====================
+
+  public async getCurrentPath() {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/path/current`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async generateAdaptivePath(params: {
+    forceNew?: boolean;
+    targetHsk?: number;
+    targetTimelineMonths?: number;
+    dailyMinutes?: number;
+    daysPerWeek?: number;
+    learningFocus?: string;
+  } = {}) {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/path/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async rebalancePath(params: {
+    reason?: string;
+    newHskEstimate?: number;
+    trigger?: 'lesson_completed' | 'test_completed' | 'manual';
+    score?: number;
+  } = {}) {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/path/rebalance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async updatePathGoals(params: {
+    targetHsk?: number;
+    targetTimelineMonths?: number;
+    dailyMinutes?: number;
+    daysPerWeek?: number;
+    learningFocus?: string;
+  }) {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/path/update-goals`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async lockPathStage(stageId: string, isLocked: boolean) {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/path/lock-stage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stageId, isLocked })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async rescheduleScheduleItem(scheduleId: string, newDayOfWeek: number) {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/path/reschedule-item`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduleId, newDayOfWeek })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async completeScheduleItem(scheduleId: string) {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/path/complete-schedule-item`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduleId })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async startPathItem(itemId: string) {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/path/item/${itemId}/start`, {
+        method: 'POST'
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getPathVersions(pathId: string) {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/path/versions/${pathId}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async restorePathVersion(versionId: string) {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/path/restore-version`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ versionId })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
 }
 
 export const backendClient = new LocalBackendClient();
