@@ -59,7 +59,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
     { id: 'vocab', label: 'Từ vựng & SRS', subLabel: 'Ghi nhớ lặp lại', icon: BookOpen },
     { id: 'grammar', label: 'Ngữ pháp', subLabel: 'Cấu trúc & Lỗi sai', icon: BookmarkCheck },
     { id: 'practice', label: 'Luyện tập', subLabel: '11 dạng tương tác', icon: Dumbbell },
-    { id: 'pronounce', label: 'Luyện phát âm', subLabel: 'Pinyin & Chấm điểm', icon: Mic },
+    {
+      id: 'pronounce',
+      label: 'Luyện phát âm',
+      subLabel: 'Phòng Lab Pinyin & AI',
+      icon: Mic,
+      highlight: true
+    },
     { id: 'write', label: 'Luyện viết', subLabel: 'Thứ tự nét bút', icon: PenTool },
     { id: 'reading', label: 'Đọc hiểu', subLabel: 'Truyện phân cấp', icon: BookMarked },
     { id: 'listening', label: 'Nghe hiểu', subLabel: 'Luyện nghe HSK', icon: Headphones },

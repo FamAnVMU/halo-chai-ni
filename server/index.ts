@@ -16,6 +16,7 @@ import { geminiPlacementService } from './geminiPlacementService.js';
 import { geminiPathService } from './geminiPathService.js';
 import { geminiSrsService } from './geminiSrsService.js';
 import { geminiAnalysisService } from './geminiAnalysisService.js';
+import { geminiPronunciationService } from './geminiPronunciationService.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -1027,6 +1028,60 @@ app.post('/api/analysis/save-message', (req, res) => {
     });
     res.json({ success: true, data: result });
   } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==================== CHINESE PRONUNCIATION LAB ====================
+// Đánh giá phát âm trung thực (3 lớp: Âm học, ASR, Sư phạm AI)
+app.post('/api/pronunciation/evaluate', async (req, res) => {
+  try {
+    const result = await geminiPronunciationService.evaluate(req.body);
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    console.error('Pronunciation evaluate error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Thống kê tiến bộ phát âm
+app.get('/api/pronunciation/stats', (req, res) => {
+  try {
+    const stats = geminiPronunciationService.getStats();
+    res.json({ success: true, data: stats });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Lịch sử luyện phát âm
+app.get('/api/pronunciation/history', (req, res) => {
+  try {
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
+    const history = geminiPronunciationService.getHistory(limit);
+    res.json({ success: true, data: history });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Xóa bản ghi lịch sử phát âm
+app.delete('/api/pronunciation/history/:id', (req, res) => {
+  try {
+    const success = geminiPronunciationService.deleteRecord(req.params.id);
+    res.json({ success });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// AI sinh bài luyện phát âm cá nhân hóa từ điểm yếu lưu trong SQLite
+app.post('/api/pronunciation/generate-drills', async (req, res) => {
+  try {
+    const drills = await geminiPronunciationService.generatePersonalizedDrills();
+    res.json({ success: true, data: drills });
+  } catch (err: any) {
+    console.error('Pronunciation generate-drills error:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });

@@ -419,6 +419,47 @@ db.exec(`
     completed_at INTEGER
   );
 
+  -- ==================== CHINESE PRONUNCIATION LAB TABLES ====================
+  -- Pronunciation Practice Records
+  CREATE TABLE IF NOT EXISTS pronunciation_records (
+    id TEXT PRIMARY KEY,
+    user_id TEXT DEFAULT 'default',
+    target_text TEXT NOT NULL,
+    target_pinyin TEXT NOT NULL,
+    target_type TEXT NOT NULL, -- 'initial', 'final', 'tone', 'syllable', 'word', 'sentence', 'contrast_pair', 'custom'
+    mode TEXT NOT NULL, -- 'pinyin', 'tones', 'initials', 'finals', 'syllables', 'words', 'sentences', 'minimal_pairs', 'assessment', 'free_ai'
+    spoken_transcript TEXT,
+    score REAL DEFAULT 0,
+    is_match INTEGER DEFAULT 0,
+    audio_duration_ms INTEGER DEFAULT 0,
+    audio_metrics_json TEXT, -- duration, energy, pitch note, etc.
+    word_analysis_json TEXT, -- character by character analysis
+    tone_feedback_vi TEXT,
+    phonetic_feedback_vi TEXT,
+    strengths_json TEXT,
+    improvements_json TEXT,
+    practice_tip_vi TEXT,
+    created_at INTEGER NOT NULL
+  );
+
+  -- Pronunciation Weaknesses (Track specific sounds student struggles with: e.g. zh, z, ch, c, tone 3, tone 4)
+  CREATE TABLE IF NOT EXISTS pronunciation_weaknesses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT DEFAULT 'default',
+    sound_key TEXT NOT NULL UNIQUE, -- e.g. 'initial_zh', 'initial_z', 'tone_3', 'tone_4', 'pair_zh_z'
+    sound_category TEXT NOT NULL, -- 'initial', 'final', 'tone', 'sandhi', 'pair'
+    title TEXT NOT NULL,
+    error_count INTEGER DEFAULT 1,
+    practice_count INTEGER DEFAULT 1,
+    mastery_level TEXT DEFAULT 'struggling', -- 'struggling', 'learning', 'good', 'mastered'
+    last_practiced_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_pronounce_user_mode ON pronunciation_records(user_id, mode);
+  CREATE INDEX IF NOT EXISTS idx_pronounce_created ON pronunciation_records(created_at);
+  CREATE INDEX IF NOT EXISTS idx_pronounce_weak_sound ON pronunciation_weaknesses(sound_key);
+
   CREATE INDEX IF NOT EXISTS idx_srs_next_review ON srs_items(next_review_at, status);
   CREATE INDEX IF NOT EXISTS idx_srs_type_ref ON srs_items(item_type, reference_id);
   CREATE INDEX IF NOT EXISTS idx_srs_lapses ON srs_items(lapses);

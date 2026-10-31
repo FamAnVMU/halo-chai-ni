@@ -33,6 +33,68 @@ export interface BackendKeyConfig {
   };
 }
 
+export interface PronunciationEvalParams {
+  targetText: string;
+  targetPinyin: string;
+  targetType: 'initial' | 'final' | 'tone' | 'syllable' | 'word' | 'sentence' | 'contrast_pair' | 'custom';
+  mode: string;
+  spokenTranscript: string;
+  audioDurationMs: number;
+  expectedDurationMs?: number;
+}
+
+export interface PronunciationEvalResult {
+  recordId: string;
+  targetText: string;
+  targetPinyin: string;
+  spokenTranscript: string;
+  score: number;
+  isMatch: boolean;
+  accuracyGrade: 'excellent' | 'good' | 'fair' | 'needs_improvement';
+  audioMetrics: {
+    durationMs: number;
+    expectedDurationMs: number;
+    durationAssessment: string;
+    speedPacing: 'too_fast' | 'natural' | 'too_slow';
+  };
+  wordAnalysis: Array<{
+    char: string;
+    pinyin: string;
+    status: 'correct' | 'substituted' | 'omitted';
+    spokenChar?: string;
+  }>;
+  toneFeedbackVi: string;
+  phoneticFeedbackVi: string;
+  strengths: string[];
+  improvements: string[];
+  practiceTipVi: string;
+}
+
+export interface PronunciationStats {
+  totalPractices: number;
+  accuracyAverage: number;
+  masteredSoundsCount: number;
+  strugglingSoundsCount: number;
+  masteredSounds: string[];
+  strugglingSounds: string[];
+  recentActivityCount: number;
+}
+
+export interface PersonalizedDrillsResult {
+  drills: Array<{
+    id: string;
+    title: string;
+    targetSound: string;
+    zh: string;
+    pinyin: string;
+    vi: string;
+    explanationVi: string;
+    tongueShapeTips?: string;
+  }>;
+  focusAreas: string[];
+  source: string;
+}
+
 export class LocalBackendClient {
   public getServerHost(): string {
     return localStorage.getItem('halo_server_host') || 'localhost:3001';
@@ -777,6 +839,77 @@ export class LocalBackendClient {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(params)
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  // ==================== PRONUNCIATION LAB ====================
+  public async evaluatePronunciation(params: PronunciationEvalParams): Promise<{
+    success: boolean;
+    data?: PronunciationEvalResult;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/pronunciation/evaluate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getPronunciationStats(): Promise<{
+    success: boolean;
+    data?: PronunciationStats;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/pronunciation/stats`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getPronunciationHistory(limit: number = 20): Promise<{
+    success: boolean;
+    data?: any[];
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/pronunciation/history?limit=${limit}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async deletePronunciationRecord(id: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/pronunciation/history/${id}`, {
+        method: 'DELETE'
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async generatePronunciationDrills(): Promise<{
+    success: boolean;
+    data?: PersonalizedDrillsResult;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/pronunciation/generate-drills`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
       });
       return await res.json();
     } catch (e: any) {

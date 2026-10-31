@@ -100,7 +100,7 @@ export function App() {
     { id: 'vocab', label: 'Từ vựng & Flashcard SRS', icon: BookOpen },
     { id: 'grammar', label: 'Ngữ pháp HSK', icon: BookmarkCheck },
     { id: 'practice', label: 'Luyện tập tương tác (11 dạng)', icon: Dumbbell },
-    { id: 'pronounce', label: 'Luyện phát âm & Pinyin', icon: Mic },
+    { id: 'pronounce', label: 'Luyện phát âm & Phòng Lab AI', icon: Mic },
     { id: 'write', label: 'Luyện viết chữ Hán', icon: PenTool },
     { id: 'reading', label: 'Thư viện đọc hiểu', icon: BookMarked },
     { id: 'listening', label: 'Luyện nghe hiểu', icon: Headphones },
@@ -216,7 +216,7 @@ export function App() {
             </div>
 
             <div className="text-[11px] text-slate-400 text-center pt-4 border-t border-slate-100 dark:border-slate-800">
-              Halo Chinese v1.7.1 • Comprehensive Technical Audit & System Optimization
+              Halo Chinese v1.8.0 • Chinese Pronunciation Lab & Audio AI Studio
             </div>
           </div>
         </div>
