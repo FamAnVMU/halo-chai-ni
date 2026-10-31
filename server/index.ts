@@ -19,6 +19,7 @@ import { geminiAnalysisService } from './geminiAnalysisService.js';
 import { geminiPronunciationService } from './geminiPronunciationService.js';
 import { geminiShadowingService } from './geminiShadowingService.js';
 import { geminiDictionaryService } from './geminiDictionaryService.js';
+import { geminiReadingService } from './geminiReadingService.js';
 import { tokenizeChinese } from '../src/data/seedDictionary.js';
 
 const app = express();
@@ -1326,6 +1327,156 @@ app.post('/api/dictionary/segment', (req, res) => {
     const { text } = req.body;
     const tokens = tokenizeChinese(text || '');
     res.json({ success: true, data: tokens });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ========================================================================
+// INTERACTIVE CHINESE READING SYSTEM (v1.11.0)
+// ========================================================================
+
+// 1. Danh sách bài đọc có phân trang & bộ lọc
+app.get('/api/reading/passages', (req, res) => {
+  try {
+    const { level, hskLevel, topic, genre, search, status, page, limit } = req.query;
+    const result = geminiReadingService.getPassages({
+      level: level ? String(level) : undefined,
+      hskLevel: hskLevel ? parseInt(hskLevel as string, 10) : undefined,
+      topic: topic ? String(topic) : undefined,
+      genre: genre ? String(genre) : undefined,
+      search: search ? String(search) : undefined,
+      status: status as any,
+      page: page ? parseInt(page as string, 10) : 1,
+      limit: limit ? parseInt(limit as string, 10) : 20,
+    });
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 2. Chi tiết bài đọc kèm câu văn và câu hỏi đọc hiểu
+app.get('/api/reading/passages/:id', (req, res) => {
+  try {
+    const passage = geminiReadingService.getPassageById(req.params.id);
+    res.json({ success: true, data: passage });
+  } catch (err: any) {
+    res.status(404).json({ success: false, error: err.message });
+  }
+});
+
+// 3. AI Tự Động Tạo Bài Đọc Cá Nhân Hóa
+app.post('/api/reading/generate', async (req, res) => {
+  try {
+    const options = req.body || {};
+    const passage = await geminiReadingService.generatePersonalizedPassage(options);
+    res.json({ success: true, data: passage });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 4. Phân tích ngữ pháp chuyên sâu cho một câu trong ngữ cảnh
+app.post('/api/reading/explain-sentence', async (req, res) => {
+  try {
+    const { passageId, sentenceZh, sentencePinyin, sentenceVi, contextPassage } = req.body;
+    const explanation = await geminiReadingService.explainSentenceOrGrammar({
+      passageId,
+      sentenceZh,
+      sentencePinyin,
+      sentenceVi,
+      contextPassage,
+    });
+    res.json({ success: true, data: explanation });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 5. Hỏi AI Tutor về bài đọc
+app.post('/api/reading/ask-tutor', async (req, res) => {
+  try {
+    const { passageId, sentenceZh, userQuery, chatHistory } = req.body;
+    const result = await geminiReadingService.askReadingTutor({
+      passageId,
+      sentenceZh,
+      userQuery,
+      chatHistory,
+    });
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 6. Đánh giá câu trả lời đọc hiểu (Trắc nghiệm & Tự luận bằng AI)
+app.post('/api/reading/evaluate-answer', async (req, res) => {
+  try {
+    const { passageId, questionId, questionText, questionType, expectedAnswer, citationText, userAnswer } = req.body;
+    const result = await geminiReadingService.evaluateComprehensionAnswer({
+      passageId,
+      questionId,
+      questionText,
+      questionType,
+      expectedAnswer,
+      citationText,
+      userAnswer,
+    });
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 7. Ghi nhận phiên đọc hoàn thành (Reading Session & Analytics)
+app.post('/api/reading/session', async (req, res) => {
+  try {
+    const result = await geminiReadingService.submitReadingSession(req.body);
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 8. Đánh dấu yêu thích / ghi chú bài đọc
+app.post('/api/reading/bookmark', (req, res) => {
+  try {
+    const { passageId, isFavorite, notes } = req.body;
+    const result = geminiReadingService.toggleBookmark(passageId, isFavorite, notes);
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 9. Cầu nối chuyển câu sang bài tập Shadowing (1-Click Bridge to Shadowing)
+app.post('/api/reading/sync-shadowing', (req, res) => {
+  try {
+    const { passageId, sentenceIndex } = req.body;
+    const result = geminiReadingService.syncSentenceToShadowing(passageId, Number(sentenceIndex));
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 10. Lưu từ vựng từ bài đọc vào Bộ nhớ học tập & SRS (SM-2)
+app.post('/api/reading/sync-word', (req, res) => {
+  try {
+    const { wordZh, wordPinyin, meaningVi, hskLevel } = req.body;
+    const result = geminiReadingService.syncWordToMemoryAndSrs(wordZh, wordPinyin, meaningVi, hskLevel);
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 11. Thống kê luyện đọc
+app.get('/api/reading/stats', (_req, res) => {
+  try {
+    const stats = geminiReadingService.getReadingStats();
+    res.json({ success: true, data: stats });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }

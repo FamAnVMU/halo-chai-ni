@@ -124,7 +124,7 @@ export function App() {
     { id: 'pronounce', label: 'Luyện phát âm & Phòng Lab AI', icon: Mic },
     { id: 'shadowing', label: 'Shadowing – Luyện nói nhại', icon: Headphones },
     { id: 'write', label: 'Luyện viết chữ Hán', icon: PenTool },
-    { id: 'reading', label: 'Thư viện đọc hiểu', icon: BookMarked },
+    { id: 'reading', label: 'Luyện đọc tương tác AI', icon: BookMarked },
     { id: 'listening', label: 'Luyện nghe hiểu', icon: Headphones },
     { id: 'ai_tutor', label: 'AI Tutor & Voice Chat', icon: BotMessageSquare },
     { id: 'ai_lessons', label: 'Bài học dành cho bạn', icon: Sparkles },
@@ -182,7 +182,7 @@ export function App() {
                 {currentTab === 'pronounce' && <PronunciationView />}
                 {currentTab === 'shadowing' && <ShadowingView onNavigate={handleSelectTab} />}
                 {currentTab === 'write' && <HanziWritingView />}
-                {currentTab === 'reading' && <ReadingView />}
+                {currentTab === 'reading' && <ReadingView onNavigate={handleSelectTab} />}
                 {currentTab === 'listening' && <ListeningView />}
                 {currentTab === 'ai_tutor' && <AITutorView onNavigate={handleSelectTab} />}
                 {currentTab === 'ai_lessons' && <GeneratedLessonsView />}
@@ -242,7 +242,7 @@ export function App() {
             </div>
 
             <div className="text-[11px] text-slate-400 text-center pt-4 border-t border-slate-100 dark:border-slate-800">
-              Halo Chinese v1.10.0 • AI Chinese Dictionary & Pronunciation Lab
+              Halo Chinese v1.11.0 • Interactive Chinese Reading & AI Chinese Dictionary
             </div>
           </div>
         </div>

@@ -84,7 +84,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
       highlight: true
     },
     { id: 'write', label: 'Luyện viết', subLabel: 'Thứ tự nét bút', icon: PenTool },
-    { id: 'reading', label: 'Đọc hiểu', subLabel: 'Truyện phân cấp', icon: BookMarked },
+    { id: 'reading', label: 'Luyện đọc', subLabel: 'Đọc hiểu tương tác AI', icon: BookMarked, highlight: true },
     { id: 'listening', label: 'Nghe hiểu', subLabel: 'Luyện nghe HSK', icon: Headphones },
     {
       id: 'ai_tutor',

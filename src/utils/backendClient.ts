@@ -33,6 +33,94 @@ export interface BackendKeyConfig {
   };
 }
 
+export interface ReadingSentenceItem {
+  id: string;
+  sentenceIndex: number;
+  paragraphIndex?: number;
+  sentenceZh: string;
+  sentencePinyin: string;
+  sentenceVi: string;
+  grammarNotes?: string[];
+}
+
+export interface ReadingPassageSummary {
+  id: string;
+  titleZh: string;
+  titlePinyin: string;
+  titleVi: string;
+  level: string;
+  hskLevel: number;
+  standardVersion: string;
+  topic: string;
+  genre: string;
+  difficultyRating: number;
+  wordCount: number;
+  estimatedReadingMinutes: number;
+  source: string;
+  isFavorite: boolean;
+  progressPercent: number;
+  readingStatus: 'not_started' | 'in_progress' | 'completed';
+  lastReadSentenceIndex: number;
+  readCount: number;
+  createdAt: number;
+}
+
+export interface ReadingPassageDetail extends ReadingPassageSummary {
+  fullContentZh: string;
+  fullContentPinyin: string;
+  fullContentVi: string;
+  paragraphs: string[];
+  vocabularyFocus: Array<{
+    simplified: string;
+    pinyin: string;
+    meaningVi: string;
+    hskLevel: number;
+    isNewWord?: boolean;
+  }>;
+  grammarFocus: Array<{
+    pattern: string;
+    formula: string;
+    explanationVi: string;
+    exampleSentence: string;
+  }>;
+  comprehensionQuestions: Array<{
+    id: string;
+    type: 'single_choice' | 'true_false' | 'fill_blank' | 'free_text_zh' | 'free_text_vi' | 'main_idea';
+    question: string;
+    options?: string[];
+    answer: string | number;
+    explanationVi: string;
+    citationText: string;
+  }>;
+  learningObjectives: string[];
+  sentences: ReadingSentenceItem[];
+  personalNotes?: string;
+}
+
+export interface SentenceGrammarExplanation {
+  sentenceZh: string;
+  components: Array<{
+    role: string;
+    segment: string;
+    pinyin: string;
+    explanation: string;
+  }>;
+  keyGrammarPoint: string;
+  detailedExplanationVi: string;
+  contextualNuanceVi: string;
+  similarExamples: Array<{ zh: string; pinyin: string; vi: string }>;
+}
+
+export interface ReadingStats {
+  totalPassages: number;
+  completedPassages: number;
+  favoriteCount: number;
+  totalSessions: number;
+  totalMinutesRead: number;
+  averageComprehensionScore: number;
+  averageReadingWpm: number;
+}
+
 export interface DictionarySearchResultItem {
   id: string;
   simplified: string;
@@ -1465,6 +1553,277 @@ export class LocalBackendClient {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text })
       });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  // ========================================================================
+  // INTERACTIVE CHINESE READING METHODS (v1.11.0)
+  // ========================================================================
+
+  public async getReadingPassages(params: {
+    level?: string;
+    hskLevel?: number;
+    topic?: string;
+    genre?: string;
+    search?: string;
+    status?: 'all' | 'favorites' | 'completed' | 'in_progress';
+    page?: number;
+    limit?: number;
+  } = {}): Promise<{
+    success: boolean;
+    data?: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+      passages: ReadingPassageSummary[];
+    };
+    error?: string;
+  }> {
+    try {
+      const query = new URLSearchParams();
+      if (params.level) query.set('level', params.level);
+      if (params.hskLevel) query.set('hskLevel', String(params.hskLevel));
+      if (params.topic) query.set('topic', params.topic);
+      if (params.genre) query.set('genre', params.genre);
+      if (params.search) query.set('search', params.search);
+      if (params.status) query.set('status', params.status);
+      if (params.page) query.set('page', String(params.page));
+      if (params.limit) query.set('limit', String(params.limit));
+
+      const res = await fetch(`${this.getBaseUrl()}/api/reading/passages?${query.toString()}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getReadingPassageById(id: string): Promise<{
+    success: boolean;
+    data?: ReadingPassageDetail;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/reading/passages/${id}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async generateReadingPassage(options: {
+    level?: string;
+    hskLevel?: number;
+    topic?: string;
+    genre?: string;
+    targetLength?: 'short' | 'medium' | 'long';
+  }): Promise<{
+    success: boolean;
+    data?: ReadingPassageDetail;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/reading/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(options)
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async explainReadingSentence(params: {
+    passageId: string;
+    sentenceZh: string;
+    sentencePinyin?: string;
+    sentenceVi?: string;
+    contextPassage?: string;
+  }): Promise<{
+    success: boolean;
+    data?: SentenceGrammarExplanation;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/reading/explain-sentence`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async askReadingTutor(params: {
+    passageId: string;
+    sentenceZh?: string;
+    userQuery: string;
+    chatHistory?: Array<{ sender: 'user' | 'ai'; text: string }>;
+  }): Promise<{
+    success: boolean;
+    data?: { reply: string };
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/reading/ask-tutor`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async evaluateReadingAnswer(params: {
+    passageId: string;
+    questionId: string;
+    questionText: string;
+    questionType: string;
+    expectedAnswer: string | number;
+    citationText?: string;
+    userAnswer: string | number;
+  }): Promise<{
+    success: boolean;
+    data?: {
+      isCorrect: boolean;
+      scorePercent: number;
+      feedbackVi: string;
+      citationText: string;
+    };
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/reading/evaluate-answer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async submitReadingSession(sessionData: {
+    passageId: string;
+    mode: 'intensive' | 'extensive' | 'blind_listening';
+    timeSpentSeconds: number;
+    answers: Array<{
+      questionId: string;
+      questionType: string;
+      userAnswer: string;
+      isCorrect?: boolean;
+    }>;
+    lookedUpWords?: string[];
+    savedWords?: string[];
+    grammarInspected?: string[];
+    aiTutorQueries?: string[];
+  }): Promise<{
+    success: boolean;
+    data?: {
+      sessionId: string;
+      passageId: string;
+      scorePercent: number;
+      totalQuestions: number;
+      correctCount: number;
+      timeSpentSeconds: number;
+      readingSpeedWpm: number;
+      recommendation: string;
+      lookedUpWordsCount: number;
+      savedWordsCount: number;
+    };
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/reading/session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sessionData)
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async toggleReadingBookmark(
+    passageId: string,
+    isFavorite?: boolean,
+    notes?: string
+  ): Promise<{
+    success: boolean;
+    data?: { isFavorite: boolean; notes: string };
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/reading/bookmark`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passageId, isFavorite, notes })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async syncReadingToShadowing(
+    passageId: string,
+    sentenceIndex: number
+  ): Promise<{
+    success: boolean;
+    data?: { shadowingLessonId: string; title: string };
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/reading/sync-shadowing`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passageId, sentenceIndex })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async syncReadingWordToMemory(
+    wordZh: string,
+    wordPinyin: string,
+    meaningVi: string,
+    hskLevel: number = 1
+  ): Promise<{
+    success: boolean;
+    data?: { wordZh: string; srsId: string; message: string };
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/reading/sync-word`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wordZh, wordPinyin, meaningVi, hskLevel })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getReadingStats(): Promise<{
+    success: boolean;
+    data?: ReadingStats;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/reading/stats`);
       return await res.json();
     } catch (e: any) {
       return { success: false, error: e.message };

@@ -565,6 +565,115 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_dict_history_created ON dictionary_history(created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_dict_notes_entry ON dictionary_personal_notes(entry_id);
 
+  -- ========================================================================
+  -- INTERACTIVE CHINESE READING SYSTEM (v1.11.0)
+  -- ========================================================================
+
+  -- Reading Passages (Standard curated library + AI-generated personalized passages)
+  CREATE TABLE IF NOT EXISTS reading_passages (
+    id TEXT PRIMARY KEY,
+    title_zh TEXT NOT NULL,
+    title_pinyin TEXT NOT NULL,
+    title_vi TEXT NOT NULL,
+    level TEXT NOT NULL, -- 'beginner', 'hsk1', 'hsk2', 'hsk3', 'hsk4', 'hsk5', 'hsk6', 'advanced'
+    hsk_level INTEGER DEFAULT 1,
+    standard_version TEXT DEFAULT 'HSK 3.0 / HSK 2.0 Tham chiếu',
+    topic TEXT NOT NULL, -- 'daily_life', 'family', 'school', 'work', 'shopping', 'travel', 'food', 'culture', 'history', 'science', 'technology', 'society', 'idioms_stories', 'short_story'
+    genre TEXT NOT NULL, -- 'short_passage', 'dialogue', 'story', 'simple_article', 'narrative', 'diary', 'academic'
+    difficulty_rating REAL DEFAULT 1.0,
+    word_count INTEGER NOT NULL,
+    estimated_reading_minutes INTEGER DEFAULT 3,
+    full_content_zh TEXT NOT NULL,
+    full_content_pinyin TEXT NOT NULL,
+    full_content_vi TEXT NOT NULL,
+    paragraphs_json TEXT, -- array of strings (paragraphs)
+    vocabulary_focus_json TEXT, -- array of { simplified, pinyin, meaningVi, hskLevel, isNewWord }
+    grammar_focus_json TEXT, -- array of { pattern, formula, explanationVi, exampleSentence }
+    comprehension_questions_json TEXT, -- array of { id, type, question, options, answer, explanationVi, citationText }
+    learning_objectives_json TEXT, -- array of strings
+    source TEXT DEFAULT 'curated_standard', -- 'curated_standard', 'gemini_ai_personalized'
+    content_version INTEGER DEFAULT 1,
+    is_favorite INTEGER DEFAULT 0,
+    read_count INTEGER DEFAULT 0,
+    last_read_at INTEGER,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+
+  -- Segmented Sentences for Audio Sync & Grammar Analysis
+  CREATE TABLE IF NOT EXISTS reading_passage_sentences (
+    id TEXT PRIMARY KEY,
+    passage_id TEXT NOT NULL,
+    sentence_index INTEGER NOT NULL,
+    paragraph_index INTEGER DEFAULT 0,
+    sentence_zh TEXT NOT NULL,
+    sentence_pinyin TEXT NOT NULL,
+    sentence_vi TEXT NOT NULL,
+    grammar_notes_json TEXT,
+    audio_timing_json TEXT,
+    FOREIGN KEY(passage_id) REFERENCES reading_passages(id) ON DELETE CASCADE
+  );
+
+  -- Reading Learning Sessions & Progress Analytics
+  CREATE TABLE IF NOT EXISTS reading_sessions (
+    id TEXT PRIMARY KEY,
+    user_id TEXT DEFAULT 'default',
+    passage_id TEXT NOT NULL,
+    mode TEXT DEFAULT 'intensive', -- 'intensive', 'extensive', 'blind_listening'
+    time_spent_seconds INTEGER DEFAULT 0,
+    reading_speed_wpm REAL DEFAULT 0,
+    questions_attempted INTEGER DEFAULT 0,
+    questions_correct INTEGER DEFAULT 0,
+    score_percent INTEGER DEFAULT 0,
+    looked_up_words_json TEXT,
+    saved_words_json TEXT,
+    grammar_inspected_json TEXT,
+    ai_tutor_queries_json TEXT,
+    comprehension_summary_json TEXT,
+    created_at INTEGER NOT NULL,
+    completed_at INTEGER,
+    FOREIGN KEY(passage_id) REFERENCES reading_passages(id) ON DELETE CASCADE
+  );
+
+  -- Reading Comprehension Answers & AI Evaluation
+  CREATE TABLE IF NOT EXISTS reading_answers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    passage_id TEXT NOT NULL,
+    question_id TEXT NOT NULL,
+    question_type TEXT NOT NULL,
+    user_answer TEXT NOT NULL,
+    correct_answer TEXT NOT NULL,
+    is_correct INTEGER NOT NULL, -- 0 or 1
+    ai_feedback_vi TEXT,
+    citation_text TEXT,
+    score_awarded REAL DEFAULT 1.0,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY(session_id) REFERENCES reading_sessions(id) ON DELETE CASCADE
+  );
+
+  -- Reading Bookmarks, Favorites & Reading Progress
+  CREATE TABLE IF NOT EXISTS reading_bookmarks (
+    id TEXT PRIMARY KEY,
+    user_id TEXT DEFAULT 'default',
+    passage_id TEXT NOT NULL UNIQUE,
+    is_favorite INTEGER DEFAULT 0,
+    progress_percent INTEGER DEFAULT 0,
+    last_read_sentence_index INTEGER DEFAULT 0,
+    personal_notes TEXT,
+    status TEXT DEFAULT 'not_started', -- 'not_started', 'in_progress', 'completed'
+    updated_at INTEGER NOT NULL,
+    FOREIGN KEY(passage_id) REFERENCES reading_passages(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_reading_level ON reading_passages(level, hsk_level);
+  CREATE INDEX IF NOT EXISTS idx_reading_topic ON reading_passages(topic);
+  CREATE INDEX IF NOT EXISTS idx_reading_genre ON reading_passages(genre);
+  CREATE INDEX IF NOT EXISTS idx_reading_source ON reading_passages(source);
+  CREATE INDEX IF NOT EXISTS idx_reading_sentences_passage ON reading_passage_sentences(passage_id, sentence_index);
+  CREATE INDEX IF NOT EXISTS idx_reading_sessions_user ON reading_sessions(user_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_reading_bookmarks_passage ON reading_bookmarks(passage_id);
+
   CREATE INDEX IF NOT EXISTS idx_shadowing_level ON shadowing_lessons(level, hsk_level);
   CREATE INDEX IF NOT EXISTS idx_shadowing_records_lesson ON shadowing_practice_records(lesson_id, user_id);
   CREATE INDEX IF NOT EXISTS idx_shadowing_records_created ON shadowing_practice_records(created_at);
