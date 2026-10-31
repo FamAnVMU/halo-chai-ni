@@ -15,6 +15,7 @@ import { geminiLessonService } from './geminiLessonService.js';
 import { geminiPlacementService } from './geminiPlacementService.js';
 import { geminiPathService } from './geminiPathService.js';
 import { geminiSrsService } from './geminiSrsService.js';
+import { geminiAnalysisService } from './geminiAnalysisService.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -964,15 +965,82 @@ app.post('/api/srs/ai-exercise', async (req, res) => {
   }
 });
 
+// ==================== AI CONVERSATION ANALYSIS & PROGRESS EVALUATION ====================
+
+// Phân tích cuộc hội thoại chuyên sâu (Text hoặc Voice)
+app.post('/api/analysis/session/:sessionId', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { force, sessionType } = req.body || {};
+    const report = await geminiAnalysisService.analyzeSession(sessionId, {
+      forceReanalyze: Boolean(force),
+      sessionType
+    });
+    res.json({ success: true, data: report });
+  } catch (err: any) {
+    console.error('Analysis session endpoint error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Lấy bản báo cáo phân tích theo sessionId
+app.get('/api/analysis/session/:sessionId', (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const report = geminiAnalysisService.getAnalysisBySession(sessionId);
+    if (!report) {
+      return res.status(404).json({ success: false, error: 'Chưa có bản phân tích cho phiên này.' });
+    }
+    res.json({ success: true, data: report });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Lấy danh sách các phiên phân tích gần nhất
+app.get('/api/analysis/recent', (req, res) => {
+  try {
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 10;
+    const items = geminiAnalysisService.getRecentAnalyses(limit);
+    res.json({ success: true, data: items });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Lưu tin nhắn vào SQLite (hỗ trợ cả client Web Speech hoặc Voice)
+app.post('/api/analysis/save-message', (req, res) => {
+  try {
+    const { sessionId, sender, text, pinyin, translationVi, isAudio, correctionJson } = req.body;
+    if (!sessionId || !sender || !text) {
+      return res.status(400).json({ success: false, error: 'Thiếu sessionId, sender hoặc text' });
+    }
+    const result = geminiAnalysisService.saveMessage({
+      sessionId,
+      sender,
+      text,
+      pinyin,
+      translationVi,
+      isAudio: Boolean(isAudio),
+      correctionJson: typeof correctionJson === 'object' ? JSON.stringify(correctionJson) : correctionJson
+    });
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ==================== LIVE API WEBSOCKET BRIDGE ====================
 wss.on('connection', (ws: WebSocket, req) => {
   const url = new URL(req.url || '', `http://${req.headers.host}`);
+  const sessionId = url.searchParams.get('sessionId') || `voice_${Date.now()}`;
   const hskLevel = parseInt(url.searchParams.get('hskLevel') || '1', 10);
   const mode = url.searchParams.get('mode') || 'free';
   const scenario = url.searchParams.get('scenario') || '';
   const voiceName = url.searchParams.get('voice') || '';
 
   geminiLiveService.handleClientBridge(ws, {
+    sessionId,
     hskLevel,
     mode,
     scenario,

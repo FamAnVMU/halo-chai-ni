@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import { db } from './db.js';
+import { geminiAnalysisService } from './geminiAnalysisService.js';
 import type { WebSocket } from 'ws';
 
 export class GeminiLiveService {
@@ -92,12 +93,16 @@ export class GeminiLiveService {
   public async handleClientBridge(
     clientWs: WebSocket,
     sessionParams: {
+      sessionId?: string;
       hskLevel?: number;
       mode?: string;
       scenario?: string;
       voiceName?: string;
     }
   ) {
+    const sessionId = sessionParams.sessionId || `voice_sess_${Date.now()}`;
+    let userTranscriptBuffer = '';
+    let aiTranscriptBuffer = '';
     const apiKey = this.getApiKey();
     if (!apiKey) {
       clientWs.send(JSON.stringify({
@@ -177,12 +182,14 @@ Quy tắc:
 
             // Real-time transcriptions
             if (content.inputTranscription?.text) {
+              userTranscriptBuffer += ' ' + content.inputTranscription.text;
               clientWs.send(JSON.stringify({
                 type: 'user_transcription',
                 text: content.inputTranscription.text
               }));
             }
             if (content.outputTranscription?.text) {
+              aiTranscriptBuffer += ' ' + content.outputTranscription.text;
               clientWs.send(JSON.stringify({
                 type: 'ai_transcription',
                 text: content.outputTranscription.text
@@ -196,8 +203,27 @@ Quy tắc:
               }));
             }
 
-            // Turn complete
+            // Turn complete - Persist conversation turns to SQLite for AI Conversation Analysis
             if (content.turnComplete) {
+              if (userTranscriptBuffer.trim()) {
+                geminiAnalysisService.saveMessage({
+                  sessionId,
+                  sender: 'user',
+                  text: userTranscriptBuffer.trim(),
+                  isAudio: true
+                });
+                userTranscriptBuffer = '';
+              }
+              if (aiTranscriptBuffer.trim()) {
+                geminiAnalysisService.saveMessage({
+                  sessionId,
+                  sender: 'assistant',
+                  text: aiTranscriptBuffer.trim(),
+                  isAudio: true
+                });
+                aiTranscriptBuffer = '';
+              }
+
               clientWs.send(JSON.stringify({
                 type: 'turn_complete'
               }));
@@ -256,6 +282,24 @@ Quy tắc:
 
       clientWs.on('close', () => {
         try {
+          if (userTranscriptBuffer.trim()) {
+            geminiAnalysisService.saveMessage({
+              sessionId,
+              sender: 'user',
+              text: userTranscriptBuffer.trim(),
+              isAudio: true
+            });
+            userTranscriptBuffer = '';
+          }
+          if (aiTranscriptBuffer.trim()) {
+            geminiAnalysisService.saveMessage({
+              sessionId,
+              sender: 'assistant',
+              text: aiTranscriptBuffer.trim(),
+              isAudio: true
+            });
+            aiTranscriptBuffer = '';
+          }
           if (liveSession && (liveSession as any).close) {
             (liveSession as any).close();
           }

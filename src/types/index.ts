@@ -534,4 +534,132 @@ export interface SrsSubmitReviewResult {
   nextReviewFormatted: string;
 }
 
+// ==================== AI CONVERSATION ANALYSIS ====================
+export type VocabCategory = 'A_mastered_used_well' | 'B_known_used_inaccurately' | 'C_newly_exposed' | 'D_needs_review';
+export type ErrorCategory = 'vocabulary' | 'grammar' | 'word_order' | 'particle' | 'sentence_structure' | 'unnatural_expression' | 'misunderstanding' | 'pronunciation';
+export type MasteryLevel = 'unknown' | 'exposed' | 'taught' | 'learning' | 'struggling' | 'fair' | 'mastered';
+
+export interface VocabEvidence {
+  simplified: string;
+  traditional?: string;
+  pinyin: string;
+  meaningVi: string;
+  category: VocabCategory;
+  contextSnippet: string;
+  roleInSentence: string;
+  isUserInitiated: boolean;
+  confidence: number;
+}
+
+export interface GrammarEvidence {
+  patternName: string;
+  formula: string;
+  meaningVi: string;
+  isCorrect: boolean;
+  userUsage: string;
+  correction?: string;
+  explanationVi: string;
+  issueType: 'grammar_rule' | 'naturalness_style' | 'word_order' | 'particle';
+  confidence: number;
+}
+
+export interface DetectedErrorEvidence {
+  errorType: ErrorCategory;
+  title: string;
+  userSentence: string;
+  errorLocation?: string;
+  correctedSentence: string;
+  explanationVi: string;
+  similarExample?: string;
+  confidence: number;
+}
+
+export interface SentenceBreakdownItem {
+  messageId: string;
+  userSentenceZh: string;
+  userSentencePinyin?: string;
+  userSentenceVi?: string;
+  isCorrect: boolean;
+  aiCritiqueVi: string;
+  correctedSentenceZh?: string;
+  grammarOrVocabFocus?: string;
+  audioText?: string;
+}
+
+export interface CommunicationAssessment {
+  comprehensionScore: number;
+  responsivenessScore: number;
+  sentenceComplexityScore: number;
+  conversationTurnCount: number;
+  reflexAndActiveUseFeedback: string;
+  strengths: string[];
+  weaknesses: string[];
+  overallScore: number;
+  generalFeedbackVi: string;
+}
+
+export interface MasteryUpdateItem {
+  knowledgeType: 'vocabulary' | 'grammar';
+  identifier: string;
+  oldMastery: string;
+  newMastery: MasteryLevel;
+  evidenceReason: string;
+}
+
+export interface SrsSyncItem {
+  itemId?: string;
+  itemType: 'vocabulary' | 'grammar' | 'error';
+  promptZh: string;
+  priorityReason: string;
+}
+
+export interface ConversationAnalysisReport {
+  id?: number;
+  sessionId: string;
+  sessionType: 'text' | 'voice' | 'mixed';
+  summaryVi: string;
+  topics: string[];
+  vocabAnalysis: {
+    groupA: VocabEvidence[];
+    groupB: VocabEvidence[];
+    groupC: VocabEvidence[];
+    groupD: VocabEvidence[];
+  };
+  grammarAnalysis: GrammarEvidence[];
+  detectedErrors: DetectedErrorEvidence[];
+  communicationAssessment: CommunicationAssessment;
+  masteryUpdates: MasteryUpdateItem[];
+  srsSyncItems: SrsSyncItem[];
+  pathRecommendations: {
+    focusTopics: string[];
+    suggestedRemediation: string[];
+    hskAdjustSuggestion?: number;
+  };
+  suggestedLesson?: {
+    topic: string;
+    lessonType: 'reinforce' | 'review' | 'new' | 'advanced' | 'error_correction';
+    recommendationReason: string;
+    hskLevel: number;
+  };
+  sentenceBreakdown: SentenceBreakdownItem[];
+  overallScore: number;
+  confidenceScore: number;
+  schemaVersion: number;
+  createdAt: number;
+}
+
+export interface RecentAnalysisSummary {
+  id: number;
+  sessionId: string;
+  title: string;
+  mode: string;
+  hskLevel: number;
+  sessionType: 'text' | 'voice' | 'mixed';
+  summaryVi: string;
+  topics: string[];
+  overallScore: number;
+  createdAt: number;
+}
+
+
 

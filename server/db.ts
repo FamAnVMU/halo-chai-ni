@@ -427,6 +427,48 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_srs_logs_time ON srs_review_logs(reviewed_at);
 `);
 
+// Safe column migrations for Conversation Analysis System
+function addColumnIfNotExists(table: string, column: string, definition: string) {
+  try {
+    const pragma = db.prepare(`PRAGMA table_info(${table})`).all() as any[];
+    const exists = pragma.some((col: any) => col.name === column);
+    if (!exists) {
+      db.prepare(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`).run();
+    }
+  } catch (e) {
+    console.warn(`Could not add column ${column} to ${table}:`, e);
+  }
+}
+
+// chat_sessions additions
+addColumnIfNotExists('chat_sessions', 'session_type', "TEXT DEFAULT 'text'");
+addColumnIfNotExists('chat_sessions', 'status', "TEXT DEFAULT 'active'");
+addColumnIfNotExists('chat_sessions', 'is_analyzed', "INTEGER DEFAULT 0");
+addColumnIfNotExists('chat_sessions', 'duration_seconds', "INTEGER DEFAULT 0");
+addColumnIfNotExists('chat_sessions', 'message_count', "INTEGER DEFAULT 0");
+addColumnIfNotExists('chat_sessions', 'last_analyzed_at', "INTEGER");
+
+// conversation_analyses rich additions
+addColumnIfNotExists('conversation_analyses', 'session_type', "TEXT DEFAULT 'text'");
+addColumnIfNotExists('conversation_analyses', 'vocab_analysis_json', "TEXT");
+addColumnIfNotExists('conversation_analyses', 'grammar_analysis_json', "TEXT");
+addColumnIfNotExists('conversation_analyses', 'detected_errors_json', "TEXT");
+addColumnIfNotExists('conversation_analyses', 'communication_assessment_json', "TEXT");
+addColumnIfNotExists('conversation_analyses', 'mastery_updates_json', "TEXT");
+addColumnIfNotExists('conversation_analyses', 'srs_sync_json', "TEXT");
+addColumnIfNotExists('conversation_analyses', 'path_recommendations_json', "TEXT");
+addColumnIfNotExists('conversation_analyses', 'suggested_lesson_json', "TEXT");
+addColumnIfNotExists('conversation_analyses', 'sentence_breakdown_json', "TEXT");
+addColumnIfNotExists('conversation_analyses', 'overall_score', "INTEGER DEFAULT 80");
+addColumnIfNotExists('conversation_analyses', 'confidence_score', "REAL DEFAULT 0.9");
+addColumnIfNotExists('conversation_analyses', 'schema_version', "INTEGER DEFAULT 2");
+
+// Create indexes after columns exist
+db.exec(`
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_conv_analysis_session ON conversation_analyses(session_id);
+  CREATE INDEX IF NOT EXISTS idx_chat_sessions_analyzed ON chat_sessions(is_analyzed, status);
+`);
+
 // Optimize SQLite Query Planner
 db.pragma('optimize');
 

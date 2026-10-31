@@ -216,7 +216,7 @@ export function App() {
             </div>
 
             <div className="text-[11px] text-slate-400 text-center pt-4 border-t border-slate-100 dark:border-slate-800">
-              Halo Chinese v1.6.0 • Smart Review & Spaced Repetition (SRS)
+              Halo Chinese v1.7.0 • AI Conversation Analysis & Learning Progress
             </div>
           </div>
         </div>

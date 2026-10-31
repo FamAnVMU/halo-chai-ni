@@ -24,7 +24,9 @@ import type {
   AILearnerMemory,
   HSKLevel,
   PostSessionReport,
+  ConversationAnalysisReport
 } from '../types';
+import { ConversationReportModal } from '../components/chat/ConversationReportModal';
 import { db } from '../db';
 import { aiService } from '../utils/aiService';
 import { audioService } from '../utils/audio';
@@ -71,6 +73,40 @@ export const AITutorView: React.FC<AITutorViewProps> = ({ onNavigate }) => {
   const [isMemoryModalOpen, setIsMemoryModalOpen] = useState<boolean>(false);
   const [postReport, setPostReport] = useState<PostSessionReport | null>(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
+
+  // AI Conversation Analysis & Deep Evaluation
+  const [conversationReport, setConversationReport] = useState<ConversationAnalysisReport | null>(null);
+  const [isConversationReportOpen, setIsConversationReportOpen] = useState<boolean>(false);
+  const [isAnalyzingConversation, setIsAnalyzingConversation] = useState<boolean>(false);
+
+  const handleOpenConversationAnalysis = async (force: boolean = false) => {
+    setIsAnalyzingConversation(true);
+    try {
+      const isAlive = await backendClient.checkHealth();
+      if (!isAlive) {
+        const report = await aiService.generatePostSessionReport(messages, hskLevel);
+        setPostReport(report);
+        setIsReportModalOpen(true);
+        return;
+      }
+
+      const res = await backendClient.analyzeConversationSession(currentSessionId, {
+        force,
+        sessionType: activeSubMode === 'voice' || isVoiceActive ? 'voice' : 'text'
+      });
+
+      if (res.success && res.data) {
+        setConversationReport(res.data);
+        setIsConversationReportOpen(true);
+      } else {
+        alert(res.error || 'Cần có ít nhất 2 lượt trao đổi để phân tích buổi học.');
+      }
+    } catch (e: any) {
+      alert('Lỗi phân tích hội thoại: ' + e.message);
+    } finally {
+      setIsAnalyzingConversation(false);
+    }
+  };
 
   // Auto Analysis & Lesson Generation
   const [isAnalyzingAndCreating, setIsAnalyzingAndCreating] = useState<boolean>(false);
@@ -299,6 +335,7 @@ export const AITutorView: React.FC<AITutorViewProps> = ({ onNavigate }) => {
     };
 
     await client.start({
+      sessionId: currentSessionId,
       hskLevel,
       mode: chatMode,
       scenario: chatMode === 'roleplay' ? scenario : undefined,
@@ -448,12 +485,18 @@ export const AITutorView: React.FC<AITutorViewProps> = ({ onNavigate }) => {
           </button>
 
           <button
-            onClick={handleGenerateReport}
-            className="p-1.5 rounded-xl bg-primary-50 dark:bg-primary-950 text-primary-600 dark:text-primary-400 font-bold text-xs flex items-center gap-1"
-            title="Tạo báo cáo tổng kết buổi học"
+            onClick={() => handleOpenConversationAnalysis(true)}
+            disabled={isAnalyzingConversation}
+            className="p-1.5 px-3 rounded-xl bg-gradient-to-r from-rose-50 to-amber-50 dark:from-rose-950/40 dark:to-amber-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 font-bold text-xs flex items-center gap-1.5 shadow-xs hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+            title="AI phân tích chuyên sâu năng lực, từ vựng 4 nhóm, ngữ pháp và lỗi sai"
           >
-            <FileText className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Báo cáo</span>
+            <Sparkles className={`w-3.5 h-3.5 text-rose-500 ${isAnalyzingConversation ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">
+              {isAnalyzingConversation ? 'Đang phân tích...' : 'Phân tích hội thoại AI'}
+            </span>
+            <span className="sm:hidden">
+              {isAnalyzingConversation ? '...' : 'Phân tích'}
+            </span>
           </button>
 
           <button
@@ -996,6 +1039,29 @@ export const AITutorView: React.FC<AITutorViewProps> = ({ onNavigate }) => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* RICH AI CONVERSATION ANALYSIS REPORT MODAL */}
+      {isConversationReportOpen && conversationReport && (
+        <ConversationReportModal
+          report={conversationReport}
+          onClose={() => setIsConversationReportOpen(false)}
+          onNavigate={(tab: any) => onNavigate?.(tab)}
+          onStartLesson={async (topic, lessonType) => {
+            try {
+              const lessonRes = await backendClient.generateLesson({
+                topic,
+                lessonType: (lessonType as any) || 'reinforce',
+                sessionId: currentSessionId
+              });
+              if (lessonRes.success && onNavigate) {
+                onNavigate('ai_lessons');
+              }
+            } catch (e) {
+              console.error('Failed to generate lesson from analysis:', e);
+            }
+          }}
+        />
       )}
     </div>
   );

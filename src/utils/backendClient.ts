@@ -4,7 +4,9 @@ import type {
   SrsUserRating,
   SrsReviewMode,
   SrsSubmitReviewResult,
-  SrsAIExercise
+  SrsAIExercise,
+  ConversationAnalysisReport,
+  RecentAnalysisSummary
 } from '../types';
 
 export interface BackendHealth {
@@ -673,6 +675,75 @@ export class LocalBackendClient {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ itemId })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  // ==================== AI CONVERSATION ANALYSIS ====================
+
+  public async analyzeConversationSession(
+    sessionId: string,
+    options?: { force?: boolean; sessionType?: 'text' | 'voice' | 'mixed' }
+  ): Promise<{
+    success: boolean;
+    data?: ConversationAnalysisReport;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/analysis/session/${sessionId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(options || {})
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getAnalysisReport(sessionId: string): Promise<{
+    success: boolean;
+    data?: ConversationAnalysisReport;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/analysis/session/${sessionId}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getRecentAnalyses(limit: number = 10): Promise<{
+    success: boolean;
+    data?: RecentAnalysisSummary[];
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/analysis/recent?limit=${limit}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async saveChatMessage(params: {
+    sessionId: string;
+    sender: 'user' | 'assistant';
+    text: string;
+    pinyin?: string;
+    translationVi?: string;
+    isAudio?: boolean;
+    correctionJson?: any;
+  }): Promise<{ success: boolean; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/analysis/save-message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
       });
       return await res.json();
     } catch (e: any) {

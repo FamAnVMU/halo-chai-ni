@@ -23,6 +23,7 @@ export class GeminiLiveAudioClient {
   public onInterrupted?: () => void;
 
   public async start(options: {
+    sessionId?: string;
     hskLevel?: number;
     mode?: string;
     scenario?: string;
@@ -52,6 +53,7 @@ export class GeminiLiveAudioClient {
 
     // 2. Connect to Local Backend WebSocket Bridge
     const query = new URLSearchParams({
+      sessionId: options.sessionId || `voice_${Date.now()}`,
       hskLevel: String(options.hskLevel || 1),
       mode: options.mode || 'free',
       scenario: options.scenario || '',
