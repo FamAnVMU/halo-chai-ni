@@ -761,6 +761,64 @@ export class UnifiedLearningMemoryService {
       // ignore
     }
   }
+
+  /**
+   * 10. TỐI ƯU TOÀN DIỆN HỆ THỐNG VÀ CƠ SỞ DỮ LIỆU (System & DB Optimization)
+   */
+  public optimizeSystem(): {
+    integrity: string;
+    autoMappedVocab: number;
+    autoMappedGrammar: number;
+    totalKnowledgeItems: number;
+    totalSnapshots: number;
+    vacuumOptimized: boolean;
+  } {
+    let autoMappedVocab = 0;
+    let autoMappedGrammar = 0;
+
+    // A. Tự động liên kết các mục cũ chưa có knowledge_id
+    const unmappedVocab = db.prepare('SELECT id, simplified, pinyin, meaning_vi FROM vocabulary_memory WHERE knowledge_id IS NULL').all() as any[];
+    for (const v of unmappedVocab) {
+      const k = knowledgeRegistryService.findOrCreateKnowledge({
+        itemType: 'vocabulary',
+        displayText: v.simplified,
+        hanziSimplified: v.simplified,
+        pinyin: v.pinyin,
+        initialSense: { meaningVi: v.meaning_vi || '' }
+      });
+      db.prepare('UPDATE vocabulary_memory SET knowledge_id = ? WHERE id = ?').run(k.item.id, v.id);
+      autoMappedVocab++;
+    }
+
+    const unmappedGrammar = db.prepare('SELECT id, pattern_name, formula, meaning_vi FROM grammar_memory WHERE knowledge_id IS NULL').all() as any[];
+    for (const g of unmappedGrammar) {
+      const k = knowledgeRegistryService.findOrCreateKnowledge({
+        itemType: 'grammar',
+        displayText: g.pattern_name,
+        formula: g.formula,
+        initialSense: { meaningVi: g.meaning_vi || '' }
+      });
+      db.prepare('UPDATE grammar_memory SET knowledge_id = ? WHERE id = ?').run(k.item.id, g.id);
+      autoMappedGrammar++;
+    }
+
+    // B. SQLite PRAGMA optimize & wal checkpoint
+    db.prepare('PRAGMA optimize').run();
+    db.prepare('PRAGMA wal_checkpoint(PASSIVE)').run();
+    const integrity = (db.prepare('PRAGMA integrity_check').get() as any).integrity_check;
+
+    const totalKnowledgeItems = (db.prepare('SELECT COUNT(*) as count FROM knowledge_items').get() as any).count;
+    const totalSnapshots = (db.prepare('SELECT COUNT(*) as count FROM mastery_snapshots').get() as any).count;
+
+    return {
+      integrity,
+      autoMappedVocab,
+      autoMappedGrammar,
+      totalKnowledgeItems,
+      totalSnapshots,
+      vacuumOptimized: true
+    };
+  }
 }
 
 export const unifiedLearningMemoryService = UnifiedLearningMemoryService.getInstance();

@@ -2252,6 +2252,17 @@ export class LocalBackendClient {
       return { success: false, error: e.message };
     }
   }
+
+  public async optimizeSystem(): Promise<{ success: boolean; data?: any; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/learning-memory/optimize`, {
+        method: 'POST'
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
 }
 
 export const backendClient = new LocalBackendClient();

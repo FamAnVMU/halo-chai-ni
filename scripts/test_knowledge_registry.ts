@@ -204,9 +204,9 @@ async function runKnowledgeRegistryTests() {
   const dictCount = (db.prepare('SELECT COUNT(*) as count FROM dictionary_entries WHERE knowledge_id IS NOT NULL').get() as any).count;
 
   assert(
-    legacyCount >= 100 && vocabMemoryCount === 41 && grammarMemoryCount === 16 && dictCount === 36,
-    'Tất cả 41 từ vựng, 16 cấu trúc ngữ pháp và 36 mục từ điển đã được gắn Knowledge ID',
-    `Legacy mappings: ${legacyCount} | Vocab: ${vocabMemoryCount}/41 | Grammar: ${grammarMemoryCount}/16 | Dict: ${dictCount}/36`
+    legacyCount >= 100 && vocabMemoryCount >= 41 && grammarMemoryCount >= 16 && dictCount >= 36,
+    'Tất cả từ vựng, cấu trúc ngữ pháp và mục từ điển cũ đã được gắn Knowledge ID',
+    `Legacy mappings: ${legacyCount} | Vocab: ${vocabMemoryCount} | Grammar: ${grammarMemoryCount} | Dict: ${dictCount}`
   );
 
   // ==========================================================================

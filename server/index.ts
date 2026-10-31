@@ -2007,6 +2007,16 @@ app.post('/api/learning-memory/rebuild', (req, res) => {
   }
 });
 
+// 10. Tối ưu toàn diện hệ thống và cơ sở dữ liệu SQLite
+app.post('/api/learning-memory/optimize', (_req, res) => {
+  try {
+    const result = unifiedLearningMemoryService.optimizeSystem();
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ==================== LIVE API WEBSOCKET BRIDGE ====================
 wss.on('connection', (ws: WebSocket, req) => {
   const url = new URL(req.url || '', `http://${req.headers.host}`);
