@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import type { GrammarRule, HSKLevel } from '../types';
 import { db } from '../db';
+import { backendClient } from '../utils/backendClient';
 import { RubyText } from '../components/common/RubyText';
 import { audioService } from '../utils/audio';
 
@@ -24,6 +25,71 @@ export const GrammarView: React.FC = () => {
   }, []);
 
   const loadGrammar = async () => {
+    try {
+      // 1. Thử lấy từ Backend SQLite chung
+      const res = await backendClient.getFullMemory();
+      if (res.success && res.data?.grammar && res.data.grammar.length > 0) {
+        const unifiedRules: GrammarRule[] = res.data.grammar.map((g: any) => {
+          let exZh = '';
+          let exVi = '';
+          if (g.examples_json) {
+            try {
+              const parsed = JSON.parse(g.examples_json);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                const item = parsed[0];
+                if (typeof item === 'string') {
+                  const match = item.match(/^(.*?)\((.*?)\)$/);
+                  if (match) {
+                    exZh = match[1];
+                    exVi = match[2];
+                  } else {
+                    exZh = item;
+                  }
+                }
+              }
+            } catch {}
+          }
+
+          let mistakes: string[] = [];
+          if (g.common_mistakes_json) {
+            try {
+              mistakes = JSON.parse(g.common_mistakes_json);
+            } catch {}
+          }
+
+          return {
+            id: `g_${g.id || g.pattern_name}`,
+            title: g.pattern_name,
+            hskLevel: (g.hsk_level || 1) as HSKLevel,
+            formula: g.formula,
+            explanationVi: g.meaning_vi || g.usage_notes || '',
+            exampleZh: exZh || '我是学生。',
+            examplePinyin: '',
+            exampleVi: exVi || 'Tôi là học sinh.',
+            commonMistakes: mistakes,
+          };
+        });
+
+        // Hợp nhất với Dexie nếu có
+        const localList = await db.grammarRules.toArray();
+        const existingTitles = new Set(unifiedRules.map((r) => r.title));
+        for (const loc of localList) {
+          if (!existingTitles.has(loc.title)) {
+            unifiedRules.push(loc);
+          }
+        }
+
+        setGrammarList(unifiedRules);
+        if (unifiedRules.length > 0) {
+          setExpandedId(unifiedRules[0].id);
+        }
+        return;
+      }
+    } catch (e) {
+      console.warn('Lỗi khi nạp ngữ pháp từ SQLite backend:', e);
+    }
+
+    // Fallback về Dexie
     const list = await db.grammarRules.toArray();
     setGrammarList(list);
     if (list.length > 0) {

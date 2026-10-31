@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import type { UserProfile, LessonContent, SRSCard, Vocabulary } from '../types';
 import { db } from '../db';
+import { backendClient } from '../utils/backendClient';
 import { RubyText } from '../components/common/RubyText';
 import { audioService } from '../utils/audio';
 import type { NavTab } from '../components/layout/Sidebar';
@@ -37,31 +38,62 @@ export const HomeView: React.FC<HomeViewProps> = ({ user, onNavigate }) => {
   const loadHomeData = async () => {
     const today = new Date().toISOString().split('T')[0];
 
-    // Due SRS cards
-    const dueCards = await db.srsCards
-      .filter((c: SRSCard) => c.nextReviewDate <= today)
-      .count();
-    setDueCardsCount(dueCards);
+    try {
+      // 1. Lấy thông tin hàng đợi SRS và số thẻ đến hạn từ SQLite Backend chung
+      const srsDash = await backendClient.getSrsDashboard();
+      if (srsDash.success && srsDash.data) {
+        setDueCardsCount(srsDash.data.dueToday ?? 0);
+      } else {
+        const dueCards = await db.srsCards
+          .filter((c: SRSCard) => c.nextReviewDate <= today)
+          .count();
+        setDueCardsCount(dueCards);
+      }
 
-    // Next uncompleted lesson
+      // 2. Lấy số lượng từ vựng và 5 từ mới nhất từ SQLite vocabulary_memory
+      const memRes = await backendClient.getFullMemory();
+      if (memRes.success && memRes.data?.vocabulary && memRes.data.vocabulary.length > 0) {
+        setTotalVocabsCount(memRes.data.vocabulary.length);
+        const mappedVocabs: Vocabulary[] = memRes.data.vocabulary.slice(0, 5).map((v: any) => ({
+          id: v.id,
+          simplified: v.simplified,
+          traditional: v.traditional || v.simplified,
+          pinyin: v.pinyin,
+          meaningVi: v.meaning_vi,
+          wordType: v.word_type || 'từ vựng',
+          hskLevel: v.hsk_level || 1,
+          isFavorite: v.is_favorite === 1,
+          createdAt: v.first_taught_at || Date.now(),
+        }));
+        setRecentVocabs(mappedVocabs);
+      } else {
+        const totalVocab = await db.vocabularies.count();
+        setTotalVocabsCount(totalVocab);
+        const vocabs = await db.vocabularies.limit(5).toArray();
+        setRecentVocabs(vocabs);
+      }
+    } catch (e) {
+      console.warn('Lỗi khi nạp dữ liệu trang chủ từ backend, dùng local cache:', e);
+      const dueCards = await db.srsCards
+        .filter((c: SRSCard) => c.nextReviewDate <= today)
+        .count();
+      setDueCardsCount(dueCards);
+      const totalVocab = await db.vocabularies.count();
+      setTotalVocabsCount(totalVocab);
+      const vocabs = await db.vocabularies.limit(5).toArray();
+      setRecentVocabs(vocabs);
+    }
+
+    // Bài học tiếp theo & số bài đã hoàn thành
     const uncompleted = await db.lessons
       .filter((l: LessonContent) => !l.completed)
       .first();
     setNextLesson(uncompleted || null);
 
-    // Completed lessons count
     const completed = await db.lessons
       .filter((l: LessonContent) => Boolean(l.completed))
       .count();
     setCompletedLessonsCount(completed);
-
-    // Total vocabs
-    const totalVocab = await db.vocabularies.count();
-    setTotalVocabsCount(totalVocab);
-
-    // Recent 5 vocabularies
-    const vocabs = await db.vocabularies.limit(5).toArray();
-    setRecentVocabs(vocabs);
   };
 
   const dailyProverb = {

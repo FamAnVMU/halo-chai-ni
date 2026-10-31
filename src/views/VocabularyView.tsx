@@ -10,9 +10,11 @@ import {
   BookOpen,
   Layers,
   CheckCircle2,
+  RefreshCw,
 } from 'lucide-react';
 import type { Vocabulary, SRSCard, HSKLevel } from '../types';
 import { db } from '../db';
+import { backendClient } from '../utils/backendClient';
 import { audioService } from '../utils/audio';
 import { calculateSM2 } from '../utils/srs';
 import { RubyText } from '../components/common/RubyText';
@@ -24,6 +26,7 @@ export const VocabularyView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [showFavoritesOnly, setShowFavoritesOnly] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'list' | 'flashcard'>('list');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   // Flashcard mode state
   const [flashcardIdx, setFlashcardIdx] = useState<number>(0);
@@ -44,21 +47,96 @@ export const VocabularyView: React.FC = () => {
   }, []);
 
   const loadVocabularies = async () => {
-    const vocabs = await db.vocabularies.toArray();
-    setVocabList(vocabs);
+    setIsLoading(true);
+    try {
+      // 1. Thử lấy dữ liệu từ Backend SQLite (Nguồn chân lý dùng chung)
+      const memRes = await backendClient.getFullMemory();
+      const srsRes = await backendClient.getSrsDashboard();
 
-    const srsCards = await db.srsCards.toArray();
-    const map: Record<number, SRSCard> = {};
-    srsCards.forEach((c) => {
-      map[c.vocabId] = c;
-    });
-    setSrsMap(map);
+      if (memRes.success && memRes.data?.vocabulary && memRes.data.vocabulary.length > 0) {
+        const unifiedVocabs: Vocabulary[] = memRes.data.vocabulary.map((v: any) => {
+          let exZh = '';
+          let exVi = '';
+          if (v.examples_json) {
+            try {
+              const parsed = JSON.parse(v.examples_json);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                const first = parsed[0];
+                if (typeof first === 'string') {
+                  exZh = first;
+                } else if (typeof first === 'object') {
+                  exZh = first.zh || '';
+                  exVi = first.vi || '';
+                }
+              }
+            } catch {}
+          }
+
+          return {
+            id: v.id,
+            simplified: v.simplified,
+            traditional: v.traditional || v.simplified,
+            pinyin: v.pinyin,
+            meaningVi: v.meaning_vi,
+            wordType: v.word_type || 'từ vựng',
+            hskLevel: (v.hsk_level || 1) as HSKLevel,
+            exampleZh: exZh,
+            examplePinyin: '',
+            exampleVi: exVi,
+            isFavorite: v.is_favorite === 1,
+            isCustom: v.source_session_id === 'user_custom',
+            createdAt: v.first_taught_at || Date.now(),
+          };
+        });
+
+        setVocabList(unifiedVocabs);
+
+        // Tạo map thẻ SRS
+        const map: Record<number, SRSCard> = {};
+        unifiedVocabs.forEach((v) => {
+          map[v.id!] = {
+            vocabId: v.id!,
+            repetition: 1,
+            interval: 1,
+            easeFactor: 2.5,
+            nextReviewDate: new Date().toISOString().split('T')[0],
+            status: 'learning',
+            correctCount: 1,
+            incorrectCount: 0,
+          };
+        });
+        setSrsMap(map);
+      } else {
+        // Fallback về local Dexie nếu backend rỗng hoặc offline
+        const vocabs = await db.vocabularies.toArray();
+        setVocabList(vocabs);
+
+        const srsCards = await db.srsCards.toArray();
+        const map: Record<number, SRSCard> = {};
+        srsCards.forEach((c) => {
+          map[c.vocabId] = c;
+        });
+        setSrsMap(map);
+      }
+    } catch (err) {
+      console.warn('Lỗi khi nạp từ vựng từ backend, dùng local cache:', err);
+      const vocabs = await db.vocabularies.toArray();
+      setVocabList(vocabs);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const toggleFavorite = async (id?: number, currentFav?: boolean) => {
     if (!id) return;
-    await db.vocabularies.update(id, { isFavorite: !currentFav });
-    loadVocabularies();
+    try {
+      await db.vocabularies.update(id, { isFavorite: !currentFav });
+      setVocabList((prev) =>
+        prev.map((v) => (v.id === id ? { ...v, isFavorite: !currentFav } : v))
+      );
+    } catch (err) {
+      console.error('Lỗi khi đổi yêu thích:', err);
+    }
   };
 
   const handleSRSReview = async (vocabId: number, quality: number) => {
@@ -73,6 +151,23 @@ export const VocabularyView: React.FC = () => {
       incorrectCount: 0,
     };
 
+    const targetVocab = vocabList.find((v) => v.id === vocabId);
+
+    // 1. Đồng bộ lên Backend SRS (SM-2) nếu có
+    if (targetVocab) {
+      try {
+        const ratingMap: Record<number, any> = { 1: 1, 2: 2, 3: 4, 5: 5 };
+        await backendClient.submitSrsReview({
+          itemId: `srs_vocab_${targetVocab.simplified}`,
+          userRating: ratingMap[quality] || 4,
+          reviewMode: 'flashcard',
+        });
+      } catch (e) {
+        console.warn('Đồng bộ backend SRS thất bại:', e);
+      }
+    }
+
+    // 2. Cập nhật Dexie local cache
     const updated = calculateSM2(card, quality);
     const existing = await db.srsCards.where('vocabId').equals(vocabId).first();
 
@@ -93,7 +188,7 @@ export const VocabularyView: React.FC = () => {
       });
     }
 
-    // Move to next flashcard
+    // Chuyển thẻ tiếp theo
     setIsFlipped(false);
     if (flashcardIdx + 1 < filteredList.length) {
       setFlashcardIdx(flashcardIdx + 1);
@@ -107,6 +202,28 @@ export const VocabularyView: React.FC = () => {
     e.preventDefault();
     if (!newSimplified.trim() || !newMeaning.trim()) return;
 
+    // 1. Lưu vào Backend SQLite chung (vocabulary_memory & srs_items)
+    try {
+      await backendClient.saveVocabulary({
+        simplified: newSimplified.trim(),
+        traditional: newSimplified.trim(),
+        pinyin: newPinyin.trim(),
+        meaningVi: newMeaning.trim(),
+        wordType: newType,
+        hskLevel: newHsk,
+        notes: newExampleZh.trim() ? `Ví dụ: ${newExampleZh.trim()}` : '',
+      });
+      await backendClient.syncReadingWordToMemory(
+        newSimplified.trim(),
+        newPinyin.trim(),
+        newMeaning.trim(),
+        newHsk
+      );
+    } catch (err) {
+      console.warn('Lỗi lưu từ vựng lên backend:', err);
+    }
+
+    // 2. Lưu vào Dexie local cache
     const id = await db.vocabularies.add({
       simplified: newSimplified.trim(),
       traditional: newSimplified.trim(),
@@ -122,7 +239,6 @@ export const VocabularyView: React.FC = () => {
       createdAt: Date.now(),
     });
 
-    // Create SRS card for this word
     await db.srsCards.add({
       vocabId: Number(id),
       repetition: 0,

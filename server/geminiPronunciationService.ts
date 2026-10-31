@@ -211,6 +211,9 @@ Quy tắc: Tiếng Việt sư phạm, gần gũi, chỉ rõ lỗi âm uốn lư�
     toneFeedbackVi += ' (Lưu ý: Để hoàn thiện cảm âm thanh điệu, hãy nghe đối chiếu trực tiếp giữa giọng của bạn và âm thanh mẫu).';
 
     // 5. Lưu vào bảng SQLite `pronunciation_records`
+    const targetType = input.targetType || (input as any).practiceMode || 'word';
+    const mode = input.mode || (input as any).practiceMode || 'standard';
+
     db.prepare(`
       INSERT INTO pronunciation_records (
         id, user_id, target_text, target_pinyin, target_type, mode,
@@ -223,8 +226,8 @@ Quy tắc: Tiếng Việt sư phạm, gần gũi, chỉ rõ lỗi âm uốn lư�
       recordId,
       input.targetText,
       input.targetPinyin,
-      input.targetType,
-      input.mode,
+      targetType,
+      mode,
       cleanSpoken,
       calculatedScore,
       isMatch ? 1 : 0,

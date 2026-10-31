@@ -1,7 +1,7 @@
 {
   "name": "halo-chinese",
   "private": true,
-  "version": "1.11.0",
+  "version": "1.12.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,6 +10,7 @@
     "build": "tsc -b && vite build",
     "build:apk": "npm run build && npx cap sync android && cd android && gradlew.bat assembleDebug",
     "lint": "oxlint",
+    "test": "tsx scripts/test_comprehensive_audit.ts",
     "preview": "vite preview"
   },
   "dependencies": {

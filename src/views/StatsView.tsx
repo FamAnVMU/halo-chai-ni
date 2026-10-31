@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import type { UserProfile, DailyLearningStat, SRSCard, LessonContent } from '../types';
 import { db } from '../db';
+import { backendClient } from '../utils/backendClient';
 
 interface StatsViewProps {
   user: UserProfile | undefined;
@@ -30,16 +31,38 @@ export const StatsView: React.FC<StatsViewProps> = ({ user }) => {
   }, []);
 
   const loadStats = async () => {
+    try {
+      // 1. Thống kê từ vựng và thẻ SRS từ Backend SQLite chung
+      const memRes = await backendClient.getFullMemory();
+      const srsRes = await backendClient.getSrsDashboard();
+
+      if (memRes.success && memRes.data?.vocabulary) {
+        setTotalVocabs(memRes.data.vocabulary.length);
+      } else {
+        const vocabs = await db.vocabularies.count();
+        setTotalVocabs(vocabs);
+      }
+
+      if (srsRes.success && srsRes.data) {
+        setMasteredVocabs(srsRes.data.mastered ?? 0);
+      } else {
+        const mastered = await db.srsCards
+          .filter((c: SRSCard) => c.status === 'mastered')
+          .count();
+        setMasteredVocabs(mastered);
+      }
+    } catch (e) {
+      console.warn('Lỗi nạp thống kê từ backend:', e);
+      const vocabs = await db.vocabularies.count();
+      setTotalVocabs(vocabs);
+      const mastered = await db.srsCards
+        .filter((c: SRSCard) => c.status === 'mastered')
+        .count();
+      setMasteredVocabs(mastered);
+    }
+
     const list = await db.dailyStats.toArray();
     setStatsList(list);
-
-    const vocabs = await db.vocabularies.count();
-    setTotalVocabs(vocabs);
-
-    const mastered = await db.srsCards
-      .filter((c: SRSCard) => c.status === 'mastered')
-      .count();
-    setMasteredVocabs(mastered);
 
     const lessonsDone = await db.lessons
       .filter((l: LessonContent) => Boolean(l.completed))
