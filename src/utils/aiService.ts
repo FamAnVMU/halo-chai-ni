@@ -1,4 +1,4 @@
-import { db } from '../db';
+import { backendClient } from './backendClient';
 import type {
   AIChatMessage,
   AIChatMode,
@@ -20,85 +20,26 @@ export interface AIServiceResponse {
 }
 
 export class AIService {
-  // Test connection to API provider
+  // Test connection to API provider via Backend Local
   public async testConnection(provider: string, apiKey: string, model: string): Promise<{ success: boolean; message: string; latencyMs: number }> {
-    const startTime = Date.now();
-    if (!apiKey) {
+    const isBackendAlive = await backendClient.checkHealth();
+    if (isBackendAlive) {
+      const res = await backendClient.testTextApi(apiKey, model);
       return {
-        success: false,
-        message: 'Chưa nhập API Key. Vui lòng điền API Key để kết nối.',
-        latencyMs: 0,
+        success: res.success,
+        message: res.message,
+        latencyMs: res.latencyMs || 0
       };
     }
 
-    try {
-      if (provider === 'gemini') {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: 'Trả lời đúng 2 từ: "Kết nối thành công"' }] }],
-          }),
-        });
-
-        const latencyMs = Date.now() - startTime;
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          const errMsg = errorData.error?.message || response.statusText;
-          return {
-            success: false,
-            message: `Lỗi Gemini API (${response.status}): ${errMsg}`,
-            latencyMs,
-          };
-        }
-
-        return {
-          success: true,
-          message: `Kết nối Gemini API thành công! Mô hình ${model} sẵn sàng hoạt động.`,
-          latencyMs,
-        };
-      } else {
-        // OpenAI format test
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({
-            model: model || 'gpt-4o-mini',
-            messages: [{ role: 'user', content: 'Say hello in 3 words' }],
-            max_tokens: 10,
-          }),
-        });
-
-        const latencyMs = Date.now() - startTime;
-        if (!response.ok) {
-          const err = await response.json().catch(() => ({}));
-          return {
-            success: false,
-            message: `Lỗi OpenAI API (${response.status}): ${err.error?.message || response.statusText}`,
-            latencyMs,
-          };
-        }
-
-        return {
-          success: true,
-          message: `Kết nối OpenAI API thành công!`,
-          latencyMs,
-        };
-      }
-    } catch (e: any) {
-      return {
-        success: false,
-        message: `Lỗi kết nối mạng: ${e.message}`,
-        latencyMs: Date.now() - startTime,
-      };
-    }
+    return {
+      success: false,
+      message: 'Không thể kết nối tới Local Backend (http://localhost:3001). Vui lòng đảm bảo backend đang chạy.',
+      latencyMs: 0
+    };
   }
 
-  // Send message to AI Tutor
+  // Send message to AI Tutor via Local Backend
   public async sendMessage(
     userMessage: string,
     history: AIChatMessage[],
@@ -106,96 +47,26 @@ export class AIService {
     hskLevel: HSKLevel,
     roleplayScenario?: string
   ): Promise<AIServiceResponse> {
-    const apiSettings = await db.apiSettings.get('default');
-    const aiMemory = await db.aiMemory.get('default');
-
-    // System prompt tailored for personal Vietnamese Chinese tutor
-    const systemInstruction = `
-Bạn là "Lão Sư AI" (老师) - Giáo viên dạy tiếng Trung cá nhân tận tâm, kiên nhẫn, thân thiện dành riêng cho người Việt Nam.
-Trình độ người học: HSK ${hskLevel}.
-Chế độ học tập hiện tại: ${mode} ${roleplayScenario ? `(Tình huống đóng vai: ${roleplayScenario})` : ''}.
-
-Thông tin bộ nhớ người học:
-- Điểm còn yếu: ${aiMemory?.knownWeaknesses.join(', ') || 'Chưa ghi nhận'}
-- Từ hay phát âm sai: ${aiMemory?.frequentlyMispronouncedWords.join(', ') || 'Chưa ghi nhận'}
-- Ngữ pháp đang học: ${aiMemory?.strugglingGrammar.join(', ') || 'Chưa ghi nhận'}
-- Ghi chú: ${aiMemory?.personalNotes || ''}
-
-QUY TẮC BẮT BUỘC:
-1. Luôn sử dụng tiếng Trung phù hợp với cấp độ HSK ${hskLevel} của người học. Đừng dùng từ quá cao siêu hoặc văn phong quá hàn lâm trừ khi ở cấp cao.
-2. Kiểm tra câu tiếng Trung của người học. Nếu người học viết/nói có lỗi ngữ pháp, sai từ, hoặc diễn đạt chưa tự nhiên:
-   - Hãy chỉ ra lỗi và sửa cho người học.
-3. Trả về câu trả lời dưới định dạng JSON DUY NHẤT theo schema sau:
-{
-  "replyZh": "Câu phản hồi bằng tiếng Trung",
-  "replyPinyin": "Phiên âm Pinyin có dấu thanh điệu đầy đủ cho replyZh",
-  "replyVi": "Bản dịch hoặc lời giải thích, hướng dẫn bằng tiếng Việt",
-  "hasCorrection": true hoặc false,
-  "correction": {
-    "original": "Câu gốc của người học",
-    "corrected": "Câu tiếng Trung chuẩn xác",
-    "explanationVi": "Giải thích chi tiết tại sao sai và cấu trúc ngữ pháp liên quan bằng tiếng Việt",
-    "grammarPoint": "Tên điểm ngữ pháp liên quan (nếu có)",
-    "naturalSuggestion": "Cách nói tự nhiên hơn của người bản xứ (nếu có)"
-  }
-}
-LƯU Ý: Không thêm bất kỳ văn bản nào ngoài khối JSON hợp lệ.
-`;
-
-    // If API key is provided, call real AI endpoint
-    if (apiSettings?.geminiApiKey) {
-      try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${apiSettings.geminiModel || 'gemini-2.5-flash'}:generateContent?key=${apiSettings.geminiApiKey}`;
-
-        // Format history for Gemini
-        const contents: any[] = [];
-        // Add recent history (up to last 8 messages)
-        const recentHistory = history.slice(-8);
-        for (const msg of recentHistory) {
-          contents.push({
-            role: msg.sender === 'user' ? 'user' : 'model',
-            parts: [{ text: msg.text }],
-          });
-        }
-        contents.push({
-          role: 'user',
-          parts: [{ text: userMessage }],
+    try {
+      const isBackendAlive = await backendClient.checkHealth();
+      if (isBackendAlive) {
+        const res = await backendClient.sendTutorMessage({
+          message: userMessage,
+          history: history.map(h => ({ sender: h.sender, text: h.text })),
+          mode,
+          hskLevel,
+          scenario: roleplayScenario
         });
 
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            systemInstruction: { parts: [{ text: systemInstruction }] },
-            contents,
-            generationConfig: {
-              responseMimeType: 'application/json',
-              temperature: 0.7,
-            },
-          }),
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (rawText) {
-            const parsed = JSON.parse(rawText);
-            return {
-              replyZh: parsed.replyZh || '很好！',
-              replyPinyin: parsed.replyPinyin || 'Hěn hǎo!',
-              replyVi: parsed.replyVi || 'Rất tốt!',
-              correction: parsed.hasCorrection ? parsed.correction : undefined,
-            };
-          }
-        } else {
-          console.error('Gemini API request failed:', await res.text());
+        if (res.success && res.data) {
+          return res.data;
         }
-      } catch (e) {
-        console.error('AI Service fetch error:', e);
       }
+    } catch (e) {
+      console.warn('Backend request failed, falling back to local offline processor:', e);
     }
 
-    // High quality intelligent built-in fallback response when offline or key not yet entered
+    // Intelligent built-in fallback response when backend is temporarily offline
     return this.generateSmartFallback(userMessage, mode, hskLevel, roleplayScenario);
   }
 
@@ -204,54 +75,40 @@ LƯU Ý: Không thêm bất kỳ văn bản nào ngoài khối JSON hợp lệ.
     sessionHistory: AIChatMessage[],
     hskLevel: HSKLevel
   ): Promise<PostSessionReport> {
-    const apiSettings = await db.apiSettings.get('default');
-
-    if (apiSettings?.geminiApiKey && sessionHistory.length >= 2) {
-      try {
+    try {
+      const isBackendAlive = await backendClient.checkHealth();
+      if (isBackendAlive) {
         const prompt = `
-Hãy đóng vai một chuyên gia sư phạm tiếng Trung, phân tích buổi học sau của học viên HSK ${hskLevel} và trả về báo cáo tóm tắt tiến bộ dưới dạng JSON:
-Nội dung cuộc trò chuyện:
+Phân tích buổi học tiếng Trung HSK ${hskLevel} sau và trả về báo cáo JSON:
 ${sessionHistory.map(m => `${m.sender}: ${m.text}`).join('\n')}
-
-SCHEMA JSON:
+SCHEMA:
 {
-  "topic": "Chủ đề chính của buổi học",
-  "newWords": [
-    {"zh": "từ mới 1", "pinyin": "pinyin", "vi": "nghĩa tiếng Việt"}
-  ],
-  "grammarPoints": ["Điểm ngữ pháp 1", "Điểm ngữ pháp 2"],
-  "mistakesMade": [
-    {"original": "câu sai", "corrected": "câu sửa", "explanation": "giải thích"}
-  ],
-  "strengths": ["Điểm làm tốt của học viên"],
-  "weaknesses": ["Điểm cần khắc phục"],
-  "nextStepRecommendation": "Lời khuyên cho buổi học kế tiếp"
+  "topic": "Chủ đề",
+  "newWords": [{"zh": "từ", "pinyin": "pinyin", "vi": "nghĩa"}],
+  "grammarPoints": ["ngữ pháp"],
+  "mistakesMade": [{"original": "câu sai", "corrected": "câu sửa", "explanation": "giải thích"}],
+  "strengths": ["điểm mạnh"],
+  "weaknesses": ["điểm yếu"],
+  "nextStepRecommendation": "lời khuyên"
 }
 `;
-
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${apiSettings.geminiModel || 'gemini-2.5-flash'}:generateContent?key=${apiSettings.geminiApiKey}`;
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: 'application/json' },
-          }),
+        const res = await backendClient.sendTutorMessage({
+          message: prompt,
+          history: [],
+          mode: 'report',
+          hskLevel
         });
 
-        if (res.ok) {
-          const data = await res.json();
-          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text) {
-            return JSON.parse(text);
-          }
+        if (res.success && res.data) {
+          try {
+            return JSON.parse(res.data.replyZh);
+          } catch {}
         }
-      } catch (e) {
-        console.error('Failed to generate AI report:', e);
       }
+    } catch (e) {
+      console.warn('Backend report error:', e);
     }
 
-    // Default structured report fallback
     return {
       topic: 'Giao tiếp thực hành tiếng Trung cơ bản',
       newWords: [
@@ -266,11 +123,10 @@ SCHEMA JSON:
     };
   }
 
-  // Smart conversational fallback for instant response
   private generateSmartFallback(
     message: string,
-    mode: AIChatMode,
-    hskLevel: HSKLevel,
+    _mode: AIChatMode,
+    _hskLevel: HSKLevel,
     scenario?: string
   ): AIServiceResponse {
     const lower = message.toLowerCase();
@@ -291,15 +147,6 @@ SCHEMA JSON:
       };
     }
 
-    if (lower.includes('giá') || lower.includes('bao nhiêu') || lower.includes('duoshao qian') || lower.includes('多少钱')) {
-      return {
-        replyZh: '这个苹果五块钱一斤，很甜很新鲜。您想买几斤？',
-        replyPinyin: 'Zhè ge píngguǒ wǔ kuài qián yì jīn, hěn tián hěn xīnxiān. Nín xiǎng mǎi jǐ jīn?',
-        replyVi: 'Táo này năm tệ một cân, rất ngọt và tươi. Quý khách muốn mua mấy cân ạ?',
-      };
-    }
-
-    // Default context-aware reply
     return {
       replyZh: '我明白了！你的中文越来越流利了。请继续告诉我，你平时喜欢做什么？',
       replyPinyin: 'Wǒ míngbai le! Nǐ de zhōngwén yuè lái yuè liúlì le. Qǐng jìxù gàosù wǒ, nǐ píngshí xǐhuan zuò shénme?',

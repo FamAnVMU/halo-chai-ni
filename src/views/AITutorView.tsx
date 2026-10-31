@@ -5,24 +5,19 @@ import {
   Volume2,
   VolumeX,
   Send,
-  RotateCcw,
-  Sparkles,
   MessageSquare,
   Phone,
   PhoneOff,
   AlertCircle,
-  CheckCircle,
-  Copy,
-  Settings,
   Brain,
   FileText,
-  ChevronRight,
   BookmarkPlus,
+  Radio,
+  Server,
 } from 'lucide-react';
 import type {
   AIChatMessage,
   AIChatMode,
-  AIChatSession,
   AILearnerMemory,
   HSKLevel,
   PostSessionReport,
@@ -31,6 +26,8 @@ import { db } from '../db';
 import { aiService } from '../utils/aiService';
 import { audioService } from '../utils/audio';
 import { speechService } from '../utils/speechRecognition';
+import { GeminiLiveAudioClient } from '../utils/geminiLiveAudioClient';
+import { backendClient } from '../utils/backendClient';
 import { RubyText } from '../components/common/RubyText';
 
 export const AITutorView: React.FC = () => {
@@ -38,25 +35,28 @@ export const AITutorView: React.FC = () => {
   const [chatMode, setChatMode] = useState<AIChatMode>('free');
   const [hskLevel, setHskLevel] = useState<HSKLevel>(1);
   const [scenario, setScenario] = useState<string>('restaurant');
-  const [speed, setSpeed] = useState<number>(1.0);
+  const [speed] = useState<number>(1.0);
 
   // Chat session & messages
   const [messages, setMessages] = useState<AIChatMessage[]>([]);
   const [inputMsg, setInputMsg] = useState<string>('');
   const [isAiThinking, setIsAiThinking] = useState<boolean>(false);
-  const [currentSessionId, setCurrentSessionId] = useState<string>('session_default');
+  const currentSessionId = 'session_default';
 
   // Voice Chat States
   const [isVoiceActive, setIsVoiceActive] = useState<boolean>(false);
   const [isMicOn, setIsMicOn] = useState<boolean>(true);
   const [isAiAudioOn, setIsAiAudioOn] = useState<boolean>(true);
-  const [voiceStatus, setVoiceStatus] = useState<'idle' | 'listening' | 'thinking' | 'speaking'>('idle');
+  const [voiceStatus, setVoiceStatus] = useState<'idle' | 'connecting' | 'listening' | 'thinking' | 'speaking'>('idle');
   const [liveTranscript, setLiveTranscript] = useState<string>('');
   const [voiceSubtitles, setVoiceSubtitles] = useState<{
     zh: string;
     pinyin: string;
     vi: string;
   } | null>(null);
+
+  // Gemini Live Audio Client Instance
+  const liveAudioClientRef = useRef<GeminiLiveAudioClient | null>(null);
 
   // Memory & Report Modals
   const [aiMemory, setAiMemory] = useState<AILearnerMemory | null>(null);
@@ -85,11 +85,13 @@ export const AITutorView: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isAiThinking]);
 
-  // Clean up audio & speech when unmounting
   useEffect(() => {
     return () => {
       audioService.stopSpeaking();
       speechService.stopListening();
+      if (liveAudioClientRef.current) {
+        liveAudioClientRef.current.stop();
+      }
     };
   }, []);
 
@@ -100,7 +102,6 @@ export const AITutorView: React.FC = () => {
       setChatMode(session.mode);
       setHskLevel(session.hskLevel);
     } else {
-      // Welcome message from tutor
       const initialWelcome: AIChatMessage = {
         id: 'msg_welcome',
         sender: 'assistant',
@@ -123,8 +124,22 @@ export const AITutorView: React.FC = () => {
   };
 
   const loadMemory = async () => {
-    const mem = await db.aiMemory.get('default');
-    if (mem) setAiMemory(mem);
+    const mem = await backendClient.getLearnerMemory();
+    if (mem) {
+      setAiMemory({
+        id: 'default',
+        knownWeaknesses: mem.weaknesses || [],
+        frequentlyMispronouncedWords: mem.mispronounced || [],
+        masteredGrammar: mem.masteredGrammar || [],
+        strugglingGrammar: mem.strugglingGrammar || [],
+        topicsPracticed: [],
+        personalNotes: mem.notes || '',
+        updatedAt: mem.updatedAt || Date.now()
+      });
+    } else {
+      const localMem = await db.aiMemory.get('default');
+      if (localMem) setAiMemory(localMem);
+    }
   };
 
   const saveMessagesToDb = async (newMsgs: AIChatMessage[]) => {
@@ -134,7 +149,6 @@ export const AITutorView: React.FC = () => {
       updatedAt: Date.now(),
     });
 
-    // Update daily study stats
     const today = new Date().toISOString().split('T')[0];
     const stat = await db.dailyStats.get(today);
     if (stat) {
@@ -185,69 +199,82 @@ export const AITutorView: React.FC = () => {
       const finalMsgs = [...updated, aiMsg];
       saveMessagesToDb(finalMsgs);
       setIsAiThinking(false);
-
-      // Play audio if in voice mode or audio enabled
-      if (isVoiceActive && isAiAudioOn) {
-        setVoiceStatus('speaking');
-        setVoiceSubtitles({
-          zh: res.replyZh,
-          pinyin: res.replyPinyin,
-          vi: res.replyVi,
-        });
-
-        audioService.speak(res.replyZh, {
-          rate: speed,
-          onEnd: () => {
-            if (isVoiceActive) {
-              setVoiceStatus('listening');
-              triggerContinuousListening();
-            } else {
-              setVoiceStatus('idle');
-            }
-          },
-          onError: () => {
-            if (isVoiceActive) {
-              setVoiceStatus('listening');
-              triggerContinuousListening();
-            }
-          },
-        });
-      }
     } catch (e) {
       console.error('AI chat error:', e);
       setIsAiThinking(false);
-      setVoiceStatus('idle');
     }
   };
 
-  // Continuous Voice Chat Loop
+  // ==================== REAL-TIME GEMINI LIVE VOICE CHAT ====================
   const startVoiceChat = async () => {
     const hasMic = await speechService.checkMicrophonePermission();
     if (!hasMic) {
-      alert('Vui lòng cấp quyền truy cập Microphone trong trình duyệt để sử dụng Voice Chat!');
+      alert('Vui lòng cấp quyền Microphone trong trình duyệt để đàm thoại với AI!');
+      return;
+    }
+
+    const isBackendAlive = await backendClient.checkHealth();
+    if (!isBackendAlive) {
+      // Fallback to Web Speech Loop if backend is not started
+      console.warn('Local Backend offline, using Web Speech audio pipeline fallback.');
+      setIsVoiceActive(true);
+      setVoiceStatus('listening');
+      triggerSpeechSynthesisLoop();
       return;
     }
 
     setIsVoiceActive(true);
-    setVoiceStatus('listening');
+    setVoiceStatus('connecting');
     setLiveTranscript('');
-    triggerContinuousListening();
+    setVoiceSubtitles(null);
+
+    // Initialize Gemini Live Audio Client connecting to ws://localhost:3001/api/live
+    const client = new GeminiLiveAudioClient();
+    liveAudioClientRef.current = client;
+
+    client.onStatusChange = (st) => setVoiceStatus(st);
+    client.onUserTranscription = (text) => setLiveTranscript(text);
+    client.onAiTranscription = (text) => {
+      setVoiceSubtitles((prev) => ({
+        zh: (prev?.zh || '') + ' ' + text,
+        pinyin: '',
+        vi: ''
+      }));
+    };
+    client.onInterrupted = () => {
+      console.log('Gemini Live interrupted by user speaking!');
+    };
+    client.onError = (err) => {
+      console.error('Gemini Live Audio error:', err);
+      alert(err);
+      stopVoiceChat();
+    };
+
+    await client.start({
+      hskLevel,
+      mode: chatMode,
+      scenario: chatMode === 'roleplay' ? scenario : undefined,
+    });
   };
 
   const stopVoiceChat = () => {
     setIsVoiceActive(false);
     setVoiceStatus('idle');
     setLiveTranscript('');
+    if (liveAudioClientRef.current) {
+      liveAudioClientRef.current.stop();
+      liveAudioClientRef.current = null;
+    }
     audioService.stopSpeaking();
     speechService.stopListening();
   };
 
-  const triggerContinuousListening = () => {
+  // Web Speech fallback when backend WS is offline
+  const triggerSpeechSynthesisLoop = () => {
     if (!isVoiceActive) return;
 
     speechService.startListening(
       (payload) => {
-        // INTERRUPT HANDLING: If AI is speaking and user speaks, stop AI immediately!
         if (voiceStatus === 'speaking') {
           audioService.stopSpeaking();
         }
@@ -261,19 +288,22 @@ export const AITutorView: React.FC = () => {
         }
       },
       () => {
-        // On speech end: if still voice active and wasn't thinking, re-listen
         if (isVoiceActive) {
           setTimeout(() => {
-            if (isVoiceActive) {
-              triggerContinuousListening();
-            }
+            if (isVoiceActive) triggerSpeechSynthesisLoop();
           }, 300);
         }
       },
-      (err) => {
-        console.warn('Continuous speech notice:', err);
-      }
+      (err) => console.warn('Speech notice:', err)
     );
+  };
+
+  const handleInterruptAi = () => {
+    if (liveAudioClientRef.current) {
+      liveAudioClientRef.current.interrupt();
+    }
+    audioService.stopSpeaking();
+    setVoiceStatus('listening');
   };
 
   const handleGenerateReport = async () => {
@@ -283,7 +313,7 @@ export const AITutorView: React.FC = () => {
   };
 
   const handleVoiceTest = () => {
-    audioService.speak('你好！我是你的中文AI老师，发音正常！', { rate: speed });
+    audioService.speak('你好！欢迎使用哈罗中文，发音测试正常。', { rate: speed });
   };
 
   return (
@@ -305,7 +335,7 @@ export const AITutorView: React.FC = () => {
               }`}
             >
               <MessageSquare className="w-3.5 h-3.5" />
-              <span>Text Chat</span>
+              <span>Text Chat (3.5 Flash Lite)</span>
             </button>
 
             <button
@@ -316,8 +346,8 @@ export const AITutorView: React.FC = () => {
                   : 'text-slate-500'
               }`}
             >
-              <Mic className="w-3.5 h-3.5" />
-              <span>Voice Chat (2 Chiều)</span>
+              <Radio className="w-3.5 h-3.5" />
+              <span>Voice Chat (3.8 Live API)</span>
             </button>
           </div>
 
@@ -351,27 +381,24 @@ export const AITutorView: React.FC = () => {
 
         {/* Right Action Tools */}
         <div className="flex items-center gap-1.5">
-          {/* Test Voice Button */}
           <button
             onClick={handleVoiceTest}
             className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-primary-600 text-xs flex items-center gap-1"
-            title="Thử âm thanh giọng đọc AI"
+            title="Thử âm thanh giọng đọc mẫu"
           >
             <Volume2 className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Thử giọng</span>
           </button>
 
-          {/* AI Memory Button */}
           <button
             onClick={() => setIsMemoryModalOpen(true)}
             className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-primary-600 text-xs flex items-center gap-1"
             title="Xem hồ sơ bộ nhớ học tập của AI"
           >
             <Brain className="w-3.5 h-3.5 text-primary-500" />
-            <span className="hidden sm:inline">Bộ nhớ AI</span>
+            <span className="hidden sm:inline">Bộ nhớ SQLite</span>
           </button>
 
-          {/* Post Session Report */}
           <button
             onClick={handleGenerateReport}
             className="p-1.5 rounded-xl bg-primary-50 dark:bg-primary-950 text-primary-600 dark:text-primary-400 font-bold text-xs flex items-center gap-1"
@@ -383,7 +410,7 @@ export const AITutorView: React.FC = () => {
         </div>
       </div>
 
-      {/* Roleplay Scenarios Selector Bar (if in roleplay mode) */}
+      {/* Roleplay Scenarios Selector Bar */}
       {chatMode === 'roleplay' && (
         <div className="flex items-center gap-2 overflow-x-auto p-2 bg-slate-100 dark:bg-slate-800/60 rounded-xl text-xs shrink-0">
           <span className="font-bold text-slate-500 whitespace-nowrap">Tình huống:</span>
@@ -403,7 +430,7 @@ export const AITutorView: React.FC = () => {
         </div>
       )}
 
-      {/* ==================== VOICE CHAT ARENA ==================== */}
+      {/* ==================== VOICE CHAT ARENA (GEMINI LIVE API) ==================== */}
       {activeSubMode === 'voice' && (
         <div className="flex-1 rounded-3xl bg-gradient-to-b from-slate-900 via-slate-950 to-black text-white p-6 flex flex-col justify-between items-center relative overflow-hidden shadow-2xl border border-slate-800">
           {/* Status Header */}
@@ -414,29 +441,27 @@ export const AITutorView: React.FC = () => {
                   ? 'bg-rose-500 animate-ping'
                   : voiceStatus === 'speaking'
                   ? 'bg-emerald-400 animate-pulse'
-                  : voiceStatus === 'thinking'
+                  : voiceStatus === 'connecting' || voiceStatus === 'thinking'
                   ? 'bg-amber-400 animate-spin'
                   : 'bg-slate-500'
               }`}
             />
             <span>
-              {voiceStatus === 'listening'
-                ? 'Đang lắng nghe bạn nói...'
-                : voiceStatus === 'thinking'
-                ? 'Lão sư AI đang suy nghĩ...'
+              {voiceStatus === 'connecting'
+                ? 'Đang kết nối Gemini Live WebSocket...'
+                : voiceStatus === 'listening'
+                ? 'Gemini Live đang lắng nghe...'
                 : voiceStatus === 'speaking'
-                ? 'AI đang trò chuyện...'
+                ? 'AI đang trò chuyện trực tiếp...'
                 : isVoiceActive
-                ? 'Sẵn sàng hội thoại'
-                : 'Chưa bắt đầu cuộc gọi'}
+                ? 'Đang duy trì phiên Live'
+                : 'Chưa bắt đầu hội thoại'}
             </span>
           </div>
 
           {/* Center Dynamic Waveform & Avatar */}
           <div className="text-center space-y-5 my-auto">
-            {/* Visualizer Waveform Avatar */}
             <div className="relative mx-auto w-36 h-36 flex items-center justify-center">
-              {/* Outer pulsing ripples when active */}
               {isVoiceActive && (
                 <>
                   <div className="absolute inset-0 rounded-full border-2 border-primary-500/30 animate-ping duration-1000" />
@@ -466,21 +491,15 @@ export const AITutorView: React.FC = () => {
                 <div className="text-sm font-medium text-slate-300 italic">
                   Bạn: "{liveTranscript}"
                 </div>
-              ) : voiceSubtitles ? (
+              ) : voiceSubtitles?.zh ? (
                 <div className="space-y-1 animate-in fade-in duration-150">
                   <div className="text-xl font-bold font-chinese text-white">
                     {voiceSubtitles.zh}
                   </div>
-                  <div className="text-xs text-rose-400 font-semibold">
-                    {voiceSubtitles.pinyin}
-                  </div>
-                  <div className="text-xs text-slate-400">
-                    {voiceSubtitles.vi}
-                  </div>
                 </div>
               ) : (
                 <div className="text-xs text-slate-500">
-                  Nhấn nút Gọi điện bên dưới để bắt đầu luyện nói tiếng Trung với AI.
+                  Nhấn nút Gọi điện bên dưới để kết nối trực tiếp với Gemini Live API.
                 </div>
               )}
             </div>
@@ -488,7 +507,6 @@ export const AITutorView: React.FC = () => {
 
           {/* Voice Controls Bottom Bar */}
           <div className="flex items-center gap-5">
-            {/* Toggle Mic */}
             <button
               onClick={() => setIsMicOn(!isMicOn)}
               className={`p-3.5 rounded-full border transition-all ${
@@ -501,12 +519,11 @@ export const AITutorView: React.FC = () => {
               {isMicOn ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
             </button>
 
-            {/* Start / End Call Main Button */}
             {!isVoiceActive ? (
               <button
                 onClick={startVoiceChat}
                 className="w-16 h-16 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center shadow-xl shadow-emerald-500/30 hover:scale-105 active:scale-95 transition-transform"
-                title="Bắt đầu gọi điện"
+                title="Bắt đầu gọi điện Live"
               >
                 <Phone className="w-7 h-7 fill-current" />
               </button>
@@ -514,13 +531,21 @@ export const AITutorView: React.FC = () => {
               <button
                 onClick={stopVoiceChat}
                 className="w-16 h-16 rounded-full bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center shadow-xl shadow-rose-600/30 hover:scale-105 active:scale-95 transition-transform"
-                title="Kết thúc cuộc trò chuyện"
+                title="Dừng cuộc gọi"
               >
                 <PhoneOff className="w-7 h-7 fill-current" />
               </button>
             )}
 
-            {/* Toggle AI Speaker Audio */}
+            {/* Interrupt AI barge-in button */}
+            <button
+              onClick={handleInterruptAi}
+              className="px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-white text-xs font-bold hover:bg-white/20"
+              title="Ngắt lời AI ngay"
+            >
+              Ngắt lời
+            </button>
+
             <button
               onClick={() => {
                 if (isAiAudioOn) audioService.stopSpeaking();
@@ -531,7 +556,7 @@ export const AITutorView: React.FC = () => {
                   ? 'bg-white/10 border-white/20 text-white hover:bg-white/20'
                   : 'bg-rose-600/30 border-rose-500 text-rose-400'
               }`}
-              title={isAiAudioOn ? 'Tắt loa AI' : 'Bật loa AI'}
+              title={isAiAudioOn ? 'Tắt loa' : 'Bật loa'}
             >
               {isAiAudioOn ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
             </button>
@@ -539,10 +564,9 @@ export const AITutorView: React.FC = () => {
         </div>
       )}
 
-      {/* ==================== TEXT CHAT ARENA ==================== */}
+      {/* ==================== TEXT CHAT ARENA (GEMINI 3.5 FLASH LITE) ==================== */}
       {activeSubMode === 'text' && (
         <div className="flex-1 flex flex-col rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-          {/* Messages Scroll Area */}
           <div className="flex-1 p-4 overflow-y-auto space-y-4">
             {messages.map((msg) => {
               const isUser = msg.sender === 'user';
@@ -560,19 +584,17 @@ export const AITutorView: React.FC = () => {
                   >
                     {!isUser ? (
                       <div className="space-y-2">
-                        {/* Chinese text with Ruby Pinyin */}
                         <div>
                           <RubyText text={msg.text} pinyinOverride={msg.pinyin} />
                         </div>
 
-                        {/* Translation */}
                         {msg.translationVi && (
                           <div className="text-xs text-slate-600 dark:text-slate-400 pt-1.5 border-t border-slate-200 dark:border-slate-700">
                             {msg.translationVi}
                           </div>
                         )}
 
-                        {/* Grammar Correction Box (if student had mistakes) */}
+                        {/* Grammar Correction */}
                         {msg.correction && (
                           <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/60 text-xs space-y-1 mt-2">
                             <div className="flex items-center gap-1 font-bold text-amber-800 dark:text-amber-200">
@@ -596,7 +618,6 @@ export const AITutorView: React.FC = () => {
                           </div>
                         )}
 
-                        {/* Bottom Mini Controls */}
                         <div className="flex items-center gap-2 pt-1 text-[11px] text-slate-400">
                           <button
                             onClick={() => audioService.speak(msg.text, { rate: speed })}
@@ -617,14 +638,13 @@ export const AITutorView: React.FC = () => {
             {isAiThinking && (
               <div className="flex items-center gap-2 text-xs text-slate-400 font-semibold p-2">
                 <span className="w-2 h-2 rounded-full bg-primary-600 animate-ping" />
-                <span>Lão sư AI đang soạn câu trả lời...</span>
+                <span>Lão sư AI đang soạn câu trả lời qua Backend...</span>
               </div>
             )}
 
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Text Input Area */}
           <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
             <form
               onSubmit={(e) => {
@@ -637,7 +657,7 @@ export const AITutorView: React.FC = () => {
                 type="text"
                 value={inputMsg}
                 onChange={(e) => setInputMsg(e.target.value)}
-                placeholder="Nhập tiếng Trung hoặc tiếng Việt để trò chuyện..."
+                placeholder="Nhập tiếng Trung hoặc tiếng Việt để học tập..."
                 className="flex-1 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:border-primary-500"
               />
 
@@ -653,7 +673,7 @@ export const AITutorView: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL: AI Learner Long-term Memory */}
+      {/* MODAL: AI Learner Memory */}
       {isMemoryModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
@@ -661,7 +681,7 @@ export const AITutorView: React.FC = () => {
               <div className="flex items-center gap-2">
                 <Brain className="w-5 h-5 text-primary-600" />
                 <h3 className="font-bold text-base text-slate-800 dark:text-slate-100">
-                  Bộ Nhớ Dài Hạn Của AI Về Bạn
+                  Hồ Sơ Bộ Nhớ Học Tập (SQLite Localhost)
                 </h3>
               </div>
               <button
@@ -673,7 +693,7 @@ export const AITutorView: React.FC = () => {
             </div>
 
             <p className="text-xs text-slate-500">
-              AI Tutor ghi nhớ những điểm bạn còn yếu, từ vựng hay phát âm sai và tiến trình học tập để cá nhân hóa câu hỏi và cách giảng dạy.
+              Bộ nhớ được lưu trữ trong bảng <code>learner_memory</code> tại SQLite của máy tính cá nhân.
             </p>
 
             <div className="space-y-3 text-xs">
@@ -718,7 +738,7 @@ export const AITutorView: React.FC = () => {
               onClick={() => setIsMemoryModalOpen(false)}
               className="w-full py-2.5 rounded-xl bg-primary-600 text-white font-bold text-xs"
             >
-              Đã hiểu
+              Đóng
             </button>
           </div>
         </div>
@@ -749,7 +769,6 @@ export const AITutorView: React.FC = () => {
                   Chủ đề: {postReport.topic}
                 </div>
 
-                {/* New Words */}
                 <div className="space-y-1.5">
                   <span className="font-bold text-slate-700 dark:text-slate-200">
                     Từ mới đã học trong buổi:
@@ -794,7 +813,6 @@ export const AITutorView: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Strengths & Weaknesses */}
                 <div className="grid grid-cols-2 gap-2 pt-1">
                   <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 text-emerald-900 dark:text-emerald-200">
                     <span className="font-bold block mb-1">Điểm mạnh:</span>
@@ -815,7 +833,6 @@ export const AITutorView: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Next Step Recommendation */}
                 <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                   <span className="font-bold block mb-0.5">Lời khuyên tiếp theo:</span>
                   {postReport.nextStepRecommendation}

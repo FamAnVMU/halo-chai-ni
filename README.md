@@ -1,134 +1,96 @@
 # Halo Chinese (哈罗中文) 🇨🇳
-### Ứng Dụng Học Tiếng Trung Cá Nhân Toàn Diện Tích Hợp AI Tutor & Voice Chat 2 Chiều
+### Ứng Dụng Học Tiếng Trung Cá Nhân Toàn Diện Tích Hợp Local Backend, Gemini 3.5 Flash Lite & Gemini 3.8 Live API
 
 [![Build and Release Android APK](https://github.com/FamAnVMU/halo-chai-ni/actions/workflows/release.yml/badge.svg)](https://github.com/FamAnVMU/halo-chai-ni/actions/workflows/release.yml)
 [![Release](https://img.shields.io/github/v/release/FamAnVMU/halo-chai-ni?color=crimson)](https://github.com/FamAnVMU/halo-chai-ni/releases)
-[![Platform](https://img.shields.io/badge/Platform-Web%20%7C%20Android%20APK-emerald)](https://github.com/FamAnVMU/halo-chai-ni)
+[![Platform](https://img.shields.io/badge/Platform-Web%20%7C%20Local%20Backend%20%7C%20Android%20APK-emerald)](https://github.com/FamAnVMU/halo-chai-ni)
 
-Ứng dụng học tiếng Trung cá nhân toàn diện, lấy cảm hứng từ HelloChinese nhưng sở hữu khả năng tùy biến cao, bộ nhớ học tập dài hạn và giáo viên AI giao tiếp trực tiếp bằng văn bản và giọng nói hai chiều.
-
----
-
-## 🌟 Tính Năng Nổi Bật
-
-### 1. 🤖 AI Tutor & Voice Chat 2 Chiều (Tính năng trọng tâm)
-- **Voice Chat Thời Gian Thực:** Luyện nói phản xạ hai chiều như gọi điện thoại với giáo viên tiếng Trung bản xứ.
-- **Xử lý ngắt lời (Interrupt Handling):** Khi AI đang nói, nếu bạn bắt đầu nói thì AI sẽ lập tức dừng và chuyển sang lắng nghe.
-- **Sóng âm trực quan (Waveform Visualizer):** Hiển thị trạng thái rõ ràng: *Đang nghe (Listening)* ➔ *Đang suy nghĩ (Thinking)* ➔ *Đang nói (Speaking)*.
-- **Sửa lỗi ngữ pháp chi tiết:** Tự động phát hiện lỗi sai, đưa ra câu gốc, câu sửa chuẩn xác, phân tích ngữ pháp và gợi ý cách nói tự nhiên.
-- **5 Chế độ đàm thoại:**
-  1. *Giao tiếp tự do:* Trò chuyện thoải mái về mọi chủ đề đời sống.
-  2. *Giáo viên hướng dẫn:* Lão sư AI đặt câu hỏi, lắng nghe và kèm cặp sửa lỗi.
-  3. *Đóng vai tình huống (8 kịch bản):* Gọi món nhà hàng, mua sắm mặc cả, hỏi đường, làm quen, phỏng vấn xin việc, đặt phòng khách sạn, du lịch...
-  4. *Luyện thi HSK:* Kiểm tra từ vựng, ngữ pháp theo trình độ.
-  5. *Luyện phát âm:* Lão sư đọc mẫu và kiểm tra bạn đọc lại.
-- **Báo cáo tổng kết sau buổi học (Post-Session Report):** Đánh giá điểm mạnh, điểm yếu, tổng hợp từ mới và cho phép 1-click lưu từ vựng vào kho cá nhân.
-- **Bộ nhớ dài hạn (Learner Memory):** AI ghi nhớ tiến trình, các từ hay phát âm sai và điểm yếu của bạn để cá nhân hóa các câu hỏi tiếp theo.
-
-### 2. 🗺️ Lộ Trình Học HSK Có Cấu Trúc & Tùy Chọn Tự Do
-- Cấu trúc HSK 1 đến HSK 6 với các chương và bài học chi tiết.
-- Mỗi bài gồm: Mục tiêu học tập, Hội thoại kèm audio từng câu, Danh sách từ vựng, Ngữ pháp trọng tâm và Bài tập củng cố.
-- Cho phép học theo lộ trình tuần tự hoặc bật chế độ tự do chọn bài học.
-
-### 3. 🎯 11 Dạng Bài Tập Tương Tác
-1. Trắc nghiệm chọn đáp án
-2. Ghép chữ Hán với Pinyin
-3. Ghép từ với nghĩa tiếng Việt
-4. Nghe và chọn đáp án
-5. Điền từ còn thiếu
-6. Sắp xếp từ thành câu
-7. Dịch tiếng Việt sang tiếng Trung
-8. Dịch tiếng Trung sang tiếng Việt
-9. Nhận diện chữ Hán
-10. Đọc câu thành tiếng (Speech Recognition chấm điểm 0 - 100)
-11. Tập viết chữ Hán
-
-### 4. 📚 Kho Từ Vựng & Flashcard SRS (SM-2)
-- Hỗ trợ Chữ Hán Giản thể, Phồn thể, Pinyin chuẩn, Nghĩa tiếng Việt, Loại từ, Cấp độ HSK, Ví dụ và Dịch nghĩa.
-- Thuật toán lặp lại ngắt quãng SuperMemo SM-2 tự động tính toán chu kỳ ôn tập hằng ngày (1 ngày, 2 ngày, 4 ngày, 7 ngày...).
-- Lật thẻ 3D, đánh dấu yêu thích, tìm kiếm nhanh và thêm từ vựng cá nhân mới.
-
-### 5. ✍️ Luyện Viết Chữ Hán (Hanzi Writer)
-- Mô phỏng hoạt họa thứ tự từng nét bút chuẩn xác trong ô điền tự (米字格).
-- Chế độ bảng vẽ cảm ứng chấm điểm độ chuẩn của nét viết.
-- Tự do nhập chữ Hán bất kỳ để tập viết.
-
-### 6. 🗣️ Bảng Phát Âm Pinyin & Sửa Lỗi Người Việt
-- Toàn bộ 21 thanh mẫu, các vận mẫu, 4 thanh điệu và thanh nhẹ.
-- Hướng dẫn khẩu hình chi tiết và các quy tắc biến điệu (hai thanh 3, biến điệu của 不, biến điệu của 一).
-- Phân tích và bài tập đối lập phòng tránh các lỗi phát âm kinh điển của người Việt: `zh/ch/sh` vs `z/c/s`, `j/q/x`, thanh 4 dứt khoát vs dấu huyền.
-
-### 7. 📖 Thư Viện Đọc Hiểu & Nghe Hiểu
-- Truyện đọc phân cấp HSK với Pinyin trên chữ Hán (Ruby Pinyin), bản dịch tiếng Việt có thể ẩn/hiện, audio đọc truyện và câu hỏi đọc hiểu.
-- Luyện nghe thực tế với tùy chỉnh tốc độ nói (0.8x Chậm, 1.0x Chuẩn, 1.2x Nhanh).
-
-### 8. 📊 Thống Kê & Quản Lý Dữ Liệu
-- Theo dõi chuỗi học tập (Streak), tổng thời gian học, từ vựng đã thành thạo, số buổi AI Tutor.
-- Biểu đồ thời gian học trong tuần, đặt mục tiêu học mỗi ngày.
-- Quản lý API Key Gemini an toàn cục bộ.
-- Tính năng Xuất/Nhập file JSON sao lưu dữ liệu toàn diện.
+Ứng dụng học tiếng Trung cá nhân toàn diện, lấy cảm hứng từ HelloChinese kết hợp AI Tutor chạy trên kiến trúc **Frontend ➔ Local Backend (localhost:3001) ➔ Gemini API**, đảm bảo bảo vệ tuyệt đối API Key trên máy tính cá nhân.
 
 ---
 
-## 🛠️ Công Nghệ Sử Dụng
+## 🏛️ Kiến Trúc Hệ Thống (Local Backend & Gemini API)
 
-- **Frontend:** React 19, TypeScript, Vite, Tailwind CSS v4, Lucide Icons, Canvas Confetti
-- **Audio & Speech:** Web Audio API, Web Speech API (SpeechRecognition & SpeechSynthesis zh-CN)
-- **Thư viện chuyên dụng:** `pinyin-pro` (chuyển đổi Pinyin tự động), `hanzi-writer` (mô phỏng nét bút chữ Hán)
-- **Cơ sở dữ liệu cục bộ:** IndexedDB qua `dexie` & `dexie-react-hooks`
-- **Mobile Wrapper:** `@capacitor/core`, `@capacitor/cli`, `@capacitor/android`
-- **CI/CD Build APK:** GitHub Actions workflow tự động biên dịch APK và tạo GitHub Release
+```
+[ Trình duyệt Web / Android App ]
+             │
+             │ HTTP (localhost:3001) / WebSocket (ws://localhost:3001/api/live)
+             ▼
+[ Local Backend Node.js / Express / tsx ]
+  ├── SQLite Database (./data/halo_chinese.db - WAL Mode)
+  │    ├── server_settings (Lưu trữ API Key an toàn)
+  │    ├── chat_sessions & chat_messages (Lịch sử hội thoại)
+  │    └── learner_memory (Hồ sơ điểm yếu & ngữ pháp cá nhân)
+  ├── Gemini Text Service (gemini-3.5-flash-lite)
+  └── Gemini Live WebSocket Bridge (gemini-3.8-live)
+             │
+             │ HTTPS / WSS
+             ▼
+[ Google Gemini Cloud API ]
+```
+
+### 1. Gemini Text-out Model: `gemini-3.5-flash-lite`
+- Đóng vai trò AI Tutor thông thường.
+- Phân tích lỗi ngữ pháp, giải thích từ vựng, đưa ra câu sửa và gợi ý tự nhiên bằng tiếng Việt.
+- Tự động đọc và cập nhật bộ nhớ học tập từ SQLite.
+
+### 2. Gemini Live API: `gemini-3.8-live`
+- Đàm thoại giọng nói 2 chiều thời gian thực (PCM 16kHz đầu vào, PCM 24kHz đầu ra).
+- Hỗ trợ ngắt lời tức thì (Barge-in / Interrupt handling).
+- Tùy chọn giọng nói chuẩn bản xứ: *Aoede, Kore, Puck, Charon, Fenrir*.
 
 ---
 
-## 🚀 Hướng Dẫn Cài Đặt & Chạy Cục Bộ
+## 🌟 12 Phân Hệ Học Tập Cốt Lõi
 
-### 1. Chạy trên trình duyệt (Web Dev Server)
+1. **Trang chủ:** Chuỗi học tập (Streak), đếm từ cần ôn SRS hôm nay, bài học kế tiếp, danh ngôn tiếng Trung.
+2. **Lộ trình HSK 1 - 6:** Cấu trúc bài học rõ ràng với mục tiêu, hội thoại có audio, từ vựng, ngữ pháp và bài tập; hỗ trợ chế độ tự do tùy chọn bài.
+3. **Từ vựng & Flashcard SRS (SM-2):** Lật thẻ 3D, tính toán chu kỳ ôn tập ngắt quãng (1, 2, 4, 7 ngày), thêm từ cá nhân.
+4. **Ngữ pháp HSK:** Công thức, ví dụ phân tích, cảnh báo lỗi và so sánh các cặp dễ nhầm lẫn (*想 vs 要, 二 vs 两, 刚 vs 刚才, 把*).
+5. **11 Dạng bài tập tương tác:** Trắc nghiệm, ghép Hán-Pinyin, ghép nghĩa, nghe-chọn, điền từ, sắp xếp câu, dịch xuôi/ngược, nhận diện Hán tự, đọc câu, viết chữ.
+6. **Luyện phát âm & Pinyin:** 21 thanh mẫu, 36 vận mẫu, 4 thanh điệu, quy tắc biến điệu, sửa lỗi phát âm người Việt kèm thu âm chấm điểm 0 - 100.
+7. **Luyện viết chữ Hán (Hanzi Writer):** Hoạt họa thứ tự nét bút trên ô điền tự (米字格) và chấm nét vẽ cảm ứng.
+8. **Đọc hiểu phân cấp (Graded Readers):** Hỗ trợ Ruby Pinyin, ẩn/hiện bản dịch tiếng Việt, audio đọc truyện, tra từ tức thì và câu hỏi đọc hiểu.
+9. **Luyện nghe hiểu:** Điều chỉnh tốc độ nói (0.8x, 1.0x, 1.2x), ẩn/hiện lời thoại và kiểm tra nghe hiểu.
+10. **AI Tutor & Voice Chat 2 chiều:** Luyện nói với Gemini 3.8 Live API hoặc Web Speech fallback; 5 chế độ đàm thoại, báo cáo sau buổi học và bộ nhớ SQLite dài hạn.
+11. **Thống kê học tập:** Theo dõi thời gian, từ đã thuộc, biểu đồ học tập tuần và đặt mục tiêu ngày.
+12. **Cài đặt & Quản lý API:** Quản lý riêng biệt Text-out API và Live API, kiểm tra tổng thể toàn hệ thống, thử giọng nói và sao lưu dữ liệu JSON.
+
+---
+
+## 🚀 Hướng Dẫn Cài Đặt & Chạy Trên Máy Tính Cá Nhân
+
+### Bước 1: Cài đặt thư viện
 ```bash
-# Cài đặt thư viện
 npm install
+```
 
-# Khởi chạy server phát triển
+### Bước 2: Cấu hình môi trường (Tùy chọn)
+Tạo file `.env` từ file mẫu:
+```bash
+copy .env.example .env
+```
+Điền `GEMINI_TEXT_API_KEY` và `GEMINI_LIVE_API_KEY` của bạn vào file `.env` (hoặc bạn có thể nhập trực tiếp trên giao diện Cài đặt của ứng dụng).
+
+### Bước 3: Khởi chạy Local Backend
+```bash
+npm run server
+```
+Backend sẽ khởi động tại: `http://localhost:3001` (Kèm WebSocket bridge tại `ws://localhost:3001/api/live`).
+
+### Bước 4: Khởi chạy Giao diện Frontend
+Mở một cửa sổ Terminal khác:
+```bash
 npm run dev
 ```
-Mở trình duyệt tại: `http://localhost:5173`
-
-### 2. Biên dịch Production
-```bash
-npm run build
-```
-
-### 3. Đồng bộ và đóng gói Android APK
-```bash
-# Build web và đồng bộ sang thư mục android
-npm run build
-npx cap sync android
-
-# Mở bằng Android Studio (nếu có cài đặt)
-npx cap open android
-```
+Truy cập tại: `http://localhost:5173`
 
 ---
 
-## 📱 Tải Bản Phát Hành APK Trên Android
+## 📱 Cài Đặt Ứng Dụng Trên Android
 
-Mỗi khi mã nguồn được cập nhật hoặc tạo tag, GitHub Actions tự động biên dịch file APK và đăng tải lên mục **Releases** của repository:
-👉 **[Tải file APK mới nhất tại đây](https://github.com/FamAnVMU/halo-chai-ni/releases)**
-
-**Cách cài đặt trên điện thoại Android:**
-1. Tải file `halo-chinese-v1.0.0.apk` về máy.
-2. Nhấn vào file vừa tải và chọn **Cài đặt** (Nếu máy hỏi quyền "Cài đặt ứng dụng từ nguồn không xác định", hãy chọn Cho phép).
-3. Mở ứng dụng **Halo Chinese** và bắt đầu trải nghiệm!
-
----
-
-## 🔑 Cấu Hình API Key AI
-
-1. Truy cập vào mục **Cài đặt** trong ứng dụng.
-2. Chọn nhà cung cấp **Google Gemini API** (Khuyên dùng `gemini-2.5-flash`).
-3. Dán mã API Key của bạn (Lấy miễn phí tại [Google AI Studio](https://aistudio.google.com/app/apikey)).
-4. Nhấn **Kiểm tra kết nối API** và lưu lại.
-*(Ngay cả khi chưa nhập API Key, ứng dụng vẫn có sẵn hệ thống phản hồi tự động thông minh và đầy đủ tất cả các bài học HSK ngoại tuyến).*
+Tải file APK chính thức tại:
+👉 **[Halo Chinese Releases](https://github.com/FamAnVMU/halo-chai-ni/releases)**
 
 ---
 
