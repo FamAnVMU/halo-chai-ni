@@ -21,6 +21,7 @@ import { geminiShadowingService } from './geminiShadowingService.js';
 import { geminiDictionaryService } from './geminiDictionaryService.js';
 import { geminiReadingService } from './geminiReadingService.js';
 import { aiTutorEngine } from './aiTutorEngine.js';
+import { knowledgeRegistryService } from './knowledgeRegistryService.js';
 import { tokenizeChinese } from '../src/data/seedDictionary.js';
 
 const app = express();
@@ -1526,6 +1527,173 @@ app.get('/api/reading/stats', (_req, res) => {
   try {
     const stats = geminiReadingService.getReadingStats();
     res.json({ success: true, data: stats });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ========================================================================
+// KNOWLEDGE REGISTRY APIS (HỆ THỐNG ĐỊNH DANH KIẾN THỨC THỐNG NHẤT)
+// ========================================================================
+
+// 1. Tìm kiếm kiến thức đa tiêu chí (Hán tự, Pinyin, Pinyin sạch, nghĩa tiếng Việt, HSK, loại...)
+app.get('/api/knowledge/search', (req, res) => {
+  try {
+    const { query, itemType, hskLevel, status, category, tag, limit, offset } = req.query;
+    const items = knowledgeRegistryService.findKnowledge({
+      query: query ? String(query) : undefined,
+      itemType: itemType ? (String(itemType) as any) : undefined,
+      hskLevel: hskLevel !== undefined ? Number(hskLevel) : undefined,
+      status: status ? (String(status) as any) : undefined,
+      category: category ? String(category) : undefined,
+      tag: tag ? String(tag) : undefined,
+      limit: limit ? Number(limit) : 50,
+      offset: offset ? Number(offset) : 0
+    });
+    res.json({ success: true, count: items.length, data: items });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 2. Thống kê kiểm toán Knowledge Registry (Audit Stats & Orphan Check)
+app.get('/api/knowledge/audit', (_req, res) => {
+  try {
+    const stats = knowledgeRegistryService.getRegistryStats();
+    res.json({ success: true, data: stats });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 3. Rà soát danh sách nghi ngờ trùng lặp (Dedup Candidates)
+app.get('/api/knowledge/dedup/candidates', (_req, res) => {
+  try {
+    const candidates = knowledgeRegistryService.detectDuplicates();
+    res.json({ success: true, count: candidates.length, data: candidates });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 4. Lấy chi tiết Knowledge Item theo ID (kèm senses, relations, aliases)
+app.get('/api/knowledge/:id', (req, res) => {
+  try {
+    const item = knowledgeRegistryService.getKnowledgeById(req.params.id);
+    if (!item) {
+      return res.status(404).json({ success: false, error: `Không tìm thấy Knowledge item với ID [${req.params.id}]` });
+    }
+    res.json({ success: true, data: item });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 5. Tạo mới Knowledge Item
+app.post('/api/knowledge', (req, res) => {
+  try {
+    const created = knowledgeRegistryService.createKnowledge(req.body);
+    res.json({ success: true, data: created });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 6. Cập nhật Knowledge Item (ID giữ nguyên)
+app.put('/api/knowledge/:id', (req, res) => {
+  try {
+    const updated = knowledgeRegistryService.updateKnowledge(req.params.id, req.body);
+    res.json({ success: true, data: updated });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 7. Tìm hoặc tạo mới (Find or Create với Dedup Guard)
+app.post('/api/knowledge/find-or-create', (req, res) => {
+  try {
+    const result = knowledgeRegistryService.findOrCreateKnowledge(req.body);
+    res.json({ success: true, data: result.item, created: result.created, candidateDuplicate: result.candidateDuplicate });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 8. Lấy quan hệ tri thức của Item
+app.get('/api/knowledge/:id/related', (req, res) => {
+  try {
+    const { type } = req.query;
+    const relations = knowledgeRegistryService.getRelatedKnowledge(req.params.id, type ? (String(type) as any) : undefined);
+    res.json({ success: true, data: relations });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 9. Thêm quan hệ tri thức giữa 2 Item
+app.post('/api/knowledge/:id/relations', (req, res) => {
+  try {
+    const { targetId, relationType, notes, metadata, bidirectional } = req.body;
+    const relation = knowledgeRegistryService.addRelation(
+      req.params.id,
+      targetId,
+      relationType,
+      notes,
+      metadata,
+      bidirectional
+    );
+    res.json({ success: true, data: relation });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 10. Xóa quan hệ tri thức
+app.delete('/api/knowledge/relations/:relationId', (req, res) => {
+  try {
+    const ok = knowledgeRegistryService.removeRelation(req.params.relationId);
+    res.json({ success: ok });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 11. Lấy danh sách Senses của Item
+app.get('/api/knowledge/:id/senses', (req, res) => {
+  try {
+    const senses = knowledgeRegistryService.getSenses(req.params.id);
+    res.json({ success: true, data: senses });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 12. Thêm Sense mới cho Item
+app.post('/api/knowledge/:id/senses', (req, res) => {
+  try {
+    const sense = knowledgeRegistryService.addSense(req.params.id, req.body);
+    res.json({ success: true, data: sense });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 13. Hợp nhất hai mục kiến thức trùng lặp (Merge)
+app.post('/api/knowledge/merge', (req, res) => {
+  try {
+    const { sourceId, targetId, reason } = req.body;
+    const result = knowledgeRegistryService.mergeKnowledge(sourceId, targetId, reason);
+    res.json({ success: true, data: result.targetItem });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 14. Lưu trữ mềm Knowledge Item (Archive)
+app.post('/api/knowledge/:id/archive', (req, res) => {
+  try {
+    const ok = knowledgeRegistryService.archiveKnowledge(req.params.id);
+    res.json({ success: ok });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }

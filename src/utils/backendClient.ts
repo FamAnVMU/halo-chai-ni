@@ -1865,6 +1865,99 @@ export class LocalBackendClient {
       return { success: false, error: e.message };
     }
   }
+
+  // ========================================================================
+  // KNOWLEDGE REGISTRY METHODS
+  // ========================================================================
+
+  public async searchKnowledge(params: {
+    query?: string;
+    itemType?: string;
+    hskLevel?: number;
+    status?: string;
+    category?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ success: boolean; count?: number; data?: any[]; error?: string }> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (params.query) queryParams.set('query', params.query);
+      if (params.itemType) queryParams.set('itemType', params.itemType);
+      if (params.hskLevel !== undefined) queryParams.set('hskLevel', String(params.hskLevel));
+      if (params.status) queryParams.set('status', params.status);
+      if (params.category) queryParams.set('category', params.category);
+      if (params.limit) queryParams.set('limit', String(params.limit));
+      if (params.offset) queryParams.set('offset', String(params.offset));
+
+      const res = await fetch(`${this.getBaseUrl()}/api/knowledge/search?${queryParams.toString()}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getKnowledgeById(id: string): Promise<{ success: boolean; data?: any; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/knowledge/${encodeURIComponent(id)}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async findOrCreateKnowledge(data: any): Promise<{
+    success: boolean;
+    data?: any;
+    created?: boolean;
+    candidateDuplicate?: any;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/knowledge/find-or-create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getKnowledgeAudit(): Promise<{ success: boolean; data?: any; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/knowledge/audit`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getKnowledgeDedupCandidates(): Promise<{ success: boolean; count?: number; data?: any[]; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/knowledge/dedup/candidates`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async mergeKnowledge(sourceId: string, targetId: string, reason: string): Promise<{
+    success: boolean;
+    data?: any;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/knowledge/merge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceId, targetId, reason })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
 }
 
 export const backendClient = new LocalBackendClient();

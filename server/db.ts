@@ -685,6 +685,118 @@ db.exec(`
     FOREIGN KEY(passage_id) REFERENCES reading_passages(id) ON DELETE CASCADE
   );
 
+  -- ========================================================================
+  -- KNOWLEDGE REGISTRY (HỆ THỐNG ĐỊNH DANH VÀ QUẢN LÝ KIẾN THỨC THỐNG NHẤT)
+  -- ========================================================================
+
+  -- 1. Knowledge Items (Đơn vị kiến thức định danh duy nhất)
+  CREATE TABLE IF NOT EXISTS knowledge_items (
+    id TEXT PRIMARY KEY,
+    item_type TEXT NOT NULL, -- 'vocabulary', 'grammar', 'sentence_pattern', 'pronunciation', 'reading_concept', 'listening_concept'
+    canonical_key TEXT NOT NULL, -- e.g. 'voc_xuexi', 'gra_le_completed', 'pro_initial_zh'
+    display_text TEXT NOT NULL, -- '学习', 'Cấu trúc 了 (Hoàn thành)', 'zh'
+    hanzi_simplified TEXT,
+    hanzi_traditional TEXT,
+    pinyin TEXT,
+    pinyin_clean TEXT,
+    hsk_level INTEGER DEFAULT 1,
+    hsk_version TEXT DEFAULT '3.0',
+    difficulty_score REAL DEFAULT 1.0,
+    category TEXT, -- 'noun', 'aspect_particle', 'initial', 'final', 'tone_sandhi'
+    formula TEXT, -- cho grammar / pattern
+    communicative_goal TEXT, -- cho pattern
+    usage_conditions TEXT,
+    tags_json TEXT, -- json array: ["giao tiếp", "hàng ngày"]
+    common_mistakes_json TEXT,
+    metadata_json TEXT, -- radical, stroke_count, decomposition
+    status TEXT DEFAULT 'active', -- 'active', 'archived', 'needs_review'
+    source TEXT DEFAULT 'system',
+    version INTEGER DEFAULT 1,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_ki_type ON knowledge_items(item_type);
+  CREATE INDEX IF NOT EXISTS idx_ki_canonical ON knowledge_items(canonical_key);
+  CREATE INDEX IF NOT EXISTS idx_ki_simplified ON knowledge_items(hanzi_simplified);
+  CREATE INDEX IF NOT EXISTS idx_ki_pinyin_clean ON knowledge_items(pinyin_clean);
+  CREATE INDEX IF NOT EXISTS idx_ki_hsk ON knowledge_items(hsk_level);
+  CREATE INDEX IF NOT EXISTS idx_ki_status ON knowledge_items(status);
+
+  -- 2. Knowledge Senses (Phân biệt từ vựng và từng tầng nghĩa / cách dùng)
+  CREATE TABLE IF NOT EXISTS knowledge_senses (
+    id TEXT PRIMARY KEY,
+    knowledge_id TEXT NOT NULL REFERENCES knowledge_items(id) ON DELETE CASCADE,
+    sense_index INTEGER NOT NULL DEFAULT 1,
+    word_type TEXT,
+    meaning_vi TEXT NOT NULL,
+    meaning_en TEXT,
+    context_description TEXT,
+    register TEXT, -- 'khẩu ngữ', 'trang trọng', 'văn viết'
+    measure_words TEXT,
+    examples_json TEXT, -- [{zh, pinyin, vi, context}]
+    status TEXT DEFAULT 'active',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_ks_knowledge_id ON knowledge_senses(knowledge_id);
+
+  -- 3. Knowledge Relations (Mạng lưới quan hệ chuẩn hóa giữa các tri thức)
+  CREATE TABLE IF NOT EXISTS knowledge_relations (
+    id TEXT PRIMARY KEY,
+    source_id TEXT NOT NULL REFERENCES knowledge_items(id) ON DELETE CASCADE,
+    target_id TEXT NOT NULL REFERENCES knowledge_items(id) ON DELETE CASCADE,
+    relation_type TEXT NOT NULL, -- 'similar', 'opposite', 'synonym', 'near_synonym', 'example_of', 'prerequisite', 'advanced_of', 'confused_with', 'topic_related'
+    weight REAL DEFAULT 1.0,
+    notes TEXT,
+    metadata_json TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    UNIQUE(source_id, target_id, relation_type)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_kr_source ON knowledge_relations(source_id);
+  CREATE INDEX IF NOT EXISTS idx_kr_target ON knowledge_relations(target_id);
+  CREATE INDEX IF NOT EXISTS idx_kr_type ON knowledge_relations(relation_type);
+
+  -- 4. Knowledge Aliases (Phiên âm, từ đồng nghĩa tra cứu, phồn thể, cách gọi khác)
+  CREATE TABLE IF NOT EXISTS knowledge_aliases (
+    id TEXT PRIMARY KEY,
+    knowledge_id TEXT NOT NULL REFERENCES knowledge_items(id) ON DELETE CASCADE,
+    alias TEXT NOT NULL,
+    alias_type TEXT NOT NULL, -- 'pinyin_clean', 'pinyin_tone', 'vietnamese_query', 'traditional', 'common_typo', 'alternate_spelling'
+    created_at INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_ka_alias ON knowledge_aliases(alias);
+  CREATE INDEX IF NOT EXISTS idx_ka_kid ON knowledge_aliases(knowledge_id);
+
+  -- 5. Knowledge Legacy Mapping (Cầu nối truy vết 100% ID cũ sang Knowledge ID mới)
+  CREATE TABLE IF NOT EXISTS knowledge_legacy_mapping (
+    legacy_table TEXT NOT NULL,
+    legacy_id TEXT NOT NULL,
+    knowledge_id TEXT NOT NULL REFERENCES knowledge_items(id) ON DELETE CASCADE,
+    legacy_key TEXT,
+    migrated_at INTEGER NOT NULL,
+    PRIMARY KEY (legacy_table, legacy_id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_klm_kid ON knowledge_legacy_mapping(knowledge_id);
+
+  -- 6. Knowledge Dedup Candidates (Danh sách nghi ngờ trùng lặp chờ xác minh)
+  CREATE TABLE IF NOT EXISTS knowledge_dedup_candidates (
+    id TEXT PRIMARY KEY,
+    primary_knowledge_id TEXT NOT NULL REFERENCES knowledge_items(id),
+    candidate_knowledge_id TEXT NOT NULL REFERENCES knowledge_items(id),
+    similarity_score REAL NOT NULL,
+    match_type TEXT NOT NULL,
+    status TEXT DEFAULT 'pending', -- 'pending', 'merged', 'rejected', 'verified_distinct'
+    reason TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    resolved_at INTEGER
+  );
+
   CREATE INDEX IF NOT EXISTS idx_reading_level ON reading_passages(level, hsk_level);
   CREATE INDEX IF NOT EXISTS idx_reading_topic ON reading_passages(topic);
   CREATE INDEX IF NOT EXISTS idx_reading_genre ON reading_passages(genre);
@@ -756,10 +868,26 @@ addColumnIfNotExists('conversation_analyses', 'overall_score', "INTEGER DEFAULT 
 addColumnIfNotExists('conversation_analyses', 'confidence_score', "REAL DEFAULT 0.9");
 addColumnIfNotExists('conversation_analyses', 'schema_version', "INTEGER DEFAULT 2");
 
+// Knowledge Registry backward-compatible linkages
+addColumnIfNotExists('vocabulary_memory', 'knowledge_id', "TEXT");
+addColumnIfNotExists('grammar_memory', 'knowledge_id', "TEXT");
+addColumnIfNotExists('dictionary_entries', 'knowledge_id', "TEXT");
+addColumnIfNotExists('srs_items', 'knowledge_id', "TEXT");
+addColumnIfNotExists('learning_errors', 'knowledge_id', "TEXT");
+addColumnIfNotExists('learner_evidence_ledger', 'knowledge_id', "TEXT");
+addColumnIfNotExists('pronunciation_weaknesses', 'knowledge_id', "TEXT");
+
 // Create indexes after columns exist
 db.exec(`
   CREATE UNIQUE INDEX IF NOT EXISTS idx_conv_analysis_session ON conversation_analyses(session_id);
   CREATE INDEX IF NOT EXISTS idx_chat_sessions_analyzed ON chat_sessions(is_analyzed, status);
+  CREATE INDEX IF NOT EXISTS idx_vocab_knowledge_id ON vocabulary_memory(knowledge_id);
+  CREATE INDEX IF NOT EXISTS idx_grammar_knowledge_id ON grammar_memory(knowledge_id);
+  CREATE INDEX IF NOT EXISTS idx_dict_knowledge_id ON dictionary_entries(knowledge_id);
+  CREATE INDEX IF NOT EXISTS idx_srs_knowledge_id ON srs_items(knowledge_id);
+  CREATE INDEX IF NOT EXISTS idx_errors_knowledge_id ON learning_errors(knowledge_id);
+  CREATE INDEX IF NOT EXISTS idx_ledger_knowledge_id ON learner_evidence_ledger(knowledge_id);
+  CREATE INDEX IF NOT EXISTS idx_weakness_knowledge_id ON pronunciation_weaknesses(knowledge_id);
 `);
 
 // Optimize SQLite Query Planner

@@ -259,7 +259,7 @@ async function runAITutorIntelligenceAudit() {
   // E.3: Chống suy diễn khi chưa đủ dữ liệu (Status undetermined khi confidence thấp)
   const evLow = aiTutorEngine.recordEvidence({
     targetType: 'habit',
-    targetKey: 'habit_fast_speaking',
+    targetKey: `habit_fast_speaking_${Date.now()}`,
     claimSummary: 'Nói hơi nhanh',
     evidenceQuote: '你好',
     sourceActivity: 'voice_chat',
