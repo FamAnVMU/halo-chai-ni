@@ -2313,6 +2313,63 @@ export class LocalBackendClient {
       return { success: false, error: e.message };
     }
   }
+
+  // ==================== CONTEXT BUILDER & RETRIEVAL (B2) ====================
+
+  public async buildContextPackage(params: {
+    taskId?: string;
+    learnerId?: string;
+    inputQuery?: string;
+    hskLevel?: number;
+    sessionId?: string;
+    modelId?: string;
+  }): Promise<{ success: boolean; data?: any; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/context/build`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async inspectContextTrace(traceId: string): Promise<{ success: boolean; trace?: any; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/context/trace/${encodeURIComponent(traceId)}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async invalidateContextCache(learnerId: string = 'default'): Promise<{ success: boolean; invalidatedCount?: number; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/context/invalidate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ learnerId })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async summarizeSession(params: any): Promise<{ success: boolean; summary?: any; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/context/summarize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
 }
 
 export const backendClient = new LocalBackendClient();

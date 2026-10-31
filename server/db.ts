@@ -962,6 +962,45 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_ai_req_idempotency ON ai_request_logs(idempotency_key);
   CREATE INDEX IF NOT EXISTS idx_ai_req_status ON ai_request_logs(status);
 
+  -- 5. Session Pedagogic Summaries (Bản tóm tắt sư phạm có cấu trúc theo từng phiên học - Requirement 7)
+  CREATE TABLE IF NOT EXISTS session_pedagogic_summaries (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL UNIQUE,
+    learner_id TEXT NOT NULL DEFAULT 'default',
+    topic TEXT NOT NULL,
+    taught_knowledge_json TEXT NOT NULL DEFAULT '[]',     -- AI đã dạy
+    practiced_knowledge_json TEXT NOT NULL DEFAULT '[]',  -- Người học đã thực hành
+    mastered_knowledge_json TEXT NOT NULL DEFAULT '[]',   -- Người học đã thành thạo
+    key_errors_json TEXT NOT NULL DEFAULT '[]',           -- Lỗi quan trọng
+    assessment_summary_vi TEXT NOT NULL,
+    next_focus_vi TEXT NOT NULL,
+    summary_version TEXT NOT NULL DEFAULT 'v1',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_sess_sum_learner ON session_pedagogic_summaries(learner_id, created_at DESC);
+
+  -- 6. Context Retrieval Traces (Bảng truy vết minh bạch quá trình trích xuất và tối ưu Context - Requirement 11)
+  CREATE TABLE IF NOT EXISTS context_retrieval_traces (
+    id TEXT PRIMARY KEY,
+    request_id TEXT NOT NULL,
+    task_id TEXT NOT NULL,
+    learner_id TEXT NOT NULL DEFAULT 'default',
+    context_profile TEXT NOT NULL,
+    retrieved_sources_json TEXT NOT NULL,
+    knowledge_ids_used_json TEXT NOT NULL,
+    evidence_ids_used_json TEXT NOT NULL,
+    pruned_items_json TEXT NOT NULL,
+    ranking_scores_json TEXT,
+    estimated_tokens INTEGER NOT NULL,
+    context_version TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_ctx_trace_req ON context_retrieval_traces(request_id);
+  CREATE INDEX IF NOT EXISTS idx_ctx_trace_task ON context_retrieval_traces(task_id, created_at DESC);
+
   CREATE INDEX IF NOT EXISTS idx_reading_level ON reading_passages(level, hsk_level);
   CREATE INDEX IF NOT EXISTS idx_reading_topic ON reading_passages(topic);
   CREATE INDEX IF NOT EXISTS idx_reading_genre ON reading_passages(genre);

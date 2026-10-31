@@ -27,6 +27,8 @@ import { masteryEngineService } from './masteryEngineService.js';
 import { unifiedLearningMemoryService } from './unifiedLearningMemoryService.js';
 import { unifiedAIOrchestrator } from './unifiedAIOrchestrator.js';
 import { TaskRegistry } from './taskRegistry.js';
+import { contextBuilderService } from './contextBuilderService.js';
+import { ConversationSummarizer } from './conversationSummarizer.js';
 import { tokenizeChinese } from '../src/data/seedDictionary.js';
 
 const app = express();
@@ -197,6 +199,55 @@ app.post('/api/ai-orchestrator/execute', async (req, res) => {
     }
 
     res.json(response);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==================== CONTEXT BUILDER & RETRIEVAL ====================
+app.post('/api/context/build', async (req, res) => {
+  try {
+    const { taskId = 'AI_TUTOR_CHAT', learnerId, inputQuery, hskLevel, sessionId, modelId } = req.body;
+    const pkg = await contextBuilderService.buildFullContextPackage({
+      taskId,
+      learnerId,
+      inputQuery,
+      hskLevel,
+      sessionId,
+      modelId
+    });
+    res.json({ success: true, data: pkg });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/context/trace/:traceId', (req, res) => {
+  try {
+    const trace = contextBuilderService.inspectContextTrace(req.params.traceId);
+    if (!trace) {
+      return res.status(404).json({ success: false, error: 'Không tìm thấy Context Trace.' });
+    }
+    res.json({ success: true, trace });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/context/invalidate', (req, res) => {
+  try {
+    const { learnerId = 'default' } = req.body;
+    const invalidatedCount = contextBuilderService.invalidateContextCache(learnerId);
+    res.json({ success: true, invalidatedCount });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/context/summarize', (req, res) => {
+  try {
+    const summary = ConversationSummarizer.summarizeAndSaveSession(req.body);
+    res.json({ success: true, summary });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }

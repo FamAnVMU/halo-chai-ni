@@ -20,6 +20,7 @@ import { TaskRegistry } from './taskRegistry.js';
 import { PromptManager } from './promptManager.js';
 import { ResponseValidator } from './responseValidator.js';
 import { defaultContextBuilder, ContextBuilder } from './contextBuilderInterface.js';
+import { contextBuilderService } from './contextBuilderService.js';
 import { unifiedLearningMemoryService } from './unifiedLearningMemoryService.js';
 import { liveSessionManager } from './liveSessionManager.js';
 
@@ -162,26 +163,30 @@ export class UnifiedAIOrchestrator {
     let contextVersion: string | undefined;
 
     try {
-      // 3. Context Builder: Assemble pedagogic context
+      // 3. Context Builder: Assemble pedagogic context with B2 Advanced Retrieval
       let contextBriefing = '';
+      let fencedContextText = '';
       if (task.contextRequirements.requiresLearnerProfile || task.contextRequirements.requiresRelevantKnowledge) {
         const queryText = typeof req.input === 'string' ? req.input : (req.input as any)?.message || (req.input as any)?.userSentence || '';
-        const context = await defaultContextBuilder.buildContext({
+        const fullPkg = await contextBuilderService.buildFullContextPackage({
           taskId: task.taskId,
           learnerId: req.learnerId,
           inputQuery: queryText,
           hskLevel: req.hskLevel,
-          sessionId: req.sessionId
+          sessionId: req.sessionId,
+          modelId,
+          requestId
         });
-        contextVersion = context.contextVersion;
-        contextBriefing = ContextBuilder.formatBriefingForPrompt(context);
+        contextVersion = fullPkg.trace.contextVersion;
+        contextBriefing = fullPkg.contextBriefingShort;
+        fencedContextText = fullPkg.fencedContextText;
       }
 
       // 4. Prompt Manager: Build versioned prompt
       const promptParams = {
         ...(typeof req.input === 'object' ? req.input : { input: req.input }),
         hskLevel: req.hskLevel || 1,
-        selectiveContext: contextBriefing,
+        selectiveContext: fencedContextText || contextBriefing,
         sessionId: req.sessionId
       };
 
@@ -369,6 +374,7 @@ export class UnifiedAIOrchestrator {
                 explanation: outputData.correction.explanationVi
               }
             });
+            contextBuilderService.invalidateContextCache(learnerId);
             return true;
           }
           break;
