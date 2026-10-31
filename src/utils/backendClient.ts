@@ -33,6 +33,117 @@ export interface BackendKeyConfig {
   };
 }
 
+export interface DictionarySearchResultItem {
+  id: string;
+  simplified: string;
+  traditional?: string;
+  pinyin: string;
+  meaningVi: string;
+  wordType: string;
+  hskLevel: number;
+  radical?: string;
+  strokeCount?: number;
+  measureWords?: string;
+  isFavorite: boolean;
+  masteryStatus: 'not_started' | 'introduced' | 'learning' | 'mastered';
+  inSrs: boolean;
+  source: string;
+}
+
+export interface DictionaryDetailEntry {
+  id: string;
+  simplified: string;
+  traditional?: string;
+  pinyin: string;
+  pinyinClean: string;
+  meaningVi: string;
+  wordType: string;
+  hskLevel: number;
+  radical?: string;
+  strokeCount?: number;
+  characterDecomposition?: string;
+  measureWords?: string;
+  synonyms?: string[];
+  antonyms?: string[];
+  confusingWords?: Array<{
+    word: string;
+    pinyin: string;
+    differenceVi: string;
+    exampleZh?: string;
+    exampleVi?: string;
+  }>;
+  collocations?: string[];
+  senses?: Array<{
+    meaningVi: string;
+    contextVi?: string;
+    example?: { zh: string; pinyin: string; vi: string };
+  }>;
+  examples: Array<{
+    zh: string;
+    pinyin: string;
+    vi: string;
+    context?: string;
+  }>;
+  source: string;
+  version: string;
+  personalNote?: string;
+  isFavorite: boolean;
+  tags?: string[];
+  lookupCount: number;
+  learnerState: {
+    inVocabMemory: boolean;
+    masteryLevel?: string;
+    reviewCount?: number;
+    lastReviewedAt?: number;
+    inSrs: boolean;
+    srsIntervalDays?: number;
+    srsNextReviewAt?: number;
+    errorsCount: number;
+  };
+}
+
+export interface ContextLookupResult {
+  sentence: string;
+  targetWord: string;
+  pinyin: string;
+  contextualMeaningVi: string;
+  grammaticalRoleVi: string;
+  reasonVi: string;
+  sentenceTranslationVi: string;
+  otherPossibleMeanings?: string[];
+  learnerTipVi: string;
+  entryDetail?: DictionaryDetailEntry | null;
+}
+
+export interface WordComparisonResult {
+  words: string[];
+  similaritiesVi: string;
+  differencesVi: string;
+  comparisonTable: Array<{
+    word: string;
+    pinyin: string;
+    coreMeaningVi: string;
+    keyFeatureVi: string;
+    exampleZh: string;
+    exampleVi: string;
+  }>;
+  commonMistakesVi: string[];
+}
+
+export interface AIWordConsultationResult {
+  word: string;
+  promptType: string;
+  title: string;
+  contentVi: string;
+  quizData?: {
+    questionZh: string;
+    questionPinyin: string;
+    options: string[];
+    answer: string;
+    explanationVi: string;
+  };
+}
+
 export interface PronunciationEvalParams {
   targetText: string;
   targetPinyin: string;
@@ -1119,6 +1230,241 @@ export class LocalBackendClient {
   }> {
     try {
       const res = await fetch(`${this.getBaseUrl()}/api/shadowing/history?limit=${limit}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  // ==================== AI CHINESE DICTIONARY CLIENT METHODS ====================
+
+  public async searchDictionary(params: {
+    query: string;
+    type?: string;
+    hskLevel?: number;
+    wordType?: string;
+    limit?: number;
+  }): Promise<{
+    success: boolean;
+    data?: {
+      query: string;
+      detectedType: string;
+      results: DictionarySearchResultItem[];
+      totalCount: number;
+      isAiFallback?: boolean;
+    };
+    error?: string;
+  }> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (params.query) queryParams.append('q', params.query);
+      if (params.type) queryParams.append('type', params.type);
+      if (params.hskLevel) queryParams.append('hsk', params.hskLevel.toString());
+      if (params.wordType) queryParams.append('wordType', params.wordType);
+      if (params.limit) queryParams.append('limit', params.limit.toString());
+
+      const res = await fetch(`${this.getBaseUrl()}/api/dictionary/search?${queryParams.toString()}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getDictionaryEntryById(id: string): Promise<{
+    success: boolean;
+    data?: DictionaryDetailEntry;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/dictionary/entry/${encodeURIComponent(id)}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getDictionaryEntryByWord(word: string): Promise<{
+    success: boolean;
+    data?: DictionaryDetailEntry;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/dictionary/entry-word/${encodeURIComponent(word)}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async lookupDictionaryInContext(params: {
+    sentence: string;
+    targetWord?: string;
+  }): Promise<{
+    success: boolean;
+    data?: ContextLookupResult;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/dictionary/in-context`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async compareDictionaryWords(words: string[]): Promise<{
+    success: boolean;
+    data?: WordComparisonResult;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/dictionary/compare`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ words })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async askAIAboutWord(params: {
+    word: string;
+    promptType: 'simple_explain' | 'more_examples' | 'distinguish' | 'sentence_quiz' | 'common_errors';
+    userLevel?: number;
+  }): Promise<{
+    success: boolean;
+    data?: AIWordConsultationResult;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/dictionary/ask-ai`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async saveDictionaryPersonalNote(params: {
+    entryId: string;
+    note: string;
+    tags?: string[];
+  }): Promise<{
+    success: boolean;
+    message?: string;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/dictionary/save-note`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async toggleDictionaryFavorite(entryId: string): Promise<{
+    success: boolean;
+    isFavorite?: boolean;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/dictionary/favorite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entryId })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async syncDictionaryToMemory(entryId: string): Promise<{
+    success: boolean;
+    memoryId?: number;
+    message?: string;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/dictionary/sync-memory`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entryId })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async syncDictionaryToSrs(entryId: string): Promise<{
+    success: boolean;
+    srsId?: string;
+    message?: string;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/dictionary/sync-srs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entryId })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getDictionaryHistory(limit: number = 20): Promise<{
+    success: boolean;
+    data?: any[];
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/dictionary/history?limit=${limit}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getDictionaryFavorites(): Promise<{
+    success: boolean;
+    data?: any[];
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/dictionary/favorites`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async segmentChineseText(text: string): Promise<{
+    success: boolean;
+    data?: Array<{ token: string; pinyin?: string; inDictionary: boolean }>;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/dictionary/segment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
       return await res.json();
     } catch (e: any) {
       return { success: false, error: e.message };

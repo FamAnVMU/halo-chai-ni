@@ -11,6 +11,7 @@ import {
 import type { GradedStory, HSKLevel } from '../types';
 import { db } from '../db';
 import { RubyText } from '../components/common/RubyText';
+import { ClickableChineseText } from '../components/dictionary/ClickableChineseText';
 import { audioService } from '../utils/audio';
 
 export const ReadingView: React.FC = () => {
@@ -157,11 +158,28 @@ export const ReadingView: React.FC = () => {
                 </div>
               </div>
 
+              {/* Interactive Story Content with Clickable Dictionary Lookup */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-[11px] font-bold text-slate-400">
+                  <span>Văn bản tương tác:</span>
+                  <span className="text-primary-600 dark:text-primary-400">👉 Nhấn vào bất kỳ từ nào để tra từ điển</span>
+                </div>
+                <div className="p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/60 text-lg sm:text-xl leading-loose">
+                  <ClickableChineseText
+                    text={currentStory.contentZh}
+                    onWordClick={(w) => {
+                      window.dispatchEvent(new CustomEvent('halo:quick-dict', { detail: { word: w } }));
+                    }}
+                  />
+                </div>
+              </div>
+
               {/* Story Content with Ruby Pinyin */}
-              <div className="p-4 rounded-2xl bg-slate-50/60 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/60 leading-loose">
+              <div className="p-4 rounded-2xl bg-slate-50/40 dark:bg-slate-800/20 border border-slate-200/40 dark:border-slate-700/40 leading-loose">
+                <div className="text-[11px] font-bold text-slate-400 mb-2">Phiên âm Pinyin kèm chữ Hán:</div>
                 <RubyText
                   text={currentStory.contentZh}
-                  charClassName="text-lg sm:text-xl font-chinese font-medium leading-relaxed"
+                  charClassName="text-base sm:text-lg font-chinese font-medium leading-relaxed"
                 />
               </div>
 

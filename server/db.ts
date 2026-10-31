@@ -503,6 +503,68 @@ db.exec(`
     created_at INTEGER NOT NULL
   );
 
+  -- ==================== AI CHINESE DICTIONARY TABLES ====================
+  -- Core Dictionary Entries: Standardized HSK & Curated Dictionary Database
+  CREATE TABLE IF NOT EXISTS dictionary_entries (
+    id TEXT PRIMARY KEY,
+    simplified TEXT NOT NULL UNIQUE,
+    traditional TEXT,
+    pinyin TEXT NOT NULL,
+    pinyin_clean TEXT NOT NULL, -- normalized tone-agnostic lowercase pinyin e.g. "xuexi"
+    meaning_vi TEXT NOT NULL,
+    word_type TEXT DEFAULT 'danh từ',
+    hsk_level INTEGER DEFAULT 1,
+    radical TEXT,
+    stroke_count INTEGER DEFAULT 1,
+    character_decomposition TEXT,
+    measure_words TEXT,
+    synonyms_json TEXT, -- array of strings e.g. ["念书", "求学"]
+    antonyms_json TEXT, -- array of strings
+    confusing_words_json TEXT, -- array of objects or strings e.g. ["学习 vs 练习", "看 vs 观看"]
+    collocations_json TEXT, -- array of strings e.g. ["努力学习", "学习方法"]
+    senses_json TEXT, -- detailed senses / nuances
+    examples_json TEXT, -- array of { zh, pinyin, vi, context }
+    source TEXT DEFAULT 'standard_hsk_cedict', -- 'standard_hsk_cedict', 'gemini_ai_verified', 'user_custom'
+    version TEXT DEFAULT '1.0',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+
+  -- Dictionary Lookup History
+  CREATE TABLE IF NOT EXISTS dictionary_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT DEFAULT 'default',
+    query TEXT NOT NULL,
+    query_type TEXT NOT NULL, -- 'chinese', 'pinyin', 'vietnamese', 'context'
+    result_entry_id TEXT,
+    context_sentence TEXT,
+    created_at INTEGER NOT NULL
+  );
+
+  -- Dictionary Personal Notes & Favorites (Linked directly to vocabulary_memory and srs_items)
+  CREATE TABLE IF NOT EXISTS dictionary_personal_notes (
+    id TEXT PRIMARY KEY,
+    user_id TEXT DEFAULT 'default',
+    entry_id TEXT NOT NULL UNIQUE,
+    vocab_memory_id INTEGER,
+    srs_item_id TEXT,
+    is_favorite INTEGER DEFAULT 0,
+    personal_note TEXT,
+    tags_json TEXT,
+    lookup_count INTEGER DEFAULT 1,
+    last_looked_up_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    FOREIGN KEY(entry_id) REFERENCES dictionary_entries(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_dict_simplified ON dictionary_entries(simplified);
+  CREATE INDEX IF NOT EXISTS idx_dict_pinyin_clean ON dictionary_entries(pinyin_clean);
+  CREATE INDEX IF NOT EXISTS idx_dict_hsk ON dictionary_entries(hsk_level);
+  CREATE INDEX IF NOT EXISTS idx_dict_meaning ON dictionary_entries(meaning_vi);
+  CREATE INDEX IF NOT EXISTS idx_dict_history_created ON dictionary_history(created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_dict_notes_entry ON dictionary_personal_notes(entry_id);
+
   CREATE INDEX IF NOT EXISTS idx_shadowing_level ON shadowing_lessons(level, hsk_level);
   CREATE INDEX IF NOT EXISTS idx_shadowing_records_lesson ON shadowing_practice_records(lesson_id, user_id);
   CREATE INDEX IF NOT EXISTS idx_shadowing_records_created ON shadowing_practice_records(created_at);

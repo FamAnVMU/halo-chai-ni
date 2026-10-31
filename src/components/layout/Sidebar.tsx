@@ -15,12 +15,14 @@ import {
   Sparkles,
   Brain,
   Award,
+  BookA,
 } from 'lucide-react';
 
 export type NavTab =
   | 'home'
   | 'placement_test'
   | 'roadmap'
+  | 'dictionary'
   | 'vocab'
   | 'grammar'
   | 'practice'
@@ -57,6 +59,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
       highlight: true,
     },
     { id: 'roadmap', label: 'Lộ trình học', subLabel: 'HSK 1 - 6', icon: Map },
+    {
+      id: 'dictionary',
+      label: 'Từ điển tiếng Trung',
+      subLabel: 'Tra cứu & AI Phân tích',
+      icon: BookA,
+      highlight: true
+    },
     { id: 'vocab', label: 'Từ vựng & SRS', subLabel: 'Ghi nhớ lặp lại', icon: BookOpen },
     { id: 'grammar', label: 'Ngữ pháp', subLabel: 'Cấu trúc & Lỗi sai', icon: BookmarkCheck },
     { id: 'practice', label: 'Luyện tập', subLabel: '11 dạng tương tác', icon: Dumbbell },

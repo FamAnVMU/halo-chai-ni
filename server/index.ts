@@ -18,6 +18,8 @@ import { geminiSrsService } from './geminiSrsService.js';
 import { geminiAnalysisService } from './geminiAnalysisService.js';
 import { geminiPronunciationService } from './geminiPronunciationService.js';
 import { geminiShadowingService } from './geminiShadowingService.js';
+import { geminiDictionaryService } from './geminiDictionaryService.js';
+import { tokenizeChinese } from '../src/data/seedDictionary.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -1164,6 +1166,166 @@ app.get('/api/shadowing/history', (req, res) => {
     const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
     const history = geminiShadowingService.getHistory(limit);
     res.json({ success: true, data: history });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==================== AI CHINESE DICTIONARY API ====================
+
+// Tra cứu từ điển đa năng (chữ Hán, Pinyin, tiếng Việt)
+app.get('/api/dictionary/search', async (req, res) => {
+  try {
+    const query = (req.query.q as string) || '';
+    const type = req.query.type as any;
+    const hskLevel = req.query.hsk ? parseInt(req.query.hsk as string, 10) : undefined;
+    const wordType = req.query.wordType as string | undefined;
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 30;
+
+    const data = await geminiDictionaryService.search({
+      query,
+      type,
+      hskLevel,
+      wordType,
+      limit
+    });
+
+    res.json({ success: true, data });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Lấy chi tiết từ theo ID
+app.get('/api/dictionary/entry/:id', (req, res) => {
+  try {
+    const entry = geminiDictionaryService.getEntryById(req.params.id);
+    if (!entry) {
+      return res.status(404).json({ success: false, error: 'Không tìm thấy mục từ trong từ điển.' });
+    }
+    res.json({ success: true, data: entry });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Lấy chi tiết từ theo chữ Hán
+app.get('/api/dictionary/entry-word/:word', (req, res) => {
+  try {
+    const entry = geminiDictionaryService.getEntryByWord(decodeURIComponent(req.params.word));
+    if (!entry) {
+      return res.status(404).json({ success: false, error: 'Không tìm thấy mục từ trong từ điển.' });
+    }
+    res.json({ success: true, data: entry });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Tra từ trong ngữ cảnh cụ thể (In-context Lookup)
+app.post('/api/dictionary/in-context', async (req, res) => {
+  try {
+    const { sentence, targetWord } = req.body;
+    const data = await geminiDictionaryService.lookupInContext({ sentence, targetWord });
+    res.json({ success: true, data });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Phân biệt các từ gần nghĩa (Confusing Words Comparison)
+app.post('/api/dictionary/compare', async (req, res) => {
+  try {
+    const { words } = req.body;
+    const data = await geminiDictionaryService.compareWords(words);
+    res.json({ success: true, data });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Hỏi AI về từ này (AI Vocabulary Consultation)
+app.post('/api/dictionary/ask-ai', async (req, res) => {
+  try {
+    const { word, promptType, userLevel } = req.body;
+    const data = await geminiDictionaryService.askAIAboutWord({ word, promptType, userLevel });
+    res.json({ success: true, data });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Lưu ghi chú cá nhân
+app.post('/api/dictionary/save-note', (req, res) => {
+  try {
+    const { entryId, note, tags } = req.body;
+    const result = geminiDictionaryService.savePersonalNote({ entryId, note, tags });
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Yêu thích / Bỏ yêu thích
+app.post('/api/dictionary/favorite', (req, res) => {
+  try {
+    const { entryId } = req.body;
+    const result = geminiDictionaryService.toggleFavorite(entryId);
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Đồng bộ vào Bộ nhớ học tập (vocabulary_memory)
+app.post('/api/dictionary/sync-memory', (req, res) => {
+  try {
+    const { entryId } = req.body;
+    const result = geminiDictionaryService.syncToLearnerMemory(entryId);
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Đồng bộ vào Hàng đợi Ôn tập SRS (SM-2)
+app.post('/api/dictionary/sync-srs', (req, res) => {
+  try {
+    const { entryId } = req.body;
+    const result = geminiDictionaryService.syncToSrs(entryId);
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Lịch sử tra cứu
+app.get('/api/dictionary/history', (req, res) => {
+  try {
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
+    const history = geminiDictionaryService.getHistory(limit);
+    res.json({ success: true, data: history });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Danh sách từ đã lưu / yêu thích
+app.get('/api/dictionary/favorites', (req, res) => {
+  try {
+    const favorites = geminiDictionaryService.getFavorites();
+    res.json({ success: true, data: favorites });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Phân đoạn câu tiếng Trung thành các từ token
+app.post('/api/dictionary/segment', (req, res) => {
+  try {
+    const { text } = req.body;
+    const tokens = tokenizeChinese(text || '');
+    res.json({ success: true, data: tokens });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }

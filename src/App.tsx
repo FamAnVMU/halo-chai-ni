@@ -6,10 +6,12 @@ import type { UserProfile, LessonContent } from './types';
 import { Navbar } from './components/layout/Navbar';
 import { Sidebar, NavTab } from './components/layout/Sidebar';
 import { BottomNav } from './components/layout/BottomNav';
+import { QuickDictionaryModal } from './components/dictionary/QuickDictionaryModal';
 
 // Lazy-loaded Views for high performance and code-splitting
 const HomeView = lazy(() => import('./views/HomeView').then(m => ({ default: m.HomeView })));
 const RoadmapView = lazy(() => import('./views/RoadmapView').then(m => ({ default: m.RoadmapView })));
+const DictionaryView = lazy(() => import('./views/DictionaryView').then(m => ({ default: m.DictionaryView })));
 const LessonDetailView = lazy(() => import('./views/LessonDetailView').then(m => ({ default: m.LessonDetailView })));
 const VocabularyView = lazy(() => import('./views/VocabularyView').then(m => ({ default: m.VocabularyView })));
 const GrammarView = lazy(() => import('./views/GrammarView').then(m => ({ default: m.GrammarView })));
@@ -43,6 +45,7 @@ import {
   Sparkles,
   Brain,
   Award,
+  BookA,
 } from 'lucide-react';
 
 export function App() {
@@ -50,6 +53,22 @@ export function App() {
   const [activeLesson, setActiveLesson] = useState<LessonContent | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
+  const [quickLookupWord, setQuickLookupWord] = useState<string | null>(null);
+
+  // Global event listener for instant Quick Dictionary lookup from anywhere
+  useEffect(() => {
+    const handleQuickDict = (e: any) => {
+      if (e.detail?.word) {
+        setQuickLookupWord(e.detail.word);
+      }
+    };
+    window.addEventListener('halo:quick-dict', handleQuickDict);
+    (window as any).haloLookupWord = (word: string) => setQuickLookupWord(word);
+    return () => {
+      window.removeEventListener('halo:quick-dict', handleQuickDict);
+      delete (window as any).haloLookupWord;
+    };
+  }, []);
 
   // Live user query from Dexie
   const user = useLiveQuery<UserProfile | undefined>(() => db.users.get('current_user'));
@@ -98,6 +117,7 @@ export function App() {
     { id: 'home', label: 'Trang chủ', icon: Home },
     { id: 'placement_test', label: 'Kiểm tra trình độ AI', icon: Award },
     { id: 'roadmap', label: 'Lộ trình học', icon: Map },
+    { id: 'dictionary', label: 'Từ điển tiếng Trung', icon: BookA },
     { id: 'vocab', label: 'Từ vựng & Flashcard SRS', icon: BookOpen },
     { id: 'grammar', label: 'Ngữ pháp HSK', icon: BookmarkCheck },
     { id: 'practice', label: 'Luyện tập tương tác (11 dạng)', icon: Dumbbell },
@@ -152,6 +172,9 @@ export function App() {
                 )}
                 {currentTab === 'roadmap' && (
                   <RoadmapView onSelectLesson={handleSelectLesson} onNavigate={handleSelectTab} />
+                )}
+                {currentTab === 'dictionary' && (
+                  <DictionaryView onNavigate={handleSelectTab} />
                 )}
                 {currentTab === 'vocab' && <VocabularyView />}
                 {currentTab === 'grammar' && <GrammarView />}
@@ -219,11 +242,22 @@ export function App() {
             </div>
 
             <div className="text-[11px] text-slate-400 text-center pt-4 border-t border-slate-100 dark:border-slate-800">
-              Halo Chinese v1.9.0 • Chinese Shadowing Practice & Pronunciation Lab
+              Halo Chinese v1.10.0 • AI Chinese Dictionary & Pronunciation Lab
             </div>
           </div>
         </div>
       )}
+
+      {/* Global Quick Dictionary Lookup Modal */}
+      <QuickDictionaryModal
+        word={quickLookupWord}
+        onClose={() => setQuickLookupWord(null)}
+        onNavigate={handleSelectTab}
+        onOpenFullDetail={() => {
+          setQuickLookupWord(null);
+          setCurrentTab('dictionary');
+        }}
+      />
     </div>
   );
 }

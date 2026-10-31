@@ -17,6 +17,7 @@ import {
   Sparkles,
   ArrowRight,
   CheckCircle2,
+  BookA,
 } from 'lucide-react';
 import type {
   AIChatMessage,
@@ -729,12 +730,22 @@ export const AITutorView: React.FC<AITutorViewProps> = ({ onNavigate }) => {
                           </div>
                         )}
 
-                        <div className="flex items-center gap-2 pt-1 text-[11px] text-slate-400">
+                        <div className="flex items-center gap-3 pt-1 text-[11px] text-slate-400">
                           <button
                             onClick={() => audioService.speak(msg.text, { rate: speed })}
                             className="flex items-center gap-1 hover:text-primary-600"
                           >
                             <Volume2 className="w-3.5 h-3.5" /> Nghe câu
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              window.dispatchEvent(new CustomEvent('halo:quick-dict', { detail: { word: msg.text.slice(0, 4) } }));
+                            }}
+                            className="flex items-center gap-1 hover:text-primary-600"
+                            title="Tra từ điển nhanh"
+                          >
+                            <BookA className="w-3.5 h-3.5" /> Tra từ điển
                           </button>
                         </div>
                       </div>
