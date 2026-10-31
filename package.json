@@ -1,7 +1,7 @@
 {
   "name": "halo-chinese",
   "private": true,
-  "version": "2.3.1",
+  "version": "2.4.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,7 +10,8 @@
     "build": "tsc -b && vite build",
     "build:apk": "npm run build && npx cap sync android && cd android && gradlew.bat assembleDebug",
     "lint": "oxlint",
-    "test": "node --import tsx/esm scripts/test_unified_learning_memory.ts && node --import tsx/esm scripts/test_mastery_engine.ts && node --import tsx/esm scripts/test_learning_evidence.ts && node --import tsx/esm scripts/test_knowledge_registry.ts && node --import tsx/esm scripts/test_ai_tutor_intelligence.ts && tsx scripts/test_comprehensive_audit.ts",
+    "test": "node --import tsx/esm scripts/test_unified_ai_orchestrator.ts && node --import tsx/esm scripts/test_unified_learning_memory.ts && node --import tsx/esm scripts/test_mastery_engine.ts && node --import tsx/esm scripts/test_learning_evidence.ts && node --import tsx/esm scripts/test_knowledge_registry.ts && node --import tsx/esm scripts/test_ai_tutor_intelligence.ts && tsx scripts/test_comprehensive_audit.ts",
+    "test:orchestrator": "node --import tsx/esm scripts/test_unified_ai_orchestrator.ts",
     "test:memory": "node --import tsx/esm scripts/test_unified_learning_memory.ts",
     "test:mastery": "node --import tsx/esm scripts/test_mastery_engine.ts",
     "test:evidence": "node --import tsx/esm scripts/test_learning_evidence.ts",

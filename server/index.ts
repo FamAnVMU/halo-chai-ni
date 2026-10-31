@@ -25,6 +25,8 @@ import { knowledgeRegistryService } from './knowledgeRegistryService.js';
 import { learningEvidenceService } from './learningEvidenceService.js';
 import { masteryEngineService } from './masteryEngineService.js';
 import { unifiedLearningMemoryService } from './unifiedLearningMemoryService.js';
+import { unifiedAIOrchestrator } from './unifiedAIOrchestrator.js';
+import { TaskRegistry } from './taskRegistry.js';
 import { tokenizeChinese } from '../src/data/seedDictionary.js';
 
 const app = express();
@@ -139,6 +141,62 @@ app.get('/api/settings/test-voice-sample', async (req, res) => {
     const voice = (req.query.voice as string) || geminiLiveService.getVoice();
     const result = await geminiLiveService.generateVoiceSample(voice);
     res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==================== UNIFIED AI ORCHESTRATOR ====================
+app.get('/api/ai-orchestrator/status', (req, res) => {
+  try {
+    const status = unifiedAIOrchestrator.getSystemStatus();
+    res.json({ success: true, ...status });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/ai-orchestrator/logs', (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 50;
+    const logs = unifiedAIOrchestrator.getRecentLogs(limit);
+    res.json({ success: true, count: logs.length, logs });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/ai-orchestrator/tasks', (req, res) => {
+  try {
+    const tasks = TaskRegistry.getAllTasks();
+    res.json({ success: true, count: tasks.length, tasks });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/ai-orchestrator/execute', async (req, res) => {
+  try {
+    const { taskId, input, learnerId, hskLevel, idempotencyKey, timeoutMs, sessionId } = req.body;
+    if (!taskId) {
+      return res.status(400).json({ success: false, error: 'Thiếu trường bắt buộc "taskId".' });
+    }
+
+    const response = await unifiedAIOrchestrator.executeTask({
+      taskId,
+      input,
+      learnerId,
+      hskLevel,
+      idempotencyKey,
+      timeoutMs,
+      sessionId
+    });
+
+    if (!response.success && response.error) {
+      return res.status(response.error.httpStatus || 500).json(response);
+    }
+
+    res.json(response);
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }

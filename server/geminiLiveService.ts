@@ -2,26 +2,21 @@ import { GoogleGenAI } from '@google/genai';
 import { db } from './db.js';
 import { geminiAnalysisService } from './geminiAnalysisService.js';
 import { aiTutorEngine } from './aiTutorEngine.js';
+import { liveSessionManager } from './liveSessionManager.js';
+import { unifiedAIOrchestrator } from './unifiedAIOrchestrator.js';
 import type { WebSocket } from 'ws';
 
 export class GeminiLiveService {
   public getApiKey(): string {
-    const row = db.prepare('SELECT value FROM server_settings WHERE key = ?').get('gemini_live_api_key') as { value: string } | undefined;
-    const key = row?.value || process.env.GEMINI_LIVE_API_KEY || '';
-    if (key) return key;
-    // Fallback to text API key if single key used
-    const textRow = db.prepare('SELECT value FROM server_settings WHERE key = ?').get('gemini_text_api_key') as { value: string } | undefined;
-    return textRow?.value || process.env.GEMINI_TEXT_API_KEY || '';
+    return liveSessionManager.getLiveApiKey();
   }
 
   public getModel(): string {
-    const row = db.prepare('SELECT value FROM server_settings WHERE key = ?').get('gemini_live_model') as { value: string } | undefined;
-    return row?.value || process.env.GEMINI_LIVE_MODEL || 'gemini-3.8-live';
+    return liveSessionManager.getLiveModel();
   }
 
   public getVoice(): string {
-    const row = db.prepare('SELECT value FROM server_settings WHERE key = ?').get('gemini_live_voice') as { value: string } | undefined;
-    return row?.value || process.env.GEMINI_LIVE_VOICE || 'Aoede';
+    return liveSessionManager.getLiveVoice();
   }
 
   private voiceSampleCache: Map<string, string> = new Map();
@@ -232,6 +227,7 @@ export class GeminiLiveService {
 
   /**
    * Handle bidirectional Live voice bridge between browser client WebSocket and Gemini Live WebSocket
+   * Delegated to LiveSessionManager for optimal lifecycle, audio streaming and memory sync.
    */
   public async handleClientBridge(
     clientWs: WebSocket,
@@ -243,229 +239,7 @@ export class GeminiLiveService {
       voiceName?: string;
     }
   ) {
-    const sessionId = sessionParams.sessionId || `voice_sess_${Date.now()}`;
-    let userTranscriptBuffer = '';
-    let aiTranscriptBuffer = '';
-    const apiKey = this.getApiKey();
-    if (!apiKey) {
-      clientWs.send(JSON.stringify({
-        type: 'error',
-        message: 'Backend chưa cấu hình Gemini API Key cho Voice Chat.'
-      }));
-      clientWs.close();
-      return;
-    }
-
-    const model = this.getModel();
-    const voice = sessionParams.voiceName || this.getVoice();
-    const hskLevel = sessionParams.hskLevel || 1;
-    const mode = sessionParams.mode || 'free';
-    const scenario = sessionParams.scenario || '';
-
-    // Truy xuất ngữ cảnh gần nhất từ Text Chat và Sổ tay lỗi sai để đồng bộ sang Voice Chat
-    let recentTopic = '';
-    const lastSession = db.prepare('SELECT title, scenario FROM chat_sessions ORDER BY updated_at DESC LIMIT 1').get() as any;
-    if (lastSession) {
-      recentTopic = lastSession.scenario || lastSession.title || '';
-    }
-
-    const recentErrorsRows = db.prepare('SELECT title FROM learning_errors WHERE status != "resolved" ORDER BY last_occurred_at DESC LIMIT 2').all() as any[];
-    const recentErrors = recentErrorsRows.map(r => r.title);
-
-    const systemInstruction = aiTutorEngine.buildVoiceSystemPrompt({
-      hskLevel,
-      mode,
-      scenario,
-      recentTopic,
-      recentErrors
-    });
-
-    try {
-      const ai = new GoogleGenAI({ apiKey });
-      let liveSession: any = null;
-
-      liveSession = await ai.live.connect({
-        model,
-        config: {
-          responseModalities: ['audio'],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: {
-                voiceName: voice
-              }
-            }
-          },
-          systemInstruction: {
-            parts: [{ text: systemInstruction }]
-          }
-        },
-        callbacks: {
-          onopen: () => {
-            if (clientWs.readyState === clientWs.OPEN) {
-              clientWs.send(JSON.stringify({
-                type: 'ready',
-                model,
-                voice,
-                message: 'Kết nối Gemini Live API thành công!'
-              }));
-            }
-          },
-          onmessage: (response: any) => {
-            if (clientWs.readyState !== clientWs.OPEN) return;
-
-            const content = response.serverContent;
-            if (!content) return;
-
-            // Audio chunks from Gemini Live
-            if (content.modelTurn?.parts) {
-              for (const part of content.modelTurn.parts) {
-                if (part.inlineData) {
-                  // Base64 PCM 24kHz audio from Gemini
-                  clientWs.send(JSON.stringify({
-                    type: 'audio_chunk',
-                    data: part.inlineData.data,
-                    mimeType: part.inlineData.mimeType || 'audio/pcm;rate=24000'
-                  }));
-                }
-              }
-            }
-
-            // Real-time transcriptions
-            if (content.inputTranscription?.text) {
-              userTranscriptBuffer += ' ' + content.inputTranscription.text;
-              clientWs.send(JSON.stringify({
-                type: 'user_transcription',
-                text: content.inputTranscription.text
-              }));
-            }
-            if (content.outputTranscription?.text) {
-              aiTranscriptBuffer += ' ' + content.outputTranscription.text;
-              clientWs.send(JSON.stringify({
-                type: 'ai_transcription',
-                text: content.outputTranscription.text
-              }));
-            }
-
-            // Server barge-in / Interrupted signal
-            if (content.interrupted) {
-              clientWs.send(JSON.stringify({
-                type: 'interrupted'
-              }));
-            }
-
-            // Turn complete - Persist conversation turns to SQLite for AI Conversation Analysis
-            if (content.turnComplete) {
-              if (userTranscriptBuffer.trim()) {
-                geminiAnalysisService.saveMessage({
-                  sessionId,
-                  sender: 'user',
-                  text: userTranscriptBuffer.trim(),
-                  isAudio: true
-                });
-                userTranscriptBuffer = '';
-              }
-              if (aiTranscriptBuffer.trim()) {
-                geminiAnalysisService.saveMessage({
-                  sessionId,
-                  sender: 'assistant',
-                  text: aiTranscriptBuffer.trim(),
-                  isAudio: true
-                });
-                aiTranscriptBuffer = '';
-              }
-
-              clientWs.send(JSON.stringify({
-                type: 'turn_complete'
-              }));
-            }
-          },
-          onerror: (err: any) => {
-            console.error('Gemini Live API bridge error:', err);
-            if (clientWs.readyState === clientWs.OPEN) {
-              clientWs.send(JSON.stringify({
-                type: 'error',
-                message: `Lỗi Live API: ${err?.message || 'Sự cố kết nối'}`
-              }));
-            }
-          },
-          onclose: () => {
-            if (clientWs.readyState === clientWs.OPEN) {
-              clientWs.send(JSON.stringify({
-                type: 'closed',
-                message: 'Phiên Live API đã kết thúc.'
-              }));
-            }
-          }
-        }
-      });
-
-      // Handle messages from browser client
-      clientWs.on('message', async (raw: any) => {
-        try {
-          const msg = JSON.parse(raw.toString());
-
-          if (msg.type === 'audio_input') {
-            // Client sending PCM 16kHz audio chunk
-            if (liveSession) {
-              await liveSession.sendRealtimeInput({
-                audio: {
-                  data: msg.data, // base64
-                  mimeType: msg.mimeType || 'audio/pcm;rate=16000'
-                }
-              });
-            }
-          } else if (msg.type === 'text_input') {
-            // Client sending text
-            if (liveSession) {
-              await liveSession.sendRealtimeInput({ text: msg.text });
-            }
-          } else if (msg.type === 'interrupt') {
-            // Client signals user started talking, client stops playback
-            if (clientWs.readyState === clientWs.OPEN) {
-              clientWs.send(JSON.stringify({ type: 'interrupted' }));
-            }
-          }
-        } catch (e) {
-          console.error('Client message parse error:', e);
-        }
-      });
-
-      clientWs.on('close', () => {
-        try {
-          if (userTranscriptBuffer.trim()) {
-            geminiAnalysisService.saveMessage({
-              sessionId,
-              sender: 'user',
-              text: userTranscriptBuffer.trim(),
-              isAudio: true
-            });
-            userTranscriptBuffer = '';
-          }
-          if (aiTranscriptBuffer.trim()) {
-            geminiAnalysisService.saveMessage({
-              sessionId,
-              sender: 'assistant',
-              text: aiTranscriptBuffer.trim(),
-              isAudio: true
-            });
-            aiTranscriptBuffer = '';
-          }
-          if (liveSession && (liveSession as any).close) {
-            (liveSession as any).close();
-          }
-        } catch {}
-      });
-
-    } catch (err: any) {
-      console.error('Failed to initialize live bridge:', err);
-      if (clientWs.readyState === clientWs.OPEN) {
-        clientWs.send(JSON.stringify({
-          type: 'error',
-          message: `Không thể kết nối Live API: ${err?.message || String(err)}`
-        }));
-        clientWs.close();
-      }
-    }
+    return liveSessionManager.startOrJoinSession(clientWs, sessionParams);
   }
 }
 

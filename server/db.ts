@@ -938,6 +938,30 @@ db.exec(`
     updated_at INTEGER NOT NULL
   );
 
+  -- 4. AI Request Logs (Bảng truy vết siêu dữ liệu yêu cầu AI Orchestrator - Không lưu API key hoặc dữ liệu nhạy cảm)
+  CREATE TABLE IF NOT EXISTS ai_request_logs (
+    id TEXT PRIMARY KEY,
+    request_id TEXT NOT NULL,
+    task_id TEXT NOT NULL,
+    model_category TEXT NOT NULL, -- 'text_out' | 'live'
+    model_id TEXT NOT NULL,
+    prompt_version TEXT NOT NULL,
+    context_version TEXT,
+    status TEXT NOT NULL, -- 'pending' | 'completed' | 'failed' | 'timeout' | 'rejected'
+    latency_ms INTEGER,
+    tokens_prompt INTEGER,
+    tokens_completion INTEGER,
+    tokens_total INTEGER,
+    error_code TEXT,
+    error_message TEXT,
+    idempotency_key TEXT,
+    created_at INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_ai_req_task ON ai_request_logs(task_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_ai_req_idempotency ON ai_request_logs(idempotency_key);
+  CREATE INDEX IF NOT EXISTS idx_ai_req_status ON ai_request_logs(status);
+
   CREATE INDEX IF NOT EXISTS idx_reading_level ON reading_passages(level, hsk_level);
   CREATE INDEX IF NOT EXISTS idx_reading_topic ON reading_passages(topic);
   CREATE INDEX IF NOT EXISTS idx_reading_genre ON reading_passages(genre);

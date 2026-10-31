@@ -242,7 +242,7 @@ export function App() {
             </div>
 
             <div className="text-[11px] text-slate-400 text-center pt-4 border-t border-slate-100 dark:border-slate-800">
-              Halo Chinese v2.3.1 • Unified Learning Memory & System Optimization
+              Halo Chinese v2.4.0 • Unified AI Orchestrator
             </div>
           </div>
         </div>

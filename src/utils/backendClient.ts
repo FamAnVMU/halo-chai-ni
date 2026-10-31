@@ -2263,6 +2263,56 @@ export class LocalBackendClient {
       return { success: false, error: e.message };
     }
   }
+
+  // ==================== UNIFIED AI ORCHESTRATOR ====================
+
+  public async getAIOrchestratorStatus(): Promise<{ success: boolean; textModel?: string; liveModel?: string; hasTextKey?: boolean; hasLiveKey?: boolean; registeredTasksCount?: number; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/ai-orchestrator/status`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getAIOrchestratorLogs(limit: number = 50): Promise<{ success: boolean; count?: number; logs?: any[]; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/ai-orchestrator/logs?limit=${limit}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getAIOrchestratorTasks(): Promise<{ success: boolean; count?: number; tasks?: any[]; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/ai-orchestrator/tasks`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async executeAITask(params: {
+    taskId: string;
+    input: any;
+    learnerId?: string;
+    hskLevel?: number;
+    idempotencyKey?: string;
+    timeoutMs?: number;
+    sessionId?: string;
+  }): Promise<{ success: boolean; taskId?: string; data?: any; error?: any }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/ai-orchestrator/execute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
 }
 
 export const backendClient = new LocalBackendClient();
