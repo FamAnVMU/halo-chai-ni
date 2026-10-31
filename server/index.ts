@@ -24,6 +24,7 @@ import { aiTutorEngine } from './aiTutorEngine.js';
 import { knowledgeRegistryService } from './knowledgeRegistryService.js';
 import { learningEvidenceService } from './learningEvidenceService.js';
 import { masteryEngineService } from './masteryEngineService.js';
+import { unifiedLearningMemoryService } from './unifiedLearningMemoryService.js';
 import { tokenizeChinese } from '../src/data/seedDictionary.js';
 
 const app = express();
@@ -1894,6 +1895,113 @@ app.get('/api/mastery/rules', (_req, res) => {
   try {
     const rules = masteryEngineService.getRuleConfig();
     res.json({ success: true, data: rules });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==================== UNIFIED LEARNING MEMORY API ENDPOINTS ====================
+// 1. Cổng ghi nhận hoạt động học tập duy nhất của toàn hệ thống
+app.post('/api/learning-memory/activity', (req, res) => {
+  try {
+    const result = unifiedLearningMemoryService.recordLearningActivity(req.body);
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 2. Truy xuất toàn diện ngữ cảnh kiến thức (Tri thức + Mastery + Nghĩa + Lỗi + SRS)
+app.get('/api/learning-memory/context/:knowledgeId', (req, res) => {
+  try {
+    const learnerId = (req.query.learnerId as string) || 'default';
+    const context = unifiedLearningMemoryService.getKnowledgeContext(req.params.knowledgeId, { learnerId });
+    if (!context) {
+      return res.status(404).json({ success: false, error: 'Không tìm thấy ngữ cảnh tri thức' });
+    }
+    res.json({ success: true, data: context });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 3. Truy xuất Hồ sơ học tập tổng hợp (Radar 6 chiều, Phân bổ trạng thái, Điểm mạnh/yếu)
+app.get('/api/learning-memory/profile', (req, res) => {
+  try {
+    const learnerId = (req.query.learnerId as string) || 'default';
+    const profile = unifiedLearningMemoryService.getLearnerProfile(learnerId);
+    res.json({ success: true, data: profile });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 4. Lấy danh sách kiến thức cần ôn tập gấp (Needs review + Suy giảm retention)
+app.get('/api/learning-memory/review', (req, res) => {
+  try {
+    const learnerId = (req.query.learnerId as string) || 'default';
+    const limit = req.query.limit ? Number(req.query.limit) : 20;
+    const items = unifiedLearningMemoryService.getKnowledgeForReview({ learnerId, limit });
+    res.json({ success: true, count: items.length, data: items });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 5. Lấy danh sách điểm yếu / mâu thuẫn nhận thức
+app.get('/api/learning-memory/weaknesses', (req, res) => {
+  try {
+    const learnerId = (req.query.learnerId as string) || 'default';
+    const limit = req.query.limit ? Number(req.query.limit) : 20;
+    const items = unifiedLearningMemoryService.getLearningWeaknesses({ learnerId, limit });
+    res.json({ success: true, count: items.length, data: items });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 6. Lấy danh sách kiến thức mới tiếp cận gần đây
+app.get('/api/learning-memory/recent', (req, res) => {
+  try {
+    const learnerId = (req.query.learnerId as string) || 'default';
+    const limit = req.query.limit ? Number(req.query.limit) : 15;
+    const items = unifiedLearningMemoryService.getRecentlyLearned({ learnerId, limit });
+    res.json({ success: true, count: items.length, data: items });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 7. Briefing sư phạm chọn lọc cho AI Tutor và Voice Chat
+app.post('/api/learning-memory/ai-tutor-briefing', (req, res) => {
+  try {
+    const { queryText, hskLevel, limit } = req.body;
+    const briefing = unifiedLearningMemoryService.getRelevantKnowledgeForAITutor(queryText || '', {
+      hskLevel,
+      limit
+    });
+    res.json({ success: true, data: briefing });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 8. Kiểm tra sức khỏe dữ liệu và toàn vẹn SQLite WAL
+app.get('/api/learning-memory/audit', (_req, res) => {
+  try {
+    const report = unifiedLearningMemoryService.auditDataHealth();
+    res.json({ success: true, data: report });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 9. Khôi phục và tái tạo toàn bộ bộ nhớ học tập từ nguồn gốc
+app.post('/api/learning-memory/rebuild', (req, res) => {
+  try {
+    const learnerId = req.body.learnerId || 'default';
+    const result = unifiedLearningMemoryService.rebuildUnifiedMemory({ learnerId });
+    res.json({ success: true, data: result });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }

@@ -2130,6 +2130,128 @@ export class LocalBackendClient {
       return { success: false, error: e.message };
     }
   }
+
+  // ==================== UNIFIED LEARNING MEMORY CLIENT METHODS ====================
+  public async recordLearningActivity(input: any): Promise<{ success: boolean; data?: any; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/learning-memory/activity`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input)
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getKnowledgeContext(
+    knowledgeIdOrText: string,
+    learnerId: string = 'default'
+  ): Promise<{ success: boolean; data?: any; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/learning-memory/context/${encodeURIComponent(knowledgeIdOrText)}?learnerId=${encodeURIComponent(learnerId)}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getUnifiedLearnerProfile(
+    learnerId: string = 'default'
+  ): Promise<{ success: boolean; data?: any; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/learning-memory/profile?learnerId=${encodeURIComponent(learnerId)}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getKnowledgeForReview(options?: {
+    learnerId?: string;
+    limit?: number;
+  }): Promise<{ success: boolean; count?: number; data?: any[]; error?: string }> {
+    try {
+      const q = new URLSearchParams();
+      if (options?.learnerId) q.set('learnerId', options.learnerId);
+      if (options?.limit) q.set('limit', String(options.limit));
+      const res = await fetch(`${this.getBaseUrl()}/api/learning-memory/review?${q.toString()}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getLearningWeaknesses(options?: {
+    learnerId?: string;
+    limit?: number;
+  }): Promise<{ success: boolean; count?: number; data?: any[]; error?: string }> {
+    try {
+      const q = new URLSearchParams();
+      if (options?.learnerId) q.set('learnerId', options.learnerId);
+      if (options?.limit) q.set('limit', String(options.limit));
+      const res = await fetch(`${this.getBaseUrl()}/api/learning-memory/weaknesses?${q.toString()}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getRecentlyLearned(options?: {
+    learnerId?: string;
+    limit?: number;
+  }): Promise<{ success: boolean; count?: number; data?: any[]; error?: string }> {
+    try {
+      const q = new URLSearchParams();
+      if (options?.learnerId) q.set('learnerId', options.learnerId);
+      if (options?.limit) q.set('limit', String(options.limit));
+      const res = await fetch(`${this.getBaseUrl()}/api/learning-memory/recent?${q.toString()}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getAITutorBriefing(
+    queryText: string,
+    options?: { hskLevel?: number; limit?: number }
+  ): Promise<{ success: boolean; data?: any; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/learning-memory/ai-tutor-briefing`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ queryText, ...options })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async auditDataHealth(): Promise<{ success: boolean; data?: any; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/learning-memory/audit`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async rebuildUnifiedMemory(
+    learnerId: string = 'default'
+  ): Promise<{ success: boolean; data?: any; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/learning-memory/rebuild`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ learnerId })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
 }
 
 export const backendClient = new LocalBackendClient();

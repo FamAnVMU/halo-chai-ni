@@ -352,7 +352,8 @@ export class MasteryEngineService {
     const decayFactor = Number(Math.exp(-0.693 * (idleDays / halfLife)).toFixed(2));
     const retentionScore = Math.max(10, Math.min(100, Math.round(baseRetention * decayFactor)));
     const retentionConf = Math.min(0.95, Number((1 - Math.exp(-(reviewEvs.length + (daysSpan > 0 ? 1 : 0)) / 2.0)).toFixed(2)));
-    const needsReview = retentionScore < rules.retentionDecayParams.needs_review_threshold && evidences.length >= 2;
+    const lastReviewFail = reviewEvs.length > 0 && reviewEvs[reviewEvs.length - 1].assessmentData.isCorrect === false;
+    const needsReview = (retentionScore < rules.retentionDecayParams.needs_review_threshold && evidences.length >= 2) || lastReviewFail;
 
     const retentionDim: MasteryDimensionScore = {
       score: retentionScore,
