@@ -203,7 +203,7 @@ export function App() {
             </div>
 
             <div className="text-[11px] text-slate-400 text-center pt-4 border-t border-slate-100 dark:border-slate-800">
-              Halo Chinese v1.3.0 • AI Personalized Curriculum & Memory
+              Halo Chinese v1.3.1 • AI Personalized Curriculum & Memory
             </div>
           </div>
         </div>
