@@ -122,7 +122,15 @@ export interface AIChatMessage {
   text: string;
   pinyin?: string;
   translationVi?: string;
+  pedagogicFocus?: string;
+  intentDetected?: string;
+  microCheckPrompt?: {
+    needVerification: boolean;
+    exerciseZh?: string;
+    exerciseVi?: string;
+  };
   correction?: {
+    severity?: 'critical' | 'grammar' | 'lexical' | 'naturalness' | 'minor';
     original: string;
     corrected: string;
     explanationVi: string;

@@ -137,6 +137,25 @@ db.exec(`
     resolved_at INTEGER
   );
 
+  -- Learner Evidence Ledger: Track evidence-based observations with confidence ratings & 7-stage taxonomy
+  CREATE TABLE IF NOT EXISTS learner_evidence_ledger (
+    id TEXT PRIMARY KEY,
+    target_type TEXT NOT NULL, -- 'vocabulary', 'grammar', 'pronunciation', 'communication', 'habit'
+    target_key TEXT NOT NULL, -- e.g. "word_苹果", "grammar_把", "pronunciation_tone_3"
+    claim_summary TEXT NOT NULL, -- Description of observation
+    evidence_quote TEXT NOT NULL, -- Real user utterance or quote
+    source_activity TEXT NOT NULL, -- 'text_chat', 'voice_chat', 'placement', 'srs', 'reading', 'shadowing'
+    source_session_id TEXT,
+    observation_count INTEGER DEFAULT 1,
+    confidence_score REAL DEFAULT 0.8, -- 0.0 - 1.0
+    mastery_stage TEXT DEFAULT 'practicing', -- 'unexposed', 'exposed', 'taught', 'understood', 'practicing', 'autonomous', 'mastered'
+    status TEXT DEFAULT 'active', -- 'active', 'undetermined', 'resolved'
+    last_observed_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_evidence_target ON learner_evidence_ledger(target_key, target_type);
+  CREATE INDEX IF NOT EXISTS idx_evidence_status ON learner_evidence_ledger(status);
+
   -- Generated Lessons: Lessons created by AI with anti-duplication tracking
   CREATE TABLE IF NOT EXISTS generated_lessons (
     id TEXT PRIMARY KEY,
@@ -707,6 +726,21 @@ addColumnIfNotExists('chat_sessions', 'duration_seconds', "INTEGER DEFAULT 0");
 addColumnIfNotExists('chat_sessions', 'message_count', "INTEGER DEFAULT 0");
 addColumnIfNotExists('chat_sessions', 'last_analyzed_at', "INTEGER");
 
+// AI Tutor Intelligence upgrades & 6D competency profile
+addColumnIfNotExists('learner_profile', 'vocab_breadth_score', "INTEGER DEFAULT 50");
+addColumnIfNotExists('learner_profile', 'grammar_accuracy_score', "INTEGER DEFAULT 50");
+addColumnIfNotExists('learner_profile', 'listening_score', "INTEGER DEFAULT 50");
+addColumnIfNotExists('learner_profile', 'reading_score', "INTEGER DEFAULT 50");
+addColumnIfNotExists('learner_profile', 'writing_score', "INTEGER DEFAULT 50");
+addColumnIfNotExists('learner_profile', 'fluency_score', "INTEGER DEFAULT 50");
+addColumnIfNotExists('learner_profile', 'pedagogic_notes_json', "TEXT DEFAULT '[]'");
+
+// 7-stage mastery lifecycle & evidence tracking
+addColumnIfNotExists('vocabulary_memory', 'mastery_stage', "TEXT DEFAULT 'introduced'");
+addColumnIfNotExists('vocabulary_memory', 'evidence_count', "INTEGER DEFAULT 1");
+addColumnIfNotExists('grammar_memory', 'mastery_stage', "TEXT DEFAULT 'introduced'");
+addColumnIfNotExists('grammar_memory', 'evidence_count', "INTEGER DEFAULT 1");
+
 // conversation_analyses rich additions
 addColumnIfNotExists('conversation_analyses', 'session_type', "TEXT DEFAULT 'text'");
 addColumnIfNotExists('conversation_analyses', 'vocab_analysis_json', "TEXT");
@@ -858,5 +892,50 @@ if (!existingMemory) {
     JSON.stringify(['Cấu trúc câu chữ 把 (bǎ)', 'Bổ ngữ kết quả / phương hướng']),
     'Người học ưu tiên giao tiếp đời sống, chuẩn bị cho HSK 3.',
     Date.now()
+  );
+}
+
+// Seed initial learner evidence ledger if empty
+const evidenceCount = (db.prepare('SELECT COUNT(*) as count FROM learner_evidence_ledger').get() as any).count;
+if (evidenceCount === 0) {
+  const now = Date.now();
+  const insertEvidence = db.prepare(`
+    INSERT INTO learner_evidence_ledger (
+      id, target_type, target_key, claim_summary, evidence_quote, source_activity,
+      source_session_id, observation_count, confidence_score, mastery_stage, status,
+      last_observed_at, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  insertEvidence.run(
+    'ev_seed_1',
+    'grammar',
+    'grammar_把',
+    'Đã học quy tắc câu chữ 把 nhưng thường quên tân ngữ xác định hoặc bỏ sót kết quả sau động từ',
+    '我把书看。(Đúng phải là: 我把书看完了。)',
+    'text_chat',
+    'session_init',
+    2,
+    0.85,
+    'practicing',
+    'active',
+    now - 86400000,
+    now - 86400000
+  );
+
+  insertEvidence.run(
+    'ev_seed_2',
+    'vocabulary',
+    'word_苹果',
+    'Vận dụng tự nhiên từ vựng quả táo trong ngữ cảnh mua sắm và ăn uống',
+    '老板，这个苹果一斤多少钱？',
+    'text_chat',
+    'session_init',
+    3,
+    0.95,
+    'mastered',
+    'active',
+    now - 86400000 * 2,
+    now - 86400000 * 2
   );
 }

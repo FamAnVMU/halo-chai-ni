@@ -523,6 +523,7 @@ export class LocalBackendClient {
     hskLevel: number;
     scenario?: string;
     sessionId?: string;
+    overrideIntent?: string;
   }) {
     const res = await fetch(`${this.getBaseUrl()}/api/tutor/chat`, {
       method: 'POST',
@@ -530,6 +531,41 @@ export class LocalBackendClient {
       body: JSON.stringify(params)
     });
     return await res.json();
+  }
+
+  public async getTutorCompetency() {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/tutor/competency`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async lookupContrastPair(wordA: string, wordB: string) {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/tutor/contrast`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wordA, wordB })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async generateMicroCheck(concept: string, suspectedGap: string, hskLevel: number = 1) {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/tutor/micro-check`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ concept, suspectedGap, hskLevel })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
   }
 
   public async getLearnerMemory() {

@@ -10,12 +10,21 @@ export interface AIServiceResponse {
   replyZh: string;
   replyPinyin: string;
   replyVi: string;
+  pedagogicFocus?: string;
+  intentDetected?: string;
+  hasCorrection?: boolean;
   correction?: {
+    severity?: 'critical' | 'grammar' | 'lexical' | 'naturalness' | 'minor';
     original: string;
     corrected: string;
     explanationVi: string;
     grammarPoint?: string;
     naturalSuggestion?: string;
+  };
+  microCheckPrompt?: {
+    needVerification: boolean;
+    exerciseZh?: string;
+    exerciseVi?: string;
   };
 }
 
@@ -45,7 +54,8 @@ export class AIService {
     history: AIChatMessage[],
     mode: AIChatMode,
     hskLevel: HSKLevel,
-    roleplayScenario?: string
+    roleplayScenario?: string,
+    overrideIntent?: string
   ): Promise<AIServiceResponse> {
     try {
       const isBackendAlive = await backendClient.checkHealth();
@@ -55,7 +65,8 @@ export class AIService {
           history: history.map(h => ({ sender: h.sender, text: h.text })),
           mode,
           hskLevel,
-          scenario: roleplayScenario
+          scenario: roleplayScenario,
+          overrideIntent
         });
 
         if (res.success && res.data) {

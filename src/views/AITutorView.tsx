@@ -72,6 +72,29 @@ export const AITutorView: React.FC<AITutorViewProps> = ({ onNavigate }) => {
   // Memory & Report Modals
   const [aiMemory, setAiMemory] = useState<AILearnerMemory | null>(null);
   const [isMemoryModalOpen, setIsMemoryModalOpen] = useState<boolean>(false);
+  const [tutorCompetency, setTutorCompetency] = useState<{
+    profile: {
+      vocabBreadth: number;
+      grammarAccuracy: number;
+      listening: number;
+      reading: number;
+      writing: number;
+      fluency: number;
+      overallHsk: number;
+      targetHsk: number;
+    };
+    evidences: Array<{
+      id: string;
+      targetType: string;
+      targetKey: string;
+      claimSummary: string;
+      evidenceQuote: string;
+      sourceActivity: string;
+      observationCount: number;
+      confidenceScore: number;
+      masteryStage: string;
+    }>;
+  } | null>(null);
   const [postReport, setPostReport] = useState<PostSessionReport | null>(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
 
@@ -209,6 +232,13 @@ export const AITutorView: React.FC<AITutorViewProps> = ({ onNavigate }) => {
   };
 
   const loadMemory = async () => {
+    try {
+      const compRes = await backendClient.getTutorCompetency();
+      if (compRes?.success && compRes?.data) {
+        setTutorCompetency(compRes.data);
+      }
+    } catch (_e) {}
+
     const mem = await backendClient.getLearnerMemory();
     if (mem) {
       setAiMemory({
@@ -244,7 +274,7 @@ export const AITutorView: React.FC<AITutorViewProps> = ({ onNavigate }) => {
     }
   };
 
-  const handleSendTextMessage = async (customText?: string) => {
+  const handleSendTextMessage = async (customText?: string, overrideIntent?: string) => {
     const textToSend = customText || inputMsg.trim();
     if (!textToSend || isAiThinking) return;
 
@@ -268,7 +298,8 @@ export const AITutorView: React.FC<AITutorViewProps> = ({ onNavigate }) => {
         messages,
         chatMode,
         hskLevel,
-        activeScenario
+        activeScenario,
+        overrideIntent
       );
 
       const aiMsg: AIChatMessage = {
@@ -277,6 +308,9 @@ export const AITutorView: React.FC<AITutorViewProps> = ({ onNavigate }) => {
         text: res.replyZh,
         pinyin: res.replyPinyin,
         translationVi: res.replyVi,
+        pedagogicFocus: res.pedagogicFocus,
+        intentDetected: res.intentDetected,
+        microCheckPrompt: res.microCheckPrompt,
         correction: res.correction,
         timestamp: Date.now(),
       };
@@ -696,6 +730,13 @@ export const AITutorView: React.FC<AITutorViewProps> = ({ onNavigate }) => {
                   >
                     {!isUser ? (
                       <div className="space-y-2">
+                        {msg.pedagogicFocus && (
+                          <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-primary-100 dark:bg-primary-950/70 border border-primary-200 dark:border-primary-800 text-[11px] font-bold text-primary-700 dark:text-primary-300 shadow-2xs">
+                            <Sparkles className="w-3 h-3 text-primary-500" />
+                            <span>Trọng tâm: {msg.pedagogicFocus}</span>
+                          </div>
+                        )}
+
                         <div>
                           <RubyText text={msg.text} pinyinOverride={msg.pinyin} />
                         </div>
@@ -709,9 +750,23 @@ export const AITutorView: React.FC<AITutorViewProps> = ({ onNavigate }) => {
                         {/* Grammar Correction */}
                         {msg.correction && (
                           <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/60 text-xs space-y-1 mt-2">
-                            <div className="flex items-center gap-1 font-bold text-amber-800 dark:text-amber-200">
-                              <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                              <span>Góp ý sửa lỗi tiếng Trung:</span>
+                            <div className="flex items-center justify-between gap-1 font-bold text-amber-800 dark:text-amber-200">
+                              <div className="flex items-center gap-1">
+                                <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                <span>Góp ý sửa lỗi:</span>
+                              </div>
+                              {msg.correction.severity && (
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                                  msg.correction.severity === 'critical' ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300' :
+                                  msg.correction.severity === 'grammar' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' :
+                                  msg.correction.severity === 'naturalness' ? 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300' :
+                                  'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+                                }`}>
+                                  {msg.correction.severity === 'critical' ? 'Đổi nghĩa' :
+                                   msg.correction.severity === 'grammar' ? 'Sai ngữ pháp' :
+                                   msg.correction.severity === 'naturalness' ? 'Chưa tự nhiên' : 'Dùng từ'}
+                                </span>
+                              )}
                             </div>
                             <div className="text-slate-500 line-through">
                               Câu gốc: {msg.correction.original}
@@ -727,6 +782,36 @@ export const AITutorView: React.FC<AITutorViewProps> = ({ onNavigate }) => {
                                 Gợi ý tự nhiên: "{msg.correction.naturalSuggestion}"
                               </div>
                             )}
+                          </div>
+                        )}
+
+                        {/* Micro-check exercise if provided */}
+                        {msg.microCheckPrompt && (
+                          <div className="p-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800/60 text-xs space-y-1.5 mt-2">
+                            <div className="flex items-center gap-1 font-bold text-indigo-700 dark:text-indigo-300">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600" />
+                              <span>Thử vận dụng kiến thức ngay:</span>
+                            </div>
+                            {msg.microCheckPrompt.exerciseZh && (
+                              <div className="font-bold font-chinese text-slate-800 dark:text-slate-100 text-sm">
+                                {msg.microCheckPrompt.exerciseZh}
+                              </div>
+                            )}
+                            {msg.microCheckPrompt.exerciseVi && (
+                              <div className="text-slate-600 dark:text-slate-400">
+                                {msg.microCheckPrompt.exerciseVi}
+                              </div>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setInputMsg('');
+                                handleSendTextMessage('Em thử trả lời câu hỏi vận dụng này nhé!');
+                              }}
+                              className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1 pt-0.5"
+                            >
+                              Trả lời thử câu này ➔
+                            </button>
                           </div>
                         )}
 
@@ -767,7 +852,50 @@ export const AITutorView: React.FC<AITutorViewProps> = ({ onNavigate }) => {
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+          <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 space-y-2">
+            {/* Quick Pedagogic Action Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto text-xs pb-1 no-scrollbar">
+              <span className="text-[11px] font-bold text-slate-400 shrink-0">Sư phạm AI:</span>
+              <button
+                type="button"
+                onClick={() => handleSendTextMessage('Em chưa hiểu lắm, Lão Sư giải thích bằng ví dụ đời sống dễ hiểu hơn được không ạ?', 'request_simpler')}
+                disabled={isAiThinking}
+                className="px-2.5 py-1 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-[11px] font-semibold hover:bg-amber-100 shrink-0 flex items-center gap-1"
+              >
+                💡 Giải thích dễ hơn
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const prompt = window.prompt('Nhập 2 từ bạn muốn đối chiếu (ví dụ: 了 và 过, 想 và 要, 再 và 又):', '了 và 过');
+                  if (prompt) {
+                    handleSendTextMessage(`Lão Sư hãy giúp em phân tích và đối chiếu điểm khác nhau giữa ${prompt} trong cùng một tình huống cụ thể nhé!`, 'compare_words');
+                  }
+                }}
+                disabled={isAiThinking}
+                className="px-2.5 py-1 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-[11px] font-semibold hover:bg-blue-100 shrink-0 flex items-center gap-1"
+              >
+                🔍 So sánh từ dễ nhầm
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSendTextMessage('Lão Sư cho em một câu bài tập ngắn để thử vận dụng ngay kiến thức này nhé!', 'drill_practice')}
+                disabled={isAiThinking}
+                className="px-2.5 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[11px] font-semibold hover:bg-emerald-100 shrink-0 flex items-center gap-1"
+              >
+                ✏️ Cho bài tập vận dụng
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveSubMode('voice');
+                }}
+                className="px-2.5 py-1 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 text-[11px] font-semibold hover:bg-rose-100 shrink-0 flex items-center gap-1"
+              >
+                🎙️ Sang Voice Chat (3.8 Live)
+              </button>
+            </div>
+
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -815,8 +943,103 @@ export const AITutorView: React.FC<AITutorViewProps> = ({ onNavigate }) => {
             </div>
 
             <p className="text-xs text-slate-500">
-              Bộ nhớ được lưu trữ trong bảng <code>learner_memory</code> tại SQLite của máy tính cá nhân.
+              Bộ nhớ được lưu trữ trong bảng <code>learner_profile</code> và <code>learner_evidence_ledger</code> tại SQLite máy tính cá nhân.
             </p>
+
+            {/* 6D Competency Radar / Progress */}
+            {tutorCompetency?.profile && (
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-2">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-800 dark:text-slate-100">
+                  <span>Hồ Sơ Năng Lực 6 Chiều</span>
+                  <span className="text-primary-600">HSK {tutorCompetency.profile.overallHsk} ➔ HSK {tutorCompetency.profile.targetHsk}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  <div>
+                    <div className="flex justify-between text-slate-500 mb-0.5">
+                      <span>Vốn từ vựng</span>
+                      <span className="font-bold">{tutorCompetency.profile.vocabBreadth}%</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                      <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${tutorCompetency.profile.vocabBreadth}%` }} />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-slate-500 mb-0.5">
+                      <span>Ngữ pháp</span>
+                      <span className="font-bold">{tutorCompetency.profile.grammarAccuracy}%</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                      <div className="h-full bg-blue-500 rounded-full" style={{ width: `${tutorCompetency.profile.grammarAccuracy}%` }} />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-slate-500 mb-0.5">
+                      <span>Nghe hiểu</span>
+                      <span className="font-bold">{tutorCompetency.profile.listening}%</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                      <div className="h-full bg-amber-500 rounded-full" style={{ width: `${tutorCompetency.profile.listening}%` }} />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-slate-500 mb-0.5">
+                      <span>Đọc hiểu</span>
+                      <span className="font-bold">{tutorCompetency.profile.reading}%</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                      <div className="h-full bg-purple-500 rounded-full" style={{ width: `${tutorCompetency.profile.reading}%` }} />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-slate-500 mb-0.5">
+                      <span>Viết & Đặt câu</span>
+                      <span className="font-bold">{tutorCompetency.profile.writing}%</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                      <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${tutorCompetency.profile.writing}%` }} />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-slate-500 mb-0.5">
+                      <span>Phản xạ & Lưu loát</span>
+                      <span className="font-bold">{tutorCompetency.profile.fluency}%</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                      <div className="h-full bg-rose-500 rounded-full" style={{ width: `${tutorCompetency.profile.fluency}%` }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Evidence Ledger Records */}
+            {tutorCompetency?.evidences && tutorCompetency.evidences.length > 0 && (
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-2">
+                <span className="font-bold text-slate-800 dark:text-slate-100 text-xs block">
+                  Sổ Bằng Chứng Học Tập Thực Tế (Không Suy Diễn):
+                </span>
+                <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                  {tutorCompetency.evidences.map((ev: any) => (
+                    <div key={ev.id} className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] space-y-0.5">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-primary-600 dark:text-primary-400">
+                          [{ev.targetType}] {ev.targetKey}
+                        </span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-500">
+                          Tin cậy {Math.round(ev.confidenceScore * 100)}% • {ev.masteryStage}
+                        </span>
+                      </div>
+                      <div className="text-slate-700 dark:text-slate-300">
+                        {ev.claimSummary}
+                      </div>
+                      <div className="text-slate-400 italic text-[10px]">
+                        Căn cứ câu: "{ev.evidenceQuote}"
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="space-y-3 text-xs">
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">

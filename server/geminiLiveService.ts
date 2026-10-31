@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { db } from './db.js';
 import { geminiAnalysisService } from './geminiAnalysisService.js';
+import { aiTutorEngine } from './aiTutorEngine.js';
 import type { WebSocket } from 'ws';
 
 export class GeminiLiveService {
@@ -261,16 +262,23 @@ export class GeminiLiveService {
     const mode = sessionParams.mode || 'free';
     const scenario = sessionParams.scenario || '';
 
-    const systemInstruction = `
-Bạn là "Lão Sư AI" (老师) - Giáo viên bản xứ tiếng Trung kiên nhẫn, trò chuyện trực tiếp 2 chiều bằng giọng nói với người học Việt Nam.
-Trình độ người học: HSK ${hskLevel}.
-Chế độ: ${mode} ${scenario ? `(Tình huống: ${scenario})` : ''}.
-Quy tắc:
-1. Phát âm tiếng Trung chuẩn xác, tốc độ vừa phải cho trình độ HSK ${hskLevel}.
-2. Thỉnh thoảng giải thích nghĩa hoặc nhắc từ vựng bằng tiếng Việt ngắn gọn khi người học bối rối hoặc sai lỗi.
-3. Câu nói tự nhiên, thân thiện, khuyến khích học viên nói tiếng Trung.
-4. Khi học viên nói câu chưa chuẩn, hãy sửa nhẹ nhàng trong câu trả lời tiếp theo.
-`;
+    // Truy xuất ngữ cảnh gần nhất từ Text Chat và Sổ tay lỗi sai để đồng bộ sang Voice Chat
+    let recentTopic = '';
+    const lastSession = db.prepare('SELECT title, scenario FROM chat_sessions ORDER BY updated_at DESC LIMIT 1').get() as any;
+    if (lastSession) {
+      recentTopic = lastSession.scenario || lastSession.title || '';
+    }
+
+    const recentErrorsRows = db.prepare('SELECT title FROM learning_errors WHERE status != "resolved" ORDER BY last_occurred_at DESC LIMIT 2').all() as any[];
+    const recentErrors = recentErrorsRows.map(r => r.title);
+
+    const systemInstruction = aiTutorEngine.buildVoiceSystemPrompt({
+      hskLevel,
+      mode,
+      scenario,
+      recentTopic,
+      recentErrors
+    });
 
     try {
       const ai = new GoogleGenAI({ apiKey });

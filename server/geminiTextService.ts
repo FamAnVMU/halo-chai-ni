@@ -1,6 +1,32 @@
 import { GoogleGenAI } from '@google/genai';
 import { db } from './db.js';
 
+import { GoogleGenAI } from '@google/genai';
+import { db } from './db.js';
+import { aiTutorEngine, PedagogicIntent, ContrastivePair } from './aiTutorEngine.js';
+
+export interface AITutorResponse {
+  replyZh: string;
+  replyPinyin: string;
+  replyVi: string;
+  pedagogicFocus?: string;
+  intentDetected?: PedagogicIntent;
+  hasCorrection?: boolean;
+  correction?: {
+    severity?: 'critical' | 'grammar' | 'lexical' | 'naturalness' | 'minor';
+    original: string;
+    corrected: string;
+    explanationVi: string;
+    grammarPoint?: string;
+    naturalSuggestion?: string;
+  };
+  microCheckPrompt?: {
+    needVerification: boolean;
+    exerciseZh?: string;
+    exerciseVi?: string;
+  };
+}
+
 export class GeminiTextService {
   private getClient(customKey?: string) {
     const key = customKey || this.getApiKey();
@@ -57,24 +83,25 @@ export class GeminiTextService {
     }
   }
 
+  /**
+   * AI Tutor Chat với trí thông minh sư phạm nâng cao:
+   * 1. Nhận diện ý định sư phạm (Pedagogic Intent)
+   * 2. Truy xuất ngữ cảnh & bằng chứng chọn lọc (Selective Context)
+   * 3. Phân tích đối chiếu từ gần nghĩa (Contrastive Teaching)
+   * 4. Giảng dạy theo từng bước và giải thích thích ứng khi học viên chưa hiểu
+   * 5. Sửa lỗi có tính giáo dục & phân cấp độ nghiêm trọng
+   */
   public async chat(
     message: string,
     history: Array<{ sender: 'user' | 'assistant'; text: string }>,
     mode: string,
     hskLevel: number,
-    scenario?: string
-  ): Promise<{
-    replyZh: string;
-    replyPinyin: string;
-    replyVi: string;
-    correction?: {
-      original: string;
-      corrected: string;
-      explanationVi: string;
-      grammarPoint?: string;
-      naturalSuggestion?: string;
-    };
-  }> {
+    scenario?: string,
+    options?: {
+      overrideIntent?: PedagogicIntent;
+      sessionId?: string;
+    }
+  ): Promise<AITutorResponse> {
     const apiKey = this.getApiKey();
     if (!apiKey) {
       throw new Error('Backend chưa có API Key. Vui lòng cấu hình Gemini Text API Key tại trang Cài đặt.');
@@ -83,82 +110,28 @@ export class GeminiTextService {
     const model = this.getModel();
     const client = this.getClient(apiKey);
 
-    // Retrieve structured learner memory from SQLite tables
-    const profile = (db.prepare('SELECT * FROM learner_profile WHERE id = ?').get('default') as any) || {};
-    const masteredVocab = (db.prepare("SELECT simplified, pinyin, meaning_vi FROM vocabulary_memory WHERE mastery_level = 'mastered' LIMIT 8").all() as any[]) || [];
-    const reviewVocab = (db.prepare("SELECT simplified, pinyin, meaning_vi FROM vocabulary_memory WHERE mastery_level = 'needs_review' OR mastery_level = 'learning' LIMIT 8").all() as any[]) || [];
-    const masteredGrammar = (db.prepare("SELECT pattern_name, formula FROM grammar_memory WHERE mastery_level = 'mastered' LIMIT 5").all() as any[]) || [];
-    const learningGrammar = (db.prepare("SELECT pattern_name, formula FROM grammar_memory WHERE mastery_level != 'mastered' LIMIT 5").all() as any[]) || [];
-    const pendingErrors = (db.prepare("SELECT title, user_sentence, corrected_sentence, explanation_vi FROM learning_errors WHERE status != 'resolved' LIMIT 4").all() as any[]) || [];
+    // 1. Nhận diện ý định của người học
+    const intent: PedagogicIntent = options?.overrideIntent || aiTutorEngine.detectPedagogicIntent(message, mode);
 
-    const weaknesses = profile.weaknesses_json ? JSON.parse(profile.weaknesses_json) : [];
-    const strengths = profile.strengths_json ? JSON.parse(profile.strengths_json) : [];
+    // 2. Tìm kiếm cặp từ đối chiếu nếu người học hỏi so sánh
+    const contrastPair: ContrastivePair | null = (intent === 'compare_words' || message.includes('khác gì') || message.includes('phân biệt'))
+      ? aiTutorEngine.findMatchingContrastPair(message)
+      : null;
 
-    // Lấy thông tin bài học và giai đoạn trong lộ trình thích ứng hiện tại
-    let activeStageName = '';
-    let activeItemTitle = '';
-    let activeItemGoal = '';
-    try {
-      const currentPath = db.prepare(`SELECT id, target_hsk FROM adaptive_learning_paths WHERE status = 'active' ORDER BY created_at DESC LIMIT 1`).get() as any;
-      if (currentPath) {
-        const activeStage = db.prepare(`SELECT id, stage_name, title FROM learning_path_stages WHERE path_id = ? AND status = 'in_progress' LIMIT 1`).get(currentPath.id) as any;
-        if (activeStage) {
-          activeStageName = `${activeStage.stage_name} - ${activeStage.title}`;
-        }
-        const activeItem = db.prepare(`SELECT title, target_concept, reason_recommendation FROM learning_path_items WHERE path_id = ? AND status IN ('in_progress', 'ready') ORDER BY order_index ASC LIMIT 1`).get(currentPath.id) as any;
-        if (activeItem) {
-          activeItemTitle = activeItem.title;
-          activeItemGoal = `${activeItem.target_concept} (${activeItem.reason_recommendation})`;
-        }
-      }
-    } catch (_e) {
-      // Silent fallback
-    }
+    // 3. Truy xuất ngữ cảnh chọn lọc & bằng chứng thực tế
+    const selectiveContext = aiTutorEngine.retrieveSelectiveContext(message, hskLevel);
 
-    const systemPrompt = `
-Bạn là "Lão Sư AI" (老师) - Giáo viên dạy tiếng Trung cá nhân tận tâm, kiên nhẫn, thân thiện dành riêng cho người Việt Nam.
-Trình độ người học: HSK ${profile.current_hsk || hskLevel} (Mục tiêu: HSK ${profile.target_hsk || 3}).
-Chế độ học tập hiện tại: ${mode} ${scenario ? `(Tình huống đóng vai: ${scenario})` : ''}.
+    // 4. Xây dựng System Instruction sư phạm thích ứng
+    const systemPrompt = aiTutorEngine.buildPedagogicSystemPrompt({
+      intent,
+      mode,
+      hskLevel,
+      scenario,
+      selectiveContext,
+      contrastPair
+    });
 
-=== HỒ SƠ BỘ NHỚ HỌC TẬP CỦA HỌC VIÊN (Từ SQLite Local Database) ===
-1. ĐIỂM MẠNH ĐÃ NẮM VỮNG:
-   - Từ vựng đã thành thạo: ${masteredVocab.map(v => `${v.simplified} [${v.pinyin}] (${v.meaning_vi})`).join(', ') || 'Chưa có'}
-   - Ngữ pháp đã làm chủ: ${masteredGrammar.map(g => `${g.pattern_name}: ${g.formula}`).join('; ') || 'Chưa có'}
-   - Điểm mạnh khác: ${strengths.join(', ') || 'Chưa có'}
-
-2. ĐIỂM YẾU & KIẾN THỨC CẦN CỦNG CỐ:
-   - Từ vựng đang học/cần ôn: ${reviewVocab.map(v => `${v.simplified} [${v.pinyin}] (${v.meaning_vi})`).join(', ') || 'Chưa có'}
-   - Ngữ pháp đang học: ${learningGrammar.map(g => `${g.pattern_name}: ${g.formula}`).join('; ') || 'Chưa có'}
-   - LỖI SAI THƯỜNG GẶP CẦN ĐỂ Ý ĐẶC BIỆT:
-     ${pendingErrors.map(e => `* ${e.title} -> Câu sai: "${e.user_sentence}" (Đúng: "${e.corrected_sentence}")`).join('\n     ') || 'Chưa có lỗi nào được ghi nhận'}
-   - Điểm yếu chung: ${weaknesses.join(', ') || 'Chưa có'}
-
-3. LỘ TRÌNH HỌC TẬP THÍCH ỨNG HIỆN TẠI (Adaptive Learning Path):
-   - Giai đoạn đang học: ${activeStageName || 'Giai đoạn khởi động'}
-   - Bài học/Chủ đề trọng tâm đang thực hiện: ${activeItemTitle || 'Hội thoại tự do'} ${activeItemGoal ? `[Mục tiêu: ${activeItemGoal}]` : ''}
-   - Hãy chủ động lồng ghép khéo léo từ vựng, cấu trúc ngữ pháp của bài học này vào cuộc trò chuyện để giúp học viên thực hành và ghi nhớ sâu sắc!
-
-QUY TẮC BẮT BUỘC:
-1. Luôn sử dụng tiếng Trung phù hợp với cấp độ HSK ${hskLevel} của người học. Đừng dùng từ quá cao siêu hoặc văn phong quá hàn lâm trừ khi ở cấp cao.
-2. Kiểm tra câu tiếng Trung của người học. Nếu người học viết/nói có lỗi ngữ pháp, sai từ, hoặc diễn đạt chưa tự nhiên:
-   - Hãy chỉ ra lỗi và sửa cho người học.
-3. Trả về câu trả lời dưới định dạng JSON DUY NHẤT theo schema sau:
-{
-  "replyZh": "Câu phản hồi bằng tiếng Trung",
-  "replyPinyin": "Phiên âm Pinyin có dấu thanh điệu đầy đủ cho replyZh",
-  "replyVi": "Bản dịch hoặc lời giải thích, hướng dẫn bằng tiếng Việt",
-  "hasCorrection": true hoặc false,
-  "correction": {
-    "original": "Câu gốc của người học",
-    "corrected": "Câu tiếng Trung chuẩn xác",
-    "explanationVi": "Giải thích chi tiết tại sao sai và cấu trúc ngữ pháp liên quan bằng tiếng Việt",
-    "grammarPoint": "Tên điểm ngữ pháp liên quan (nếu có)",
-    "naturalSuggestion": "Cách nói tự nhiên hơn của người bản xứ (nếu có)"
-  }
-}
-LƯU Ý: Không thêm bất kỳ văn bản nào ngoài khối JSON hợp lệ.
-`;
-
+    // 5. Chuẩn bị ngữ cảnh hội thoại gần nhất (tối đa 8 lượt để tránh quá tải token)
     const contents: any[] = [];
     const recent = history.slice(-8);
     for (const h of recent) {
@@ -185,17 +158,42 @@ LƯU Ý: Không thêm bất kỳ văn bản nào ngoài khối JSON hợp lệ.
     const raw = response.text || '';
     try {
       const parsed = JSON.parse(raw);
-      return {
+      const resData: AITutorResponse = {
         replyZh: parsed.replyZh || '很好！',
         replyPinyin: parsed.replyPinyin || 'Hěn hǎo!',
         replyVi: parsed.replyVi || 'Rất tốt!',
-        correction: parsed.hasCorrection ? parsed.correction : undefined
+        pedagogicFocus: parsed.pedagogicFocus || (contrastPair ? `${contrastPair.wordA} vs ${contrastPair.wordB}` : undefined),
+        intentDetected: intent,
+        hasCorrection: !!parsed.hasCorrection,
+        correction: parsed.hasCorrection ? parsed.correction : undefined,
+        microCheckPrompt: parsed.microCheckPrompt?.needVerification ? parsed.microCheckPrompt : undefined
       };
+
+      // Tự động ghi nhận bằng chứng vào SQLite Evidence Ledger nếu phát hiện lỗi thực tế
+      if (resData.hasCorrection && resData.correction) {
+        try {
+          aiTutorEngine.recordEvidence({
+            targetType: resData.correction.grammarPoint ? 'grammar' : 'vocabulary',
+            targetKey: resData.correction.grammarPoint || `phrase_${resData.correction.original.slice(0, 10)}`,
+            claimSummary: resData.correction.explanationVi.slice(0, 100),
+            evidenceQuote: resData.correction.original,
+            sourceActivity: 'text_chat',
+            sourceSessionId: options?.sessionId || 'default',
+            confidenceScore: 0.85,
+            masteryStage: 'practicing'
+          });
+        } catch (_evErr) {
+          // Non-blocking
+        }
+      }
+
+      return resData;
     } catch {
       return {
         replyZh: raw,
         replyPinyin: '',
-        replyVi: ''
+        replyVi: '',
+        intentDetected: intent
       };
     }
   }

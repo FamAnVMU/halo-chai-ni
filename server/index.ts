@@ -20,6 +20,7 @@ import { geminiPronunciationService } from './geminiPronunciationService.js';
 import { geminiShadowingService } from './geminiShadowingService.js';
 import { geminiDictionaryService } from './geminiDictionaryService.js';
 import { geminiReadingService } from './geminiReadingService.js';
+import { aiTutorEngine } from './aiTutorEngine.js';
 import { tokenizeChinese } from '../src/data/seedDictionary.js';
 
 const app = express();
@@ -141,14 +142,17 @@ app.get('/api/settings/test-voice-sample', async (req, res) => {
 
 // ==================== AI TUTOR TEXT CHAT ====================
 app.post('/api/tutor/chat', async (req, res) => {
-  const { message, history = [], mode = 'free', hskLevel = 1, scenario, sessionId = 'default' } = req.body;
+  const { message, history = [], mode = 'free', hskLevel = 1, scenario, sessionId = 'default', overrideIntent } = req.body;
 
   if (!message || typeof message !== 'string') {
     return res.status(400).json({ error: 'Tin nhắn không được để trống.' });
   }
 
   try {
-    const aiResponse = await geminiTextService.chat(message, history, mode, hskLevel, scenario);
+    const aiResponse = await geminiTextService.chat(message, history, mode, hskLevel, scenario, {
+      overrideIntent,
+      sessionId
+    });
 
     const now = Date.now();
     const userMsgId = `u_${now}`;
@@ -189,6 +193,51 @@ app.post('/api/tutor/chat', async (req, res) => {
       success: false,
       error: err?.message || 'Lỗi khi gọi Gemini Text Model'
     });
+  }
+});
+
+// Get AI Tutor 6D Competency & Evidence
+app.get('/api/tutor/competency', (_req, res) => {
+  try {
+    const profile = aiTutorEngine.getCompetencyProfile();
+    const evidences = aiTutorEngine.getActiveEvidences(10);
+    res.json({
+      success: true,
+      data: {
+        profile,
+        evidences
+      }
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Lookup Contrastive Pair for 2 Confusing Words
+app.post('/api/tutor/contrast', (req, res) => {
+  try {
+    const { wordA, wordB } = req.body;
+    const pair = aiTutorEngine.findMatchingContrastPair(`${wordA} ${wordB}`);
+    res.json({
+      success: true,
+      data: pair
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Generate Micro-Diagnostic Check
+app.post('/api/tutor/micro-check', (req, res) => {
+  try {
+    const { concept, suspectedGap, hskLevel = 1 } = req.body;
+    const check = aiTutorEngine.generateMicroCheck(concept, suspectedGap, hskLevel);
+    res.json({
+      success: true,
+      data: check
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
