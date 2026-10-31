@@ -397,8 +397,17 @@ export const AITutorView: React.FC<AITutorViewProps> = ({ onNavigate }) => {
     setPostReport(report);
   };
 
-  const handleVoiceTest = () => {
-    audioService.speak('你好！欢迎使用哈罗中文，发音测试正常。', { rate: speed });
+  const handleVoiceTest = async () => {
+    try {
+      const sample = await backendClient.getVoiceSample();
+      if (sample.audioBase64 && sample.source === 'gemini_live') {
+        await audioService.playPcmAudio(sample.audioBase64, 24000);
+      } else {
+        audioService.speak(sample.sampleText || '你好！欢迎使用哈罗中文，发音测试正常。', { rate: speed });
+      }
+    } catch {
+      audioService.speak('你好！欢迎使用哈罗中文，发音测试正常。', { rate: speed });
+    }
   };
 
   return (

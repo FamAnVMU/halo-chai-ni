@@ -7,7 +7,6 @@ import {
   RotateCcw,
   Sparkles,
   BookOpen,
-  Award,
   Lock,
   Unlock,
   Calendar,
@@ -21,10 +20,8 @@ import {
   Volume2,
   Check,
   X,
-  Flame,
   ChevronRight,
   AlertCircle,
-  HelpCircle,
   Layers,
   Send,
   Lightbulb
@@ -34,8 +31,6 @@ import type {
   AdaptiveLearningPathDetail,
   PathStage,
   PathItem,
-  ScheduleItem,
-  PathMilestone,
   PathVersion
 } from '../types';
 import type { NavTab } from '../components/layout/Sidebar';
@@ -279,7 +274,7 @@ export const RoadmapView: React.FC<RoadmapViewProps> = ({ onSelectLesson, onNavi
       let correctCount = 0;
       const feedbackMap: Record<number, { isCorrect: boolean; explanation: string }> = {};
 
-      exercises.forEach((ex: any, idx: number) => {
+      exercises.forEach((ex: any) => {
         const userAns = (userAnswers[ex.id] || '').trim().toLowerCase();
         const expected = (ex.correctAnswer || '').trim().toLowerCase();
         const isRight = userAns === expected;
@@ -1080,7 +1075,6 @@ export const RoadmapView: React.FC<RoadmapViewProps> = ({ onSelectLesson, onNavi
 
                 {pathDetail.stages.map((stage) => {
                   const isCurrent = stage.status === 'in_progress';
-                  const isLocked = stage.status === 'locked';
                   const isCompleted = stage.status === 'completed';
 
                   return (

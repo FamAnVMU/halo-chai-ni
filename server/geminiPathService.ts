@@ -1,6 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
 import { db } from './db.js';
-import { geminiTextService } from './geminiTextService.js';
 import { geminiLessonService } from './geminiLessonService.js';
 
 export interface PathStage {
@@ -151,7 +149,7 @@ export class GeminiPathService {
     `).all() as any[];
 
     // Thống kê bộ nhớ từ vựng và ngữ pháp
-    const vocabStats = db.prepare(`
+    const _vocabStats = db.prepare(`
       SELECT 
         COUNT(CASE WHEN mastery_level = 'mastered' THEN 1 END) as mastered_count,
         COUNT(CASE WHEN mastery_level IN ('needs_review', 'learning') THEN 1 END) as struggling_count
@@ -163,7 +161,7 @@ export class GeminiPathService {
       WHERE mastery_level IN ('needs_review', 'learning') LIMIT 5
     `).all() as any[];
 
-    const strugglingGrammars = db.prepare(`
+    const _strugglingGrammars = db.prepare(`
       SELECT pattern_name, formula, meaning_vi FROM grammar_memory 
       WHERE mastery_level IN ('needs_review', 'learning') LIMIT 4
     `).all() as any[];
@@ -357,7 +355,6 @@ export class GeminiPathService {
     ];
 
     // 4. Lập lịch học thông minh theo ngày trong tuần (Smart Weekly Schedule)
-    const dayNames = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
     const rawSchedule = [
       { dayOfWeek: 1, title: 'Ôn tập từ vựng SRS & Sửa lỗi sai ngữ pháp', type: 'vocab_review', mins: dailyMinutes, reason: 'Khởi động tuần mới bằng việc củng cố từ vựng đến hạn và xóa bỏ lỗi sai cũ.' },
       { dayOfWeek: 2, title: 'Học cấu trúc ngữ pháp mới & Làm bài tập câu', type: 'grammar_lesson', mins: dailyMinutes, reason: 'Tập trung tiếp thu cấu trúc ngữ pháp trọng điểm của tuần.' },

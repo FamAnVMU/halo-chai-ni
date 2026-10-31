@@ -159,6 +159,40 @@ class AudioService {
       console.warn('Celebration chime failed:', e);
     }
   }
+
+  /**
+   * Phát trực tiếp luồng âm thanh PCM 24kHz từ Gemini Live API
+   */
+  public playPcmAudio(base64Data: string, sampleRate = 24000): Promise<void> {
+    return new Promise((resolve) => {
+      try {
+        const ctx = this.getAudioContext();
+        const binaryString = atob(base64Data);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+
+        const int16 = new Int16Array(bytes.buffer);
+        const float32 = new Float32Array(int16.length);
+        for (let i = 0; i < int16.length; i++) {
+          float32[i] = int16[i] / 32768.0;
+        }
+
+        const audioBuffer = ctx.createBuffer(1, float32.length, sampleRate);
+        audioBuffer.getChannelData(0).set(float32);
+
+        const source = ctx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(ctx.destination);
+        source.onended = () => resolve();
+        source.start();
+      } catch (err) {
+        console.error('Play PCM Audio error:', err);
+        resolve();
+      }
+    });
+  }
 }
 
 export const audioService = new AudioService();

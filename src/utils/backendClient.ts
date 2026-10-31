@@ -130,6 +130,39 @@ export class LocalBackendClient {
     }
   }
 
+  public async getVoiceSample(voice?: string): Promise<{
+    success: boolean;
+    sampleText: string;
+    pinyin: string;
+    vi: string;
+    voice: string;
+    audioBase64?: string;
+    source: 'gemini_live' | 'fallback_tts';
+  }> {
+    try {
+      const q = voice ? `?voice=${encodeURIComponent(voice)}` : '';
+      const res = await fetch(`${this.getBaseUrl()}/api/settings/test-voice-sample${q}`);
+      if (res.ok) return await res.json();
+      return {
+        success: false,
+        sampleText: '你好！欢迎使用哈罗中文，发音测试正常。',
+        pinyin: 'Nǐ hǎo! Huānyíng shǐyòng Hāluó zhōngwén, fāyīn cèshì zhèngcháng.',
+        vi: 'Xin chào! Chào mừng bạn đến với Halo Chinese, phát âm thử nghiệm bình thường.',
+        voice: voice || 'Aoede',
+        source: 'fallback_tts'
+      };
+    } catch {
+      return {
+        success: false,
+        sampleText: '你好！欢迎使用哈罗中文，发音测试正常。',
+        pinyin: 'Nǐ hǎo! Huānyíng shǐyòng Hāluó zhōngwén, fāyīn cèshì zhèngcháng.',
+        vi: 'Xin chào! Chào mừng bạn đến với Halo Chinese, phát âm thử nghiệm bình thường.',
+        voice: voice || 'Aoede',
+        source: 'fallback_tts'
+      };
+    }
+  }
+
   public async sendTutorMessage(params: {
     message: string;
     history: any[];

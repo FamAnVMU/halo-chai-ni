@@ -1,4 +1,3 @@
-import { db } from '../server/db.js';
 import { geminiPathService } from '../server/geminiPathService.js';
 
 async function runTest() {

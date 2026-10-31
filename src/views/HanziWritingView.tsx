@@ -7,7 +7,6 @@ import {
   Eye,
   CheckCircle2,
   Volume2,
-  Sparkles,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { audioService } from '../utils/audio';
@@ -79,20 +78,20 @@ export const HanziWritingView: React.FC = () => {
     setMistakes(0);
 
     writerRef.current.quiz({
-      onMistake: (strokeData: any) => {
+      onMistake: (_strokeData: any) => {
         setMistakes((m) => m + 1);
         audioService.playWrongSound();
       },
       onCorrectStroke: () => {
         audioService.playCorrectSound();
       },
-      onComplete: (summaryData: any) => {
+      onComplete: (_summaryData: any) => {
         setIsQuizzing(false);
         setQuizCompleted(true);
         audioService.playCelebrationChime();
         try {
           confetti({ particleCount: 70, spread: 60 });
-        } catch (e) {}
+        } catch (_e) {}
       },
     });
   };
@@ -166,10 +165,27 @@ export const HanziWritingView: React.FC = () => {
 
             <button
               onClick={handleStartQuiz}
-              className="flex items-center gap-1.5 px-5 py-2 rounded-xl bg-primary-600 text-white text-xs font-bold shadow hover:bg-primary-700 active:scale-95 transition-all"
+              disabled={isQuizzing}
+              className="flex items-center gap-1.5 px-5 py-2 rounded-xl bg-primary-600 text-white text-xs font-bold shadow hover:bg-primary-700 active:scale-95 transition-all disabled:opacity-50"
             >
               <Pencil className="w-3.5 h-3.5" />
-              <span>Tập viết (Kiểm tra nét)</span>
+              <span>{isQuizzing ? 'Đang viết thử thách...' : 'Tập viết (Kiểm tra nét)'}</span>
+            </button>
+
+            <button
+              onClick={() => {
+                const next = !showOutline;
+                setShowOutline(next);
+                if (writerRef.current) {
+                  if (next) writerRef.current.showOutline();
+                  else writerRef.current.hideOutline();
+                }
+              }}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+              title="Ẩn/hiện nét mờ hướng dẫn"
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span>{showOutline ? 'Ẩn nét mờ' : 'Hiện nét mờ'}</span>
             </button>
 
             <button

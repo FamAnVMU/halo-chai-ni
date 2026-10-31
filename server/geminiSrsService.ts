@@ -366,7 +366,7 @@ export class GeminiSrsService {
     newCardLimit?: number;
   }): SrsItem[] {
     const limit = Math.min(params.limit || 20, 50);
-    const newCardLimit = params.newCardLimit || 6;
+    const _newCardLimit = params.newCardLimit || 6;
     const now = Date.now();
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
@@ -478,6 +478,7 @@ export class GeminiSrsService {
     );
 
     // B. Ghi nhận nhật ký srs_review_logs
+    const mode = params.reviewMode || 'flashcard';
     db.prepare(`
       INSERT INTO srs_review_logs (
         item_id, session_id, review_mode, quality, user_rating,
@@ -487,7 +488,7 @@ export class GeminiSrsService {
     `).run(
       params.itemId,
       params.sessionId || null,
-      params.reviewMode,
+      mode,
       sm2.quality,
       params.userRating,
       params.userAnswer || null,
@@ -602,9 +603,9 @@ export class GeminiSrsService {
       UPDATE learning_schedule_items
       SET is_completed = 1, completed_at = ?
       WHERE day_of_week = ? 
-        AND activity_type IN ('vocab_review', 'comprehensive_quiz')
+        AND activity_type IN (?, 'vocab_review', 'comprehensive_quiz')
         AND is_completed = 0
-    `).run(Date.now(), dayOfWeek);
+    `).run(Date.now(), dayOfWeek, activityType);
   }
 
   /**
@@ -844,7 +845,7 @@ Hãy trả lời ĐÚNG ĐỊNH DẠNG JSON sau (không bọc trong \`\`\`json, 
     if (row.extra_data_json) {
       try {
         extraData = JSON.parse(row.extra_data_json);
-      } catch (e) {
+      } catch (_e) {
         extraData = {};
       }
     }

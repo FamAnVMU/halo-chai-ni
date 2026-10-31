@@ -69,7 +69,7 @@ app.get('/api/settings/keys', (req, res) => {
       keyPreview: liveKey ? `${liveKey.slice(0, 6)}...${liveKey.slice(-4)}` : '',
       model: geminiLiveService.getModel(),
       voice: geminiLiveService.getVoice(),
-      supportedModels: ['gemini-3.8-live', 'gemini-3.8-live-extended-thinking'],
+      supportedModels: ['gemini-3.8-live', 'gemini-3-flash-live', 'gemini-3.8-live-extended-thinking'],
       supportedVoices: ['Aoede', 'Puck', 'Charon', 'Kore', 'Fenrir']
     }
   });
@@ -124,13 +124,14 @@ app.post('/api/settings/test-live', async (req, res) => {
 });
 
 // Test Voice Audio Sample
-app.get('/api/settings/test-voice-sample', (req, res) => {
-  res.json({
-    sampleText: '你好！欢迎使用中文学习应用，发音测试正常。',
-    pinyin: 'Nǐ hǎo! Huānyíng shǐyòng zhōngwén xuéxí yìngyòng, fāyīn cèshì zhèngcháng.',
-    vi: 'Xin chào! Chào mừng bạn đến với ứng dụng học tiếng Trung, phát âm thử nghiệm bình thường.',
-    voice: geminiLiveService.getVoice()
-  });
+app.get('/api/settings/test-voice-sample', async (req, res) => {
+  try {
+    const voice = (req.query.voice as string) || geminiLiveService.getVoice();
+    const result = await geminiLiveService.generateVoiceSample(voice);
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // ==================== AI TUTOR TEXT CHAT ====================

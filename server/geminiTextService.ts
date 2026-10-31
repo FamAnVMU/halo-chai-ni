@@ -111,7 +111,7 @@ export class GeminiTextService {
           activeItemGoal = `${activeItem.target_concept} (${activeItem.reason_recommendation})`;
         }
       }
-    } catch (e) {
+    } catch (_e) {
       // Silent fallback
     }
 

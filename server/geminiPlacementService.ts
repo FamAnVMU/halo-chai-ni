@@ -1,4 +1,3 @@
-import { GoogleGenAI } from '@google/genai';
 import { db } from './db.js';
 import { geminiTextService } from './geminiTextService.js';
 import { geminiLessonService } from './geminiLessonService.js';
@@ -1048,6 +1047,15 @@ TRẢ VỀ DUY NHẤT ĐỊNH DẠNG JSON HỢP LỆ THEO CẤU TRÚC:
       completedAt
     );
 
+    // Tự động đồng bộ ngay kết quả vào learner_profile, learning_errors và roadmap (Zero-step sync)
+    let isSynced = false;
+    try {
+      await this.syncResultToLearnerProfile(testId);
+      isSynced = true;
+    } catch (syncErr) {
+      console.warn('Auto sync to profile notice:', syncErr);
+    }
+
     return {
       id: resultId,
       testId,
@@ -1067,7 +1075,7 @@ TRẢ VỀ DUY NHẤT ĐỊNH DẠNG JSON HỢP LỆ THEO CẤU TRÚC:
         unknown: unknownKnowledge
       },
       recommendations,
-      syncedToProfile: false,
+      syncedToProfile: isSynced,
       createdAt: assessment.started_at,
       completedAt,
       durationSeconds
