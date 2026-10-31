@@ -362,6 +362,69 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_path_versions ON learning_path_versions(path_id);
   CREATE INDEX IF NOT EXISTS idx_versions_path_num ON learning_path_versions(path_id, version_number);
   CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON chat_messages(session_id, created_at);
+
+  -- ==================== SMART REVIEW & SPACED REPETITION (SM-2) ====================
+  -- Core SRS Cards linked directly to vocabulary_memory, grammar_memory, or learning_errors
+  CREATE TABLE IF NOT EXISTS srs_items (
+    id TEXT PRIMARY KEY,
+    item_type TEXT NOT NULL, -- 'vocabulary', 'grammar', 'phrase', 'error'
+    reference_id TEXT NOT NULL, -- id in vocabulary_memory, grammar_memory, or learning_errors
+    unique_key TEXT UNIQUE NOT NULL, -- e.g. "vocabulary_12" to prevent duplicate cards
+    hsk_level INTEGER DEFAULT 1,
+    prompt_zh TEXT NOT NULL, -- Hanzi or sentence
+    prompt_pinyin TEXT, -- Pinyin
+    prompt_vi TEXT NOT NULL, -- Vietnamese translation / meaning
+    extra_data_json TEXT, -- examples, audio text, formula, contrast notes, etc.
+    ease_factor REAL DEFAULT 2.5, -- SM-2 Ease Factor (min 1.3)
+    interval_days INTEGER DEFAULT 0, -- Current interval in days
+    repetition_count INTEGER DEFAULT 0, -- Consecutive successful reviews (n)
+    streak INTEGER DEFAULT 0, -- Consecutive correct answers
+    lapses INTEGER DEFAULT 0, -- Number of times forgotten / failed
+    last_reviewed_at INTEGER,
+    next_review_at INTEGER NOT NULL, -- Timestamp when card is due
+    mastery_level TEXT DEFAULT 'introduced', -- 'introduced', 'learning', 'needs_review', 'fair', 'mastered'
+    status TEXT DEFAULT 'active', -- 'active', 'suspended', 'graduated'
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+
+  -- SRS Review Attempt Logs: Audit trail of every single review attempt
+  CREATE TABLE IF NOT EXISTS srs_review_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_id TEXT NOT NULL,
+    session_id TEXT,
+    review_mode TEXT NOT NULL, -- 'flashcard', 'zh_to_vi', 'vi_to_zh', 'listening', 'grammar', 'error_fix'
+    quality INTEGER NOT NULL, -- 0-5 SM-2 rating
+    user_rating TEXT NOT NULL, -- 'again', 'hard', 'good', 'easy'
+    user_answer TEXT,
+    is_correct INTEGER DEFAULT 1,
+    old_interval INTEGER,
+    new_interval INTEGER,
+    old_ease_factor REAL,
+    new_ease_factor REAL,
+    duration_ms INTEGER DEFAULT 0,
+    reviewed_at INTEGER NOT NULL,
+    FOREIGN KEY(item_id) REFERENCES srs_items(id) ON DELETE CASCADE
+  );
+
+  -- SRS Sessions: Track daily review sessions and retention rates
+  CREATE TABLE IF NOT EXISTS srs_sessions (
+    id TEXT PRIMARY KEY,
+    session_type TEXT DEFAULT 'daily_review',
+    cards_reviewed INTEGER DEFAULT 0,
+    cards_correct INTEGER DEFAULT 0,
+    cards_failed INTEGER DEFAULT 0,
+    duration_seconds INTEGER DEFAULT 0,
+    started_at INTEGER NOT NULL,
+    completed_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_srs_next_review ON srs_items(next_review_at, status);
+  CREATE INDEX IF NOT EXISTS idx_srs_type_ref ON srs_items(item_type, reference_id);
+  CREATE INDEX IF NOT EXISTS idx_srs_lapses ON srs_items(lapses);
+  CREATE INDEX IF NOT EXISTS idx_srs_mastery ON srs_items(mastery_level);
+  CREATE INDEX IF NOT EXISTS idx_srs_logs_item ON srs_review_logs(item_id, reviewed_at);
+  CREATE INDEX IF NOT EXISTS idx_srs_logs_time ON srs_review_logs(reviewed_at);
 `);
 
 // Optimize SQLite Query Planner

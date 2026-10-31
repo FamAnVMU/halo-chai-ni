@@ -153,7 +153,7 @@ export function App() {
                 )}
                 {currentTab === 'vocab' && <VocabularyView />}
                 {currentTab === 'grammar' && <GrammarView />}
-                {currentTab === 'practice' && <PracticeView />}
+                {currentTab === 'practice' && <PracticeView onNavigate={handleSelectTab} />}
                 {currentTab === 'pronounce' && <PronunciationView />}
                 {currentTab === 'write' && <HanziWritingView />}
                 {currentTab === 'reading' && <ReadingView />}
@@ -216,7 +216,7 @@ export function App() {
             </div>
 
             <div className="text-[11px] text-slate-400 text-center pt-4 border-t border-slate-100 dark:border-slate-800">
-              Halo Chinese v1.5.0 • Adaptive Learning Path & AI Tutor
+              Halo Chinese v1.6.0 • Smart Review & Spaced Repetition (SRS)
             </div>
           </div>
         </div>

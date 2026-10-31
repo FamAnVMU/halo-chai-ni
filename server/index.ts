@@ -14,6 +14,7 @@ import { geminiLiveService } from './geminiLiveService.js';
 import { geminiLessonService } from './geminiLessonService.js';
 import { geminiPlacementService } from './geminiPlacementService.js';
 import { geminiPathService } from './geminiPathService.js';
+import { geminiSrsService } from './geminiSrsService.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -862,6 +863,102 @@ app.post('/api/path/restore-version', async (req, res) => {
     }
     const result = await geminiPathService.restoreVersion(versionId);
     res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==================== SMART REVIEW & SPACED REPETITION (SRS) ====================
+
+// Lấy số liệu thống kê Dashboard SRS
+app.get('/api/srs/dashboard', (req, res) => {
+  try {
+    const stats = geminiSrsService.getDashboardStats();
+    res.json({ success: true, data: stats });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Lấy danh sách hàng đợi ôn tập thông minh
+app.get('/api/srs/queue', (req, res) => {
+  try {
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
+    const mode = (req.query.mode as any) || 'all';
+    const hskLevel = req.query.hskLevel ? parseInt(req.query.hskLevel as string, 10) : undefined;
+    const items = geminiSrsService.getReviewQueue({ limit, mode, hskLevel });
+    res.json({ success: true, data: items });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Đồng bộ kiến thức mới từ Long-Term Memory (từ vựng, ngữ pháp, lỗi sai) vào thẻ SRS
+app.post('/api/srs/sync', (req, res) => {
+  try {
+    const result = geminiSrsService.syncCardsFromMemory();
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Khởi tạo phiên ôn tập mới
+app.post('/api/srs/session/start', (req, res) => {
+  try {
+    const { sessionType } = req.body;
+    const result = geminiSrsService.startSession(sessionType);
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Kết thúc phiên ôn tập
+app.post('/api/srs/session/finish', (req, res) => {
+  try {
+    const { sessionId, durationSeconds } = req.body;
+    if (!sessionId) {
+      return res.status(400).json({ success: false, error: 'Thiếu sessionId' });
+    }
+    const session = geminiSrsService.finishSession(sessionId, durationSeconds || 0);
+    res.json({ success: true, data: session });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Ghi nhận đánh giá ôn tập SM-2 cho một thẻ
+app.post('/api/srs/review', (req, res) => {
+  try {
+    const { itemId, userRating, reviewMode, sessionId, userAnswer, isCorrect, durationMs } = req.body;
+    if (!itemId || !userRating || !reviewMode) {
+      return res.status(400).json({ success: false, error: 'Thiếu tham số itemId, userRating hoặc reviewMode' });
+    }
+    const result = geminiSrsService.submitReview({
+      itemId,
+      userRating,
+      reviewMode,
+      sessionId,
+      userAnswer,
+      isCorrect,
+      durationMs
+    });
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Sinh câu đố / bài tập ngữ cảnh mới bằng Gemini AI
+app.post('/api/srs/ai-exercise', async (req, res) => {
+  try {
+    const { itemId } = req.body;
+    if (!itemId) {
+      return res.status(400).json({ success: false, error: 'Thiếu itemId' });
+    }
+    const exercise = await geminiSrsService.generateAIExercise(itemId);
+    res.json({ success: true, data: exercise });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }

@@ -443,3 +443,95 @@ export interface UpdateGoalsParams {
   targetCompletionDate?: string;
 }
 
+// ==================== SMART REVIEW & SPACED REPETITION (SRS) ====================
+export type SrsItemType = 'vocabulary' | 'grammar' | 'phrase' | 'error';
+export type SrsUserRating = 'again' | 'hard' | 'good' | 'easy';
+export type SrsReviewMode = 'flashcard' | 'zh_to_vi' | 'vi_to_zh' | 'listening' | 'grammar' | 'error_fix';
+export type SrsMasteryLevel = 'introduced' | 'learning' | 'needs_review' | 'fair' | 'mastered';
+
+export interface SrsItem {
+  id: string;
+  itemType: SrsItemType;
+  referenceId: string;
+  uniqueKey: string;
+  hskLevel: number;
+  promptZh: string;
+  promptPinyin?: string;
+  promptVi: string;
+  extraData?: {
+    traditional?: string;
+    wordType?: string;
+    exampleZh?: string;
+    exampleVi?: string;
+    audioText?: string;
+    formula?: string;
+    usageNotes?: string;
+    commonMistakes?: string[];
+    userSentence?: string;
+    correctedSentence?: string;
+    explanationVi?: string;
+    occurrenceCount?: number;
+    source?: string;
+  };
+  easeFactor: number;
+  intervalDays: number;
+  repetitionCount: number;
+  streak: number;
+  lapses: number;
+  lastReviewedAt?: number;
+  nextReviewAt: number;
+  masteryLevel: SrsMasteryLevel;
+  status: 'active' | 'suspended' | 'graduated';
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface SrsDashboardStats {
+  totalCards: number;
+  dueToday: number;
+  overdue: number;
+  newCards: number;
+  learning: number;
+  mastered: number;
+  retentionRate: number;
+  streakDays: number;
+  byType: {
+    vocabulary: number;
+    grammar: number;
+    error: number;
+  };
+  forecast7Days: Array<{
+    date: string;
+    dayName: string;
+    count: number;
+  }>;
+}
+
+export interface SrsAIExercise {
+  itemId: string;
+  questionType: 'multiple_choice' | 'fill_blank' | 'reorder' | 'translate';
+  prompt: string;
+  contextSentenceZh: string;
+  contextPinyin?: string;
+  contextSentenceVi: string;
+  options?: string[];
+  correctAnswer: string;
+  explanationVi: string;
+}
+
+export interface SrsSubmitReviewResult {
+  success: boolean;
+  item: SrsItem;
+  sm2Result: {
+    newEF: number;
+    newInterval: number;
+    newRepetition: number;
+    newLapses: number;
+    newStreak: number;
+    quality: number;
+    masteryLevel: SrsMasteryLevel;
+  };
+  nextReviewFormatted: string;
+}
+
+

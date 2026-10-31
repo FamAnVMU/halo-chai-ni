@@ -1,3 +1,12 @@
+import type {
+  SrsDashboardStats,
+  SrsItem,
+  SrsUserRating,
+  SrsReviewMode,
+  SrsSubmitReviewResult,
+  SrsAIExercise
+} from '../types';
+
 export interface BackendHealth {
   status: string;
   uptime: number;
@@ -544,6 +553,126 @@ export class LocalBackendClient {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ versionId })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  // ==================== SMART REVIEW SYSTEM (SRS) ====================
+
+  public async getSrsDashboard(): Promise<{ success: boolean; data?: SrsDashboardStats; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/srs/dashboard`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getSrsQueue(params?: {
+    limit?: number;
+    mode?: string;
+    hskLevel?: number;
+  }): Promise<{ success: boolean; data?: SrsItem[]; error?: string }> {
+    try {
+      const query = new URLSearchParams();
+      if (params?.limit) query.set('limit', String(params.limit));
+      if (params?.mode) query.set('mode', params.mode);
+      if (params?.hskLevel) query.set('hskLevel', String(params.hskLevel));
+
+      const res = await fetch(`${this.getBaseUrl()}/api/srs/queue?${query.toString()}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async syncSrsCards(): Promise<{
+    success: boolean;
+    data?: { addedVocab: number; addedGrammar: number; addedErrors: number; totalCards: number };
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/srs/sync`, {
+        method: 'POST'
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async startSrsSession(sessionType: string = 'daily_review'): Promise<{
+    success: boolean;
+    data?: { sessionId: string };
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/srs/session/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionType })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async finishSrsSession(sessionId: string, durationSeconds: number): Promise<{
+    success: boolean;
+    data?: any;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/srs/session/finish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, durationSeconds })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async submitSrsReview(params: {
+    itemId: string;
+    userRating: SrsUserRating;
+    reviewMode: SrsReviewMode;
+    sessionId?: string;
+    userAnswer?: string;
+    isCorrect?: boolean;
+    durationMs?: number;
+  }): Promise<{
+    success: boolean;
+    data?: SrsSubmitReviewResult;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/srs/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async generateSrsAIExercise(itemId: string): Promise<{
+    success: boolean;
+    data?: SrsAIExercise;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/srs/ai-exercise`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId })
       });
       return await res.json();
     } catch (e: any) {
