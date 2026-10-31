@@ -49,21 +49,7 @@ jobs:
         run: chmod +x ./android/gradlew
 
       - name: Sync Capacitor Android
-        run: |
-          npx cap sync android --verbose > sync_debug.txt 2>&1 || true
-          cat sync_debug.txt
-
-      - name: Check Sync Result
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            if (fs.existsSync('sync_debug.txt')) {
-              const content = fs.readFileSync('sync_debug.txt', 'utf8');
-              if (content.includes('error') || content.includes('ERR') || !fs.existsSync('android/app/src/main/assets/public')) {
-                core.setFailed(`Capacitor Sync Log:\n${content}`);
-              }
-            }
+        run: npx cap sync android
 
       - name: Build Android APK
         run: |
