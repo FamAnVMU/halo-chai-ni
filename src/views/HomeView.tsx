@@ -10,6 +10,7 @@ import {
   Trophy,
   CheckCircle2,
   Volume2,
+  Award,
 } from 'lucide-react';
 import type { UserProfile, LessonContent, SRSCard, Vocabulary } from '../types';
 import { db } from '../db';
@@ -125,6 +126,36 @@ export const HomeView: React.FC<HomeViewProps> = ({ user, onNavigate }) => {
             )}
           </div>
         </div>
+      </div>
+
+      {/* AI Placement Test Card */}
+      <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-primary-500/10 to-rose-500/10 border border-amber-300 dark:border-amber-700/50 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+        <div className="flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-500 to-rose-500 text-white flex items-center justify-center shrink-0 shadow-md">
+            <Award className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-200">
+                Khảo thí AI
+              </span>
+              <h3 className="text-sm sm:text-base font-extrabold text-slate-800 dark:text-slate-100">
+                Kiểm tra trình độ tiếng Trung đầu vào bằng AI
+              </h3>
+            </div>
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+              Đánh giá thực chất 6 kỹ năng (Từ vựng, Ngữ pháp, Đọc, Nghe, Viết, Giao tiếp) để xác định điểm xuất phát và tối ưu lộ trình học.
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={() => onNavigate('placement_test')}
+          className="px-4 py-2.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-xs shrink-0 shadow hover:bg-slate-800 active:scale-95 transition-all flex items-center gap-1.5 self-stretch sm:self-auto justify-center"
+        >
+          <span>Làm bài kiểm tra</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </button>
       </div>
 
       {/* Quick Progress Cards */}

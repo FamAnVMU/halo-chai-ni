@@ -226,3 +226,118 @@ export interface ListeningItem {
   }>;
   isCompleted?: boolean;
 }
+
+// ==================== AI PLACEMENT TEST TYPES ====================
+export type PlacementSkill = 'vocabulary' | 'grammar' | 'reading' | 'listening' | 'writing' | 'communication';
+
+export interface PlacementQuestion {
+  id: string;
+  testId: string;
+  skill: PlacementSkill;
+  questionType: 'multiple_choice' | 'fill_in_blank' | 'reorder' | 'reading_comprehension' | 'listening_comprehension' | 'writing_translation' | 'dialogue_response';
+  hskLevel: number;
+  topic?: string;
+  prompt: string;
+  passage?: string;
+  audioText?: string;
+  options?: string[];
+  correctAnswer: string;
+  explanationVi: string;
+  criteria?: {
+    focusPoints?: string[];
+    grammarTarget?: string;
+  };
+  orderIndex: number;
+  weight: number;
+}
+
+export interface SkillScoreDetail {
+  skill: PlacementSkill;
+  label: string;
+  score: number | null; // null if untested/skipped
+  qualitative: string;
+  status: 'tested' | 'untested' | 'partial';
+  questionsCount: number;
+  correctCount: number;
+  hskDemonstrated: number;
+  feedback: string;
+}
+
+export interface KnowledgeItem {
+  item: string;
+  pinyin?: string;
+  meaningVi: string;
+  hskLevel: number;
+  type: 'vocabulary' | 'grammar' | 'sentence_pattern';
+  notes?: string;
+}
+
+export interface PlacementResultReport {
+  id: string;
+  testId: string;
+  testType: 'full' | 'quick';
+  overallScore: number;
+  estimatedHsk: number;
+  estimatedHskLabel: string;
+  confidenceLevel: 'high' | 'medium' | 'provisional';
+  confidenceReason: string;
+  skillScores: Record<PlacementSkill, SkillScoreDetail>;
+  strengths: string[];
+  weaknesses: string[];
+  knowledgeBreakdown: {
+    mastered: KnowledgeItem[];
+    tentative: KnowledgeItem[];
+    weakGaps: KnowledgeItem[];
+    unknown: KnowledgeItem[];
+  };
+  recommendations: {
+    suggestedPace: string;
+    priorityTopics: string[];
+    focusSkills: string[];
+    nextAction: string;
+  };
+  syncedToProfile: boolean;
+  createdAt: number;
+  completedAt?: number;
+  durationSeconds: number;
+}
+
+export interface PlacementTestProgress {
+  assessment: {
+    id: string;
+    testType: 'full' | 'quick';
+    status: 'in_progress' | 'completed' | 'abandoned';
+    currentSection: PlacementSkill;
+    currentQuestionIndex: number;
+    adaptiveLevel: number;
+    skippedSections: string[];
+    startedAt: number;
+    completedAt?: number;
+    durationSeconds: number;
+  };
+  questions: PlacementQuestion[];
+  answers: Record<string, {
+    id: string;
+    userAnswer: string;
+    isCorrect: boolean;
+    score: number;
+    aiFeedback?: string;
+    answeredAt: number;
+  }>;
+  totalQuestions: number;
+  answeredCount: number;
+}
+
+export interface PlacementHistoryItem {
+  testId: string;
+  testType: 'full' | 'quick';
+  overallScore: number;
+  estimatedHsk: number;
+  confidenceLevel: string;
+  startedAt: number;
+  completedAt?: number;
+  durationSeconds: number;
+  strengthsCount: number;
+  weaknessesCount: number;
+  syncedToProfile: boolean;
+}

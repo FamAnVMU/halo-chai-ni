@@ -14,10 +14,12 @@ import {
   Settings,
   Sparkles,
   Brain,
+  Award,
 } from 'lucide-react';
 
 export type NavTab =
   | 'home'
+  | 'placement_test'
   | 'roadmap'
   | 'vocab'
   | 'grammar'
@@ -46,6 +48,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
     highlight?: boolean;
   }> = [
     { id: 'home', label: 'Trang chủ', subLabel: 'Tổng quan', icon: Home },
+    {
+      id: 'placement_test',
+      label: 'Kiểm tra trình độ',
+      subLabel: 'AI Placement Test',
+      icon: Award,
+      highlight: true,
+    },
     { id: 'roadmap', label: 'Lộ trình học', subLabel: 'HSK 1 - 6', icon: Map },
     { id: 'vocab', label: 'Từ vựng & SRS', subLabel: 'Ghi nhớ lặp lại', icon: BookOpen },
     { id: 'grammar', label: 'Ngữ pháp', subLabel: 'Cấu trúc & Lỗi sai', icon: BookmarkCheck },

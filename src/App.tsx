@@ -21,6 +21,7 @@ import { ListeningView } from './views/ListeningView';
 import { AITutorView } from './views/AITutorView';
 import { GeneratedLessonsView } from './views/GeneratedLessonsView';
 import { LearnerMemoryView } from './views/LearnerMemoryView';
+import { PlacementTestView } from './views/PlacementTestView';
 import { StatsView } from './views/StatsView';
 import { SettingsView } from './views/SettingsView';
 
@@ -40,6 +41,7 @@ import {
   Settings,
   Sparkles,
   Brain,
+  Award,
 } from 'lucide-react';
 
 export function App() {
@@ -93,6 +95,7 @@ export function App() {
 
   const allNavItems: Array<{ id: NavTab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
     { id: 'home', label: 'Trang chủ', icon: Home },
+    { id: 'placement_test', label: 'Kiểm tra trình độ AI', icon: Award },
     { id: 'roadmap', label: 'Lộ trình học', icon: Map },
     { id: 'vocab', label: 'Từ vựng & Flashcard SRS', icon: BookOpen },
     { id: 'grammar', label: 'Ngữ pháp HSK', icon: BookmarkCheck },
@@ -136,8 +139,11 @@ export function App() {
               {currentTab === 'home' && (
                 <HomeView user={user} onNavigate={handleSelectTab} />
               )}
+              {currentTab === 'placement_test' && (
+                <PlacementTestView onNavigate={handleSelectTab} />
+              )}
               {currentTab === 'roadmap' && (
-                <RoadmapView onSelectLesson={handleSelectLesson} />
+                <RoadmapView onSelectLesson={handleSelectLesson} onNavigate={handleSelectTab} />
               )}
               {currentTab === 'vocab' && <VocabularyView />}
               {currentTab === 'grammar' && <GrammarView />}
@@ -203,7 +209,7 @@ export function App() {
             </div>
 
             <div className="text-[11px] text-slate-400 text-center pt-4 border-t border-slate-100 dark:border-slate-800">
-              Halo Chinese v1.3.1 • AI Personalized Curriculum & Memory
+              Halo Chinese v1.4.0 • AI Placement Test & Personalized Curriculum
             </div>
           </div>
         </div>

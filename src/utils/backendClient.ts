@@ -301,6 +301,115 @@ export class LocalBackendClient {
     });
     return await res.json();
   }
+
+  // ==================== AI PLACEMENT TEST ====================
+  public async startPlacementTest(testType: 'full' | 'quick' = 'full') {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/placement/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ testType })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getActivePlacementTest() {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/placement/active`);
+      if (res.ok) return await res.json();
+      return { success: false, data: null };
+    } catch {
+      return { success: false, data: null };
+    }
+  }
+
+  public async getPlacementProgress(testId: string) {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/placement/${testId}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async submitPlacementAnswer(params: {
+    testId: string;
+    questionId: string;
+    userAnswer: string;
+    durationIncrementSeconds?: number;
+  }) {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/placement/answer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async skipPlacementSection(testId: string, section: string) {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/placement/skip-section`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ testId, section })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async completePlacementTest(testId: string) {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/placement/complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ testId })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getPlacementResult(testId: string) {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/placement/results/${testId}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getPlacementHistory() {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/placement/history/all`);
+      if (res.ok) return await res.json();
+      return { success: false, data: [] };
+    } catch {
+      return { success: false, data: [] };
+    }
+  }
+
+  public async syncPlacementResult(testId: string) {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/placement/sync-profile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ testId })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
 }
 
 export const backendClient = new LocalBackendClient();

@@ -6,16 +6,19 @@ import {
   RotateCcw,
   Sparkles,
   BookOpen,
+  Award,
 } from 'lucide-react';
 import type { LessonContent, HSKLevel } from '../types';
+import type { NavTab } from '../components/layout/Sidebar';
 import { db } from '../db';
 import { RubyText } from '../components/common/RubyText';
 
 interface RoadmapViewProps {
   onSelectLesson: (lesson: LessonContent) => void;
+  onNavigate?: (tab: NavTab) => void;
 }
 
-export const RoadmapView: React.FC<RoadmapViewProps> = ({ onSelectLesson }) => {
+export const RoadmapView: React.FC<RoadmapViewProps> = ({ onSelectLesson, onNavigate }) => {
   const [selectedHsk, setSelectedHsk] = useState<HSKLevel>(1);
   const [lessons, setLessons] = useState<LessonContent[]>([]);
   const [freeMode, setFreeMode] = useState<boolean>(true); // Cho phép tự do chọn bài học theo yêu cầu
@@ -71,6 +74,31 @@ export const RoadmapView: React.FC<RoadmapViewProps> = ({ onSelectLesson }) => {
           </button>
         </div>
       </div>
+
+      {/* AI Placement Quick Banner */}
+      {onNavigate && (
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-500/10 border border-amber-300 dark:border-amber-700/50 flex items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-amber-500 text-white shrink-0">
+              <Award className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="font-bold text-slate-800 dark:text-slate-100">
+                Chưa rõ nên bắt đầu từ cấp độ HSK nào?
+              </span>
+              <p className="text-slate-500 dark:text-slate-400 text-[11px]">
+                Làm bài kiểm tra đầu vào bằng AI để xác định chính xác trình độ và điểm khuyết thiếu.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => onNavigate('placement_test')}
+            className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold shrink-0 transition-colors"
+          >
+            Kiểm tra ngay
+          </button>
+        </div>
+      )}
 
       {/* HSK Level Pill Bar */}
       <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">

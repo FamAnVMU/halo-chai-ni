@@ -12,6 +12,7 @@ import { db } from './db.js';
 import { geminiTextService } from './geminiTextService.js';
 import { geminiLiveService } from './geminiLiveService.js';
 import { geminiLessonService } from './geminiLessonService.js';
+import { geminiPlacementService } from './geminiPlacementService.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -621,6 +622,115 @@ app.delete('/api/ai/lessons/:id', (req, res) => {
   try {
     db.prepare('DELETE FROM generated_lessons WHERE id = ?').run(req.params.id);
     res.json({ success: true, message: 'Đã xóa bài học thành công.' });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==================== AI PLACEMENT TEST (KIỂM TRA TRÌNH ĐỘ ĐẦU VÀO) ====================
+
+// Bắt đầu bài kiểm tra mới
+app.post('/api/placement/start', async (req, res) => {
+  try {
+    const { testType } = req.body;
+    const test = await geminiPlacementService.createTest(testType || 'full');
+    const progress = await geminiPlacementService.getTestProgress(test.testId);
+    res.json({ success: true, data: progress });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Lấy bài kiểm tra dở dang gần nhất
+app.get('/api/placement/active', async (req, res) => {
+  try {
+    const active = await geminiPlacementService.getActiveTest();
+    res.json({ success: true, data: active });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Lấy tiến trình bài kiểm tra cụ thể
+app.get('/api/placement/:testId', async (req, res) => {
+  try {
+    const progress = await geminiPlacementService.getTestProgress(req.params.testId);
+    if (!progress) {
+      return res.status(404).json({ success: false, error: 'Không tìm thấy bài kiểm tra' });
+    }
+    res.json({ success: true, data: progress });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Nộp câu trả lời cho 1 câu hỏi
+app.post('/api/placement/answer', async (req, res) => {
+  try {
+    const { testId, questionId, userAnswer, durationIncrementSeconds } = req.body;
+    const result = await geminiPlacementService.submitAnswer({
+      testId,
+      questionId,
+      userAnswer,
+      durationIncrementSeconds
+    });
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Bỏ qua một kỹ năng
+app.post('/api/placement/skip-section', async (req, res) => {
+  try {
+    const { testId, section } = req.body;
+    const result = await geminiPlacementService.skipSection(testId, section);
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Hoàn thành bài kiểm tra & tính toán toàn diện
+app.post('/api/placement/complete', async (req, res) => {
+  try {
+    const { testId } = req.body;
+    const report = await geminiPlacementService.completeTest(testId);
+    res.json({ success: true, data: report });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Lấy kết quả bài kiểm tra
+app.get('/api/placement/results/:testId', async (req, res) => {
+  try {
+    const report = await geminiPlacementService.getTestResult(req.params.testId);
+    if (!report) {
+      return res.status(404).json({ success: false, error: 'Chưa có kết quả cho bài kiểm tra này' });
+    }
+    res.json({ success: true, data: report });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Lấy lịch sử các lần kiểm tra
+app.get('/api/placement/history/all', async (req, res) => {
+  try {
+    const history = await geminiPlacementService.getTestHistory();
+    res.json({ success: true, data: history });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Đồng bộ kết quả vào Hồ sơ học tập và kích hoạt lộ trình học thích ứng
+app.post('/api/placement/sync-profile', async (req, res) => {
+  try {
+    const { testId } = req.body;
+    const syncResult = await geminiPlacementService.syncResultToLearnerProfile(testId);
+    res.json({ success: true, data: syncResult });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }

@@ -168,12 +168,84 @@ db.exec(`
     created_at INTEGER NOT NULL
   );
 
+  -- ==================== PLACEMENT TEST TABLES ====================
+  -- Placement Assessments (Test Sessions)
+  CREATE TABLE IF NOT EXISTS placement_assessments (
+    id TEXT PRIMARY KEY,
+    test_type TEXT NOT NULL, -- 'full' (6 skills) or 'quick' (3 core skills)
+    status TEXT DEFAULT 'in_progress', -- 'in_progress', 'completed', 'abandoned'
+    current_section TEXT NOT NULL, -- 'vocabulary', 'grammar', 'reading', 'listening', 'writing', 'communication'
+    current_question_index INTEGER DEFAULT 0,
+    adaptive_level INTEGER DEFAULT 1,
+    skipped_sections_json TEXT DEFAULT '[]',
+    started_at INTEGER NOT NULL,
+    completed_at INTEGER,
+    duration_seconds INTEGER DEFAULT 0,
+    created_at INTEGER NOT NULL
+  );
+
+  -- Placement Questions (Items in test)
+  CREATE TABLE IF NOT EXISTS placement_questions (
+    id TEXT PRIMARY KEY,
+    test_id TEXT NOT NULL,
+    skill TEXT NOT NULL, -- 'vocabulary', 'grammar', 'reading', 'listening', 'writing', 'communication'
+    question_type TEXT NOT NULL, -- 'multiple_choice', 'fill_in_blank', 'reorder', 'reading_comprehension', 'listening_comprehension', 'writing_translation', 'dialogue_response'
+    hsk_level INTEGER NOT NULL,
+    topic TEXT,
+    prompt TEXT NOT NULL,
+    passage TEXT,
+    audio_text TEXT,
+    options_json TEXT,
+    correct_answer TEXT NOT NULL,
+    explanation_vi TEXT NOT NULL,
+    criteria_json TEXT,
+    order_index INTEGER NOT NULL,
+    weight REAL DEFAULT 1.0,
+    FOREIGN KEY(test_id) REFERENCES placement_assessments(id) ON DELETE CASCADE
+  );
+
+  -- Placement Answers (User responses & evaluations)
+  CREATE TABLE IF NOT EXISTS placement_answers (
+    id TEXT PRIMARY KEY,
+    test_id TEXT NOT NULL,
+    question_id TEXT NOT NULL,
+    skill TEXT NOT NULL,
+    user_answer TEXT NOT NULL,
+    is_correct INTEGER,
+    score REAL,
+    ai_feedback TEXT,
+    answered_at INTEGER NOT NULL,
+    FOREIGN KEY(test_id) REFERENCES placement_assessments(id) ON DELETE CASCADE,
+    FOREIGN KEY(question_id) REFERENCES placement_questions(id) ON DELETE CASCADE
+  );
+
+  -- Placement Results (Final comprehensive report)
+  CREATE TABLE IF NOT EXISTS placement_results (
+    id TEXT PRIMARY KEY,
+    test_id TEXT NOT NULL UNIQUE,
+    overall_score REAL NOT NULL,
+    estimated_hsk REAL NOT NULL,
+    confidence_level TEXT NOT NULL, -- 'high', 'medium', 'provisional'
+    skill_scores_json TEXT NOT NULL,
+    strengths_json TEXT NOT NULL,
+    weaknesses_json TEXT NOT NULL,
+    knowledge_breakdown_json TEXT NOT NULL,
+    recommendations_json TEXT NOT NULL,
+    synced_to_profile INTEGER DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY(test_id) REFERENCES placement_assessments(id) ON DELETE CASCADE
+  );
+
   -- Create indexes for performance
   CREATE INDEX IF NOT EXISTS idx_vocab_mastery ON vocabulary_memory(mastery_level);
   CREATE INDEX IF NOT EXISTS idx_vocab_hsk ON vocabulary_memory(hsk_level);
   CREATE INDEX IF NOT EXISTS idx_grammar_mastery ON grammar_memory(mastery_level);
   CREATE INDEX IF NOT EXISTS idx_errors_status ON learning_errors(status);
   CREATE INDEX IF NOT EXISTS idx_lessons_status ON generated_lessons(status);
+  CREATE INDEX IF NOT EXISTS idx_placement_assessments_status ON placement_assessments(status);
+  CREATE INDEX IF NOT EXISTS idx_placement_questions_test ON placement_questions(test_id);
+  CREATE INDEX IF NOT EXISTS idx_placement_answers_test ON placement_answers(test_id);
+  CREATE INDEX IF NOT EXISTS idx_placement_results_test ON placement_results(test_id);
 `);
 
 // Seed default learner profile if empty
