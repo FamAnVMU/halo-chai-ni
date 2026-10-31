@@ -2034,6 +2034,102 @@ export class LocalBackendClient {
       return { success: false, error: e.message };
     }
   }
+
+  // ==================== MASTERY ENGINE CLIENT METHODS ====================
+  public async getMastery(
+    knowledgeId: string,
+    learnerId: string = 'default'
+  ): Promise<{ success: boolean; data?: any; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/mastery/${encodeURIComponent(knowledgeId)}?learnerId=${encodeURIComponent(learnerId)}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getBatchMastery(
+    knowledgeIds: string[],
+    learnerId: string = 'default'
+  ): Promise<{ success: boolean; data?: Record<string, any>; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/mastery/batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ knowledgeIds, learnerId })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getWeakKnowledge(options?: {
+    learnerId?: string;
+    limit?: number;
+  }): Promise<{ success: boolean; count?: number; data?: any[]; error?: string }> {
+    try {
+      const q = new URLSearchParams();
+      if (options?.learnerId) q.set('learnerId', options.learnerId);
+      if (options?.limit) q.set('limit', String(options.limit));
+      const res = await fetch(`${this.getBaseUrl()}/api/mastery/weak?${q.toString()}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getUncertainKnowledge(options?: {
+    learnerId?: string;
+    limit?: number;
+  }): Promise<{ success: boolean; count?: number; data?: any[]; error?: string }> {
+    try {
+      const q = new URLSearchParams();
+      if (options?.learnerId) q.set('learnerId', options.learnerId);
+      if (options?.limit) q.set('limit', String(options.limit));
+      const res = await fetch(`${this.getBaseUrl()}/api/mastery/uncertain?${q.toString()}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getMasteryHistory(
+    knowledgeId: string,
+    learnerId: string = 'default'
+  ): Promise<{ success: boolean; count?: number; data?: any[]; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/mastery/history/${encodeURIComponent(knowledgeId)}?learnerId=${encodeURIComponent(learnerId)}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async rebuildMastery(
+    knowledgeId?: string,
+    learnerId: string = 'default'
+  ): Promise<{ success: boolean; data?: any; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/mastery/rebuild`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ knowledgeId, learnerId })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getMasteryRules(): Promise<{ success: boolean; data?: any; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/mastery/rules`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
 }
 
 export const backendClient = new LocalBackendClient();

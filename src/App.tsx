@@ -242,7 +242,7 @@ export function App() {
             </div>
 
             <div className="text-[11px] text-slate-400 text-center pt-4 border-t border-slate-100 dark:border-slate-800">
-              Halo Chinese v2.1.0 • Learning Evidence System & Knowledge Registry
+              Halo Chinese v2.2.0 • Multi-dimensional Mastery Engine & Learning Evidence
             </div>
           </div>
         </div>

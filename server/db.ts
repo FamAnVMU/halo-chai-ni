@@ -870,6 +870,74 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_evrel_source ON evidence_relations(source_evidence_id);
   CREATE INDEX IF NOT EXISTS idx_evrel_target ON evidence_relations(target_evidence_id);
 
+  -- ========================================================================
+  -- MASTERY ENGINE SYSTEM (HỆ THỐNG ĐÁNH GIÁ MỨC ĐỘ THÀNH THẠO KIẾN THỨC)
+  -- ========================================================================
+
+  -- 1. Mastery Snapshots (Ảnh chụp trạng thái thành thạo hiện tại của từng kiến thức)
+  CREATE TABLE IF NOT EXISTS mastery_snapshots (
+    id TEXT PRIMARY KEY,
+    knowledge_id TEXT NOT NULL REFERENCES knowledge_items(id) ON DELETE CASCADE,
+    learner_id TEXT NOT NULL DEFAULT 'default',
+    composite_state TEXT NOT NULL, -- 'UNKNOWN', 'UNSEEN', 'EXPOSED', 'LEARNING', 'UNSTABLE', 'FAMILIAR', 'MASTERED'
+    overall_confidence REAL NOT NULL DEFAULT 0.0,
+    recognition_score REAL NOT NULL DEFAULT 0.0,
+    recognition_confidence REAL NOT NULL DEFAULT 0.0,
+    recall_score REAL NOT NULL DEFAULT 0.0,
+    recall_confidence REAL NOT NULL DEFAULT 0.0,
+    application_score REAL NOT NULL DEFAULT 0.0,
+    application_confidence REAL NOT NULL DEFAULT 0.0,
+    retention_score REAL NOT NULL DEFAULT 0.0,
+    retention_confidence REAL NOT NULL DEFAULT 0.0,
+    pronunciation_score REAL,
+    pronunciation_confidence REAL,
+    dimensions_json TEXT NOT NULL, -- Chi tiết đa chiều: scores, confidences, counts, dates
+    evidence_count INTEGER NOT NULL DEFAULT 0,
+    success_count INTEGER NOT NULL DEFAULT 0,
+    failure_count INTEGER NOT NULL DEFAULT 0,
+    first_evidence_at INTEGER,
+    last_evidence_at INTEGER,
+    last_calculated_at INTEGER NOT NULL,
+    ever_mastered INTEGER NOT NULL DEFAULT 0, -- 1 nếu từng đạt MASTERED trong quá khứ
+    needs_review INTEGER NOT NULL DEFAULT 0, -- 1 nếu độ duy trì retention suy giảm cần ôn tập
+    decay_factor REAL NOT NULL DEFAULT 1.0,
+    reasoning_summary TEXT NOT NULL, -- Giải thích sư phạm rõ ràng vì sao đạt trạng thái này
+    contradictions_json TEXT, -- Phát hiện mâu thuẫn giữa các chiều (ví dụ: recognition cao nhưng application thấp)
+    algorithm_version TEXT NOT NULL DEFAULT '2.2.0',
+    UNIQUE (knowledge_id, learner_id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_msnp_knowledge ON mastery_snapshots(knowledge_id, learner_id);
+  CREATE INDEX IF NOT EXISTS idx_msnp_state ON mastery_snapshots(composite_state);
+  CREATE INDEX IF NOT EXISTS idx_msnp_needs_review ON mastery_snapshots(needs_review);
+  CREATE INDEX IF NOT EXISTS idx_msnp_calculated ON mastery_snapshots(last_calculated_at);
+
+  -- 2. Mastery History (Lịch sử chuyển đổi trạng thái thành thạo khi có biến động)
+  CREATE TABLE IF NOT EXISTS mastery_history (
+    id TEXT PRIMARY KEY,
+    knowledge_id TEXT NOT NULL REFERENCES knowledge_items(id) ON DELETE CASCADE,
+    learner_id TEXT NOT NULL DEFAULT 'default',
+    previous_state TEXT,
+    new_state TEXT NOT NULL,
+    trigger_evidence_id TEXT REFERENCES learning_evidences(id) ON DELETE SET NULL,
+    trigger_action TEXT,
+    reason TEXT NOT NULL,
+    dimensions_summary_json TEXT,
+    created_at INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_mshist_knowledge ON mastery_history(knowledge_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_mshist_learner ON mastery_history(learner_id, created_at DESC);
+
+  -- 3. Mastery Evaluation Rules (Cấu hình bộ quy tắc trọng số và ngưỡng đánh giá)
+  CREATE TABLE IF NOT EXISTS mastery_evaluation_rules (
+    rule_key TEXT PRIMARY KEY,
+    category TEXT NOT NULL, -- 'weights', 'thresholds', 'contradiction', 'decay'
+    value_json TEXT NOT NULL,
+    description_vi TEXT NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+
   CREATE INDEX IF NOT EXISTS idx_reading_level ON reading_passages(level, hsk_level);
   CREATE INDEX IF NOT EXISTS idx_reading_topic ON reading_passages(topic);
   CREATE INDEX IF NOT EXISTS idx_reading_genre ON reading_passages(genre);
@@ -1138,5 +1206,72 @@ if (evidenceCount === 0) {
     'active',
     now - 86400000 * 2,
     now - 86400000 * 2
+  );
+}
+
+// Seed default Mastery Evaluation Rules if empty
+const ruleCount = (db.prepare('SELECT COUNT(*) as count FROM mastery_evaluation_rules').get() as any).count;
+if (ruleCount === 0) {
+  const now = Date.now();
+  const insertRule = db.prepare(`
+    INSERT INTO mastery_evaluation_rules (rule_key, category, value_json, description_vi, updated_at)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+
+  insertRule.run(
+    'evidence_weights',
+    'weights',
+    JSON.stringify({
+      exposure: 0.1,
+      instruction: 0.2,
+      recognition: 0.5,
+      recall: 0.8,
+      application: 1.0,
+      pronunciation: 0.8,
+      listening_reading: 0.7,
+      review: 0.9
+    }),
+    'Trọng số độ tin cậy và giá trị sư phạm của từng loại bằng chứng trong tính toán năng lực',
+    now
+  );
+
+  insertRule.run(
+    'mastery_thresholds',
+    'thresholds',
+    JSON.stringify({
+      min_evidence_count_mastered: 3,
+      min_confidence_mastered: 0.75,
+      min_recognition_score: 80,
+      min_recall_score: 75,
+      min_application_score: 70,
+      min_retention_score: 70,
+      min_familiar_score: 65,
+      min_confidence_familiar: 0.5
+    }),
+    'Ngưỡng điểm số và độ tin cậy tối thiểu để thăng cấp trạng thái thành thạo',
+    now
+  );
+
+  insertRule.run(
+    'contradiction_thresholds',
+    'contradiction',
+    JSON.stringify({
+      recognition_high_threshold: 80,
+      application_low_threshold: 45,
+      min_application_fails: 2
+    }),
+    'Ngưỡng phát hiện mâu thuẫn giữa nhận diện thụ động và vận dụng chủ động (chống ảo tưởng thành thạo)',
+    now
+  );
+
+  insertRule.run(
+    'retention_decay_params',
+    'decay',
+    JSON.stringify({
+      base_half_life_days: 14,
+      needs_review_threshold: 60
+    }),
+    'Tham số suy giảm trí nhớ tự nhiên theo thời gian dựa trên đường cong Ebbinghaus',
+    now
   );
 }

@@ -23,6 +23,7 @@ import { geminiReadingService } from './geminiReadingService.js';
 import { aiTutorEngine } from './aiTutorEngine.js';
 import { knowledgeRegistryService } from './knowledgeRegistryService.js';
 import { learningEvidenceService } from './learningEvidenceService.js';
+import { masteryEngineService } from './masteryEngineService.js';
 import { tokenizeChinese } from '../src/data/seedDictionary.js';
 
 const app = express();
@@ -1800,6 +1801,99 @@ app.post('/api/evidence/link', (req, res) => {
     const { sourceId, targetId, relationType } = req.body;
     const ok = learningEvidenceService.linkRelatedEvidences(sourceId, targetId, relationType);
     res.json({ success: ok });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==================== MASTERY ENGINE API ENDPOINTS ====================
+// 1. Lấy Snapshot thành thạo của một kiến thức (Tính mới nếu chưa có)
+app.get('/api/mastery/:knowledgeId', (req, res) => {
+  try {
+    const learnerId = (req.query.learnerId as string) || 'default';
+    const snapshot = masteryEngineService.getMastery(req.params.knowledgeId, learnerId);
+    res.json({ success: true, data: snapshot });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 2. Lấy Snapshot hàng loạt theo danh sách knowledge_id
+app.post('/api/mastery/batch', (req, res) => {
+  try {
+    const { knowledgeIds, learnerId } = req.body;
+    if (!Array.isArray(knowledgeIds)) {
+      return res.status(400).json({ success: false, error: 'knowledgeIds phải là mảng chuỗi' });
+    }
+    const data = masteryEngineService.getMasteryByKnowledge(knowledgeIds, learnerId || 'default');
+    res.json({ success: true, data });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 3. Tính toán on-the-fly mức độ thành thạo (Dry run)
+app.post('/api/mastery/calculate/:knowledgeId', (req, res) => {
+  try {
+    const learnerId = req.body.learnerId || 'default';
+    const snapshot = masteryEngineService.calculateMastery(req.params.knowledgeId, learnerId);
+    res.json({ success: true, data: snapshot });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 4. Lấy danh sách kiến thức yếu cần củng cố
+app.get('/api/mastery/weak', (req, res) => {
+  try {
+    const limit = req.query.limit ? Number(req.query.limit) : 20;
+    const learnerId = (req.query.learnerId as string) || 'default';
+    const items = masteryEngineService.getWeakKnowledge({ learnerId, limit });
+    res.json({ success: true, count: items.length, data: items });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 5. Lấy danh sách kiến thức chưa chắc chắn (cần thêm bài kiểm tra/thực hành)
+app.get('/api/mastery/uncertain', (req, res) => {
+  try {
+    const limit = req.query.limit ? Number(req.query.limit) : 20;
+    const learnerId = (req.query.learnerId as string) || 'default';
+    const items = masteryEngineService.getUncertainKnowledge({ learnerId, limit });
+    res.json({ success: true, count: items.length, data: items });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 6. Lấy lịch sử chuyển đổi trạng thái thành thạo của một kiến thức
+app.get('/api/mastery/history/:knowledgeId', (req, res) => {
+  try {
+    const learnerId = (req.query.learnerId as string) || 'default';
+    const history = masteryEngineService.getMasteryHistory(req.params.knowledgeId, learnerId);
+    res.json({ success: true, count: history.length, data: history });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 7. Tái tính toán lại toàn bộ snapshot từ bảng gốc learning_evidences (Rebuild)
+app.post('/api/mastery/rebuild', (req, res) => {
+  try {
+    const { knowledgeId, learnerId } = req.body;
+    const result = masteryEngineService.rebuildMastery(knowledgeId, learnerId || 'default');
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 8. Lấy cấu hình các quy tắc và trọng số đánh giá minh bạch
+app.get('/api/mastery/rules', (_req, res) => {
+  try {
+    const rules = masteryEngineService.getRuleConfig();
+    res.json({ success: true, data: rules });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }

@@ -47,7 +47,9 @@ export type KnowledgePrefix =
   | 'DUP' // Duplicate candidate
   | 'EVI' // Learning Evidence (Bằng chứng học tập)
   | 'COR' // Evidence Correction (Đính chính / vô hiệu hóa bằng chứng)
-  | 'EVR'; // Evidence Relation (Quan hệ giữa các bằng chứng)
+  | 'EVR' // Evidence Relation (Quan hệ giữa các bằng chứng)
+  | 'SNP' // Mastery Snapshot (Ảnh chụp trạng thái thành thạo)
+  | 'MSH'; // Mastery History (Lịch sử chuyển đổi trạng thái thành thạo)
 
 /**
  * Tạo định danh kiến thức thống nhất có prefix nhận diện

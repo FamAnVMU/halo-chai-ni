@@ -1,6 +1,7 @@
 import { db } from './db.js';
 import { generatePrefixedId } from './utils/idGenerator.js';
 import { knowledgeRegistryService } from './knowledgeRegistryService.js';
+import { masteryEngineService } from './masteryEngineService.js';
 import crypto from 'crypto';
 
 export type EvidenceType =
@@ -294,8 +295,17 @@ export class LearningEvidenceService {
     }
 
     const createdRow = db.prepare('SELECT * FROM learning_evidences WHERE id = ?').get(evidenceId) as any;
+    const mappedEvidence = this.mapRowToEvidence(createdRow);
+
+    // 6. Tự động tính toán & cập nhật Mastery Snapshot chính thức qua Mastery Engine
+    try {
+      masteryEngineService.updateMasteryFromEvidence(evidenceId, targetKid);
+    } catch (mErr) {
+      console.warn('Lỗi cập nhật Mastery Snapshot từ evidence:', mErr);
+    }
+
     return {
-      evidence: this.mapRowToEvidence(createdRow),
+      evidence: mappedEvidence,
       isDuplicate: false
     };
   }
