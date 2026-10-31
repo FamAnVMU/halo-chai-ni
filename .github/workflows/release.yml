@@ -1,0 +1,99 @@
+name: Build and Release Android APK
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build Web Assets
+        run: npm run build
+
+      - name: Sync Capacitor Android
+        run: npx cap sync android
+
+      - name: Make Gradle executable
+        run: chmod +x ./android/gradlew
+
+      - name: Build Android APK
+        run: |
+          cd android
+          ./gradlew assembleDebug --stacktrace
+          cd ..
+
+      - name: Prepare APK Artifact
+        run: |
+          mkdir -p release-apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk release-apk/halo-chinese-v1.0.0.apk
+
+      - name: Upload APK to Workflow Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: halo-chinese-apk
+          path: release-apk/halo-chinese-v1.0.0.apk
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        with:
+          tag_name: v1.0.0
+          name: Halo Chinese v1.0.0 - Bản Phát Hành APK
+          body: |
+            # Halo Chinese - Ứng Dụng Học Tiếng Trung Cá Nhân & AI Tutor
+            
+            Bản cài đặt Android APK chính thức đầu tiên dành cho học tập cá nhân.
+            
+            ### ✨ Tính Năng Nổi Bật:
+            - **Lộ trình học HSK 1 - 6:** Bài học tương tác, mục tiêu, hội thoại, từ vựng và bài tập.
+            - **11 Dạng bài tập tương tác:** Trắc nghiệm, sắp xếp câu, nghe - chọn, ghép nghĩa, điền từ, dịch xuôi/ngược, nhận diện Hán tự, đọc câu, viết chữ.
+            - **Kho từ vựng & Flashcard SRS (SM-2):** Ghi nhớ lặp lại ngắt quãng, lưu từ yêu thích, thêm từ cá nhân.
+            - **Ngữ pháp HSK:** Công thức, ví dụ phân tích, so sánh cấu trúc dễ nhầm (想 vs 要, 二 vs 两, 刚 vs 刚才).
+            - **Bảng phát âm Pinyin & Chấm điểm giọng nói:** 21 thanh mẫu, 36 vận mẫu, 4 thanh điệu, quy tắc biến điệu, sửa lỗi phát âm người Việt.
+            - **Luyện viết chữ Hán (Hanzi Writer):** Xem hoạt họa nét bút chuẩn và tập viết trên ô điền tự.
+            - **AI Tutor & Voice Chat 2 chiều:** Đàm thoại thời gian thực bằng giọng nói (STT + LLM + TTS), sửa lỗi ngữ pháp chi tiết, 5 chế độ hội thoại, bộ nhớ học tập dài hạn.
+            - **Thư viện đọc hiểu & nghe hiểu:** Graded readers, nghe audio, câu hỏi trắc nghiệm sau bài.
+            - **Thống kê học tập:** Streak ngày, thời gian học, từ đã thuộc, đặt mục tiêu ngày.
+            - **Quản lý API & Dữ liệu:** Quản lý Gemini API Key an toàn, kiểm tra microphone và độ trễ, xuất/nhập sao lưu JSON.
+            
+            ### 📱 Hướng dẫn cài đặt APK trên Android:
+            1. Tải file `halo-chinese-v1.0.0.apk` bên dưới về điện thoại Android.
+            2. Mở file APK và chọn "Cài đặt" (Cho phép cài đặt từ nguồn không xác định nếu được hỏi).
+            3. Mở ứng dụng Halo Chinese và bắt đầu học tiếng Trung cùng AI Tutor!
+          files: release-apk/halo-chinese-v1.0.0.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
