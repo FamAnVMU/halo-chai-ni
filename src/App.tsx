@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense, lazy } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from './db';
 import { initializeDatabase } from './db/initDb';
@@ -7,23 +7,23 @@ import { Navbar } from './components/layout/Navbar';
 import { Sidebar, NavTab } from './components/layout/Sidebar';
 import { BottomNav } from './components/layout/BottomNav';
 
-// 12 Views
-import { HomeView } from './views/HomeView';
-import { RoadmapView } from './views/RoadmapView';
-import { LessonDetailView } from './views/LessonDetailView';
-import { VocabularyView } from './views/VocabularyView';
-import { GrammarView } from './views/GrammarView';
-import { PracticeView } from './views/PracticeView';
-import { PronunciationView } from './views/PronunciationView';
-import { HanziWritingView } from './views/HanziWritingView';
-import { ReadingView } from './views/ReadingView';
-import { ListeningView } from './views/ListeningView';
-import { AITutorView } from './views/AITutorView';
-import { GeneratedLessonsView } from './views/GeneratedLessonsView';
-import { LearnerMemoryView } from './views/LearnerMemoryView';
-import { PlacementTestView } from './views/PlacementTestView';
-import { StatsView } from './views/StatsView';
-import { SettingsView } from './views/SettingsView';
+// Lazy-loaded Views for high performance and code-splitting
+const HomeView = lazy(() => import('./views/HomeView').then(m => ({ default: m.HomeView })));
+const RoadmapView = lazy(() => import('./views/RoadmapView').then(m => ({ default: m.RoadmapView })));
+const LessonDetailView = lazy(() => import('./views/LessonDetailView').then(m => ({ default: m.LessonDetailView })));
+const VocabularyView = lazy(() => import('./views/VocabularyView').then(m => ({ default: m.VocabularyView })));
+const GrammarView = lazy(() => import('./views/GrammarView').then(m => ({ default: m.GrammarView })));
+const PracticeView = lazy(() => import('./views/PracticeView').then(m => ({ default: m.PracticeView })));
+const PronunciationView = lazy(() => import('./views/PronunciationView').then(m => ({ default: m.PronunciationView })));
+const HanziWritingView = lazy(() => import('./views/HanziWritingView').then(m => ({ default: m.HanziWritingView })));
+const ReadingView = lazy(() => import('./views/ReadingView').then(m => ({ default: m.ReadingView })));
+const ListeningView = lazy(() => import('./views/ListeningView').then(m => ({ default: m.ListeningView })));
+const AITutorView = lazy(() => import('./views/AITutorView').then(m => ({ default: m.AITutorView })));
+const GeneratedLessonsView = lazy(() => import('./views/GeneratedLessonsView').then(m => ({ default: m.GeneratedLessonsView })));
+const LearnerMemoryView = lazy(() => import('./views/LearnerMemoryView').then(m => ({ default: m.LearnerMemoryView })));
+const PlacementTestView = lazy(() => import('./views/PlacementTestView').then(m => ({ default: m.PlacementTestView })));
+const StatsView = lazy(() => import('./views/StatsView').then(m => ({ default: m.StatsView })));
+const SettingsView = lazy(() => import('./views/SettingsView').then(m => ({ default: m.SettingsView })));
 
 import {
   X,
@@ -125,40 +125,47 @@ export function App() {
 
         {/* Main Content View Container */}
         <main className="flex-1 p-4 md:p-6 lg:p-8 min-w-0">
-          {activeLesson ? (
-            <LessonDetailView
-              lesson={activeLesson}
-              onBack={() => setActiveLesson(null)}
-              onFinishLesson={() => {
-                setActiveLesson(null);
-                setCurrentTab('roadmap');
-              }}
-            />
-          ) : (
-            <>
-              {currentTab === 'home' && (
-                <HomeView user={user} onNavigate={handleSelectTab} />
-              )}
-              {currentTab === 'placement_test' && (
-                <PlacementTestView onNavigate={handleSelectTab} />
-              )}
-              {currentTab === 'roadmap' && (
-                <RoadmapView onSelectLesson={handleSelectLesson} onNavigate={handleSelectTab} />
-              )}
-              {currentTab === 'vocab' && <VocabularyView />}
-              {currentTab === 'grammar' && <GrammarView />}
-              {currentTab === 'practice' && <PracticeView />}
-              {currentTab === 'pronounce' && <PronunciationView />}
-              {currentTab === 'write' && <HanziWritingView />}
-              {currentTab === 'reading' && <ReadingView />}
-              {currentTab === 'listening' && <ListeningView />}
-              {currentTab === 'ai_tutor' && <AITutorView onNavigate={handleSelectTab} />}
-              {currentTab === 'ai_lessons' && <GeneratedLessonsView />}
-              {currentTab === 'ai_memory' && <LearnerMemoryView />}
-              {currentTab === 'stats' && <StatsView user={user} />}
-              {currentTab === 'settings' && <SettingsView user={user} />}
-            </>
-          )}
+          <Suspense fallback={
+            <div className="py-24 text-center flex flex-col items-center justify-center gap-3">
+              <div className="w-8 h-8 border-3 border-primary-500 border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs font-semibold text-slate-400">Đang tải phân hệ...</span>
+            </div>
+          }>
+            {activeLesson ? (
+              <LessonDetailView
+                lesson={activeLesson}
+                onBack={() => setActiveLesson(null)}
+                onFinishLesson={() => {
+                  setActiveLesson(null);
+                  setCurrentTab('roadmap');
+                }}
+              />
+            ) : (
+              <>
+                {currentTab === 'home' && (
+                  <HomeView user={user} onNavigate={handleSelectTab} />
+                )}
+                {currentTab === 'placement_test' && (
+                  <PlacementTestView onNavigate={handleSelectTab} />
+                )}
+                {currentTab === 'roadmap' && (
+                  <RoadmapView onSelectLesson={handleSelectLesson} onNavigate={handleSelectTab} />
+                )}
+                {currentTab === 'vocab' && <VocabularyView />}
+                {currentTab === 'grammar' && <GrammarView />}
+                {currentTab === 'practice' && <PracticeView />}
+                {currentTab === 'pronounce' && <PronunciationView />}
+                {currentTab === 'write' && <HanziWritingView />}
+                {currentTab === 'reading' && <ReadingView />}
+                {currentTab === 'listening' && <ListeningView />}
+                {currentTab === 'ai_tutor' && <AITutorView onNavigate={handleSelectTab} />}
+                {currentTab === 'ai_lessons' && <GeneratedLessonsView />}
+                {currentTab === 'ai_memory' && <LearnerMemoryView />}
+                {currentTab === 'stats' && <StatsView user={user} />}
+                {currentTab === 'settings' && <SettingsView user={user} />}
+              </>
+            )}
+          </Suspense>
         </main>
       </div>
 

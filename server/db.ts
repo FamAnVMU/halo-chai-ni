@@ -10,8 +10,12 @@ if (!fs.existsSync(dataDir)) {
 const dbPath = process.env.DATABASE_PATH || path.join(dataDir, 'halo_chinese.db');
 export const db = new Database(dbPath);
 
-// Enable WAL mode for high performance concurrency
+// Enable WAL mode & performance optimizations
 db.pragma('journal_mode = WAL');
+db.pragma('synchronous = NORMAL');
+db.pragma('cache_size = -64000'); // 64MB cache
+db.pragma('temp_store = MEMORY');
+db.pragma('foreign_keys = ON');
 
 // Initialize tables
 db.exec(`
@@ -349,10 +353,19 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_path_user ON adaptive_learning_paths(user_id);
   CREATE INDEX IF NOT EXISTS idx_stages_path ON learning_path_stages(path_id);
   CREATE INDEX IF NOT EXISTS idx_items_stage ON learning_path_items(stage_id);
+  CREATE INDEX IF NOT EXISTS idx_items_path_order ON learning_path_items(path_id, order_index);
+  CREATE INDEX IF NOT EXISTS idx_items_stage_order ON learning_path_items(stage_id, order_index);
+  CREATE INDEX IF NOT EXISTS idx_items_status ON learning_path_items(status);
   CREATE INDEX IF NOT EXISTS idx_milestones_path ON learning_path_milestones(path_id);
   CREATE INDEX IF NOT EXISTS idx_schedule_path ON learning_schedule_items(path_id);
+  CREATE INDEX IF NOT EXISTS idx_schedule_day ON learning_schedule_items(day_of_week);
   CREATE INDEX IF NOT EXISTS idx_path_versions ON learning_path_versions(path_id);
+  CREATE INDEX IF NOT EXISTS idx_versions_path_num ON learning_path_versions(path_id, version_number);
+  CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON chat_messages(session_id, created_at);
 `);
+
+// Optimize SQLite Query Planner
+db.pragma('optimize');
 
 // Seed default learner profile if empty
 const existingProfile = db.prepare('SELECT id FROM learner_profile WHERE id = ?').get('default');
