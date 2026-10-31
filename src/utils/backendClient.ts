@@ -95,6 +95,98 @@ export interface PersonalizedDrillsResult {
   source: string;
 }
 
+export interface ShadowingLessonSummary {
+  id: string;
+  title: string;
+  level: 1 | 2 | 3 | 4 | 5 | 6 | 7;
+  levelName: string;
+  hskLevel: number;
+  topic: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  recommendedSpeed: number;
+  fullZh: string;
+  fullPinyin: string;
+  fullVi: string;
+  dialogueRoles?: Array<{
+    speaker: string;
+    zh: string;
+    pinyin: string;
+    vi: string;
+  }>;
+  chunks: Array<{
+    id: string;
+    chunkZh: string;
+    chunkPinyin: string;
+    chunkVi: string;
+    phoneticNotes?: string;
+    orderIndex: number;
+  }>;
+  comprehensionQuestions: Array<{
+    id: string;
+    questionVi: string;
+    options: string[];
+    answer: string;
+    explanationVi: string;
+  }>;
+  targetWeaknesses: string[];
+  tipsVi: string;
+}
+
+export interface ShadowingEvalParams {
+  lessonId: string;
+  chunkId?: string;
+  targetText: string;
+  targetPinyin: string;
+  mode: 'echo' | 'delayed' | 'simultaneous' | 'listen_repeat' | 'full_passage' | 'no_subtitle';
+  practiceStep: number;
+  spokenTranscript: string;
+  audioDurationMs: number;
+  expectedDurationMs?: number;
+  speedUsed: number;
+}
+
+export interface ShadowingEvalResult {
+  recordId: string;
+  lessonId: string;
+  chunkId?: string;
+  targetText: string;
+  targetPinyin: string;
+  spokenTranscript: string;
+  score: number;
+  fluencyScore: number;
+  accuracyScore: number;
+  isMatch: boolean;
+  accuracyGrade: 'excellent' | 'good' | 'fair' | 'needs_improvement';
+  audioMetrics: {
+    durationMs: number;
+    expectedDurationMs: number;
+    durationRatio: number;
+    speedPacing: 'too_fast' | 'natural' | 'too_slow';
+    durationAssessment: string;
+  };
+  chunkAnalysis: Array<{
+    char: string;
+    pinyin: string;
+    status: 'correct' | 'substituted' | 'omitted';
+    spokenChar?: string;
+  }>;
+  strengths: string[];
+  weaknesses: string[];
+  flaggedSounds: string[];
+  feedbackVi: string;
+  fluencyTipsVi: string;
+}
+
+export interface ShadowingStats {
+  totalSessions: number;
+  averageScore: number;
+  averageFluency: number;
+  averageAccuracy: number;
+  practicedLevelsCount: number;
+  totalAudioSeconds: number;
+  recentSessions: any[];
+}
+
 export class LocalBackendClient {
   public getServerHost(): string {
     return localStorage.getItem('halo_server_host') || 'localhost:3001';
@@ -911,6 +1003,122 @@ export class LocalBackendClient {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  // ==================== SHADOWING PRACTICE ====================
+  public async getShadowingLessons(filters?: { level?: number; hskLevel?: number; topic?: string }): Promise<{
+    success: boolean;
+    data?: ShadowingLessonSummary[];
+    error?: string;
+  }> {
+    try {
+      const params = new URLSearchParams();
+      if (filters?.level) params.append('level', filters.level.toString());
+      if (filters?.hskLevel) params.append('hskLevel', filters.hskLevel.toString());
+      if (filters?.topic) params.append('topic', filters.topic);
+      const res = await fetch(`${this.getBaseUrl()}/api/shadowing/lessons?${params.toString()}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getShadowingLessonById(id: string): Promise<{
+    success: boolean;
+    data?: ShadowingLessonSummary;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/shadowing/lessons/${id}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async evaluateShadowing(params: ShadowingEvalParams): Promise<{
+    success: boolean;
+    data?: ShadowingEvalResult;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/shadowing/evaluate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async generateShadowingLesson(profileId: string = 'default'): Promise<{
+    success: boolean;
+    lesson?: ShadowingLessonSummary;
+    message?: string;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/shadowing/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profileId })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async syncShadowingToSrs(params: {
+    lessonId: string;
+    chunkId?: string;
+    zh: string;
+    pinyin: string;
+    vi: string;
+  }): Promise<{
+    success: boolean;
+    srsId?: string;
+    message?: string;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/shadowing/sync-srs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getShadowingStats(): Promise<{
+    success: boolean;
+    data?: ShadowingStats;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/shadowing/stats`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getShadowingHistory(limit: number = 20): Promise<{
+    success: boolean;
+    data?: any[];
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/shadowing/history?limit=${limit}`);
       return await res.json();
     } catch (e: any) {
       return { success: false, error: e.message };

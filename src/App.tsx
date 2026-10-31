@@ -15,6 +15,7 @@ const VocabularyView = lazy(() => import('./views/VocabularyView').then(m => ({ 
 const GrammarView = lazy(() => import('./views/GrammarView').then(m => ({ default: m.GrammarView })));
 const PracticeView = lazy(() => import('./views/PracticeView').then(m => ({ default: m.PracticeView })));
 const PronunciationView = lazy(() => import('./views/PronunciationView').then(m => ({ default: m.PronunciationView })));
+const ShadowingView = lazy(() => import('./views/ShadowingView').then(m => ({ default: m.ShadowingView })));
 const HanziWritingView = lazy(() => import('./views/HanziWritingView').then(m => ({ default: m.HanziWritingView })));
 const ReadingView = lazy(() => import('./views/ReadingView').then(m => ({ default: m.ReadingView })));
 const ListeningView = lazy(() => import('./views/ListeningView').then(m => ({ default: m.ListeningView })));
@@ -101,6 +102,7 @@ export function App() {
     { id: 'grammar', label: 'Ngữ pháp HSK', icon: BookmarkCheck },
     { id: 'practice', label: 'Luyện tập tương tác (11 dạng)', icon: Dumbbell },
     { id: 'pronounce', label: 'Luyện phát âm & Phòng Lab AI', icon: Mic },
+    { id: 'shadowing', label: 'Shadowing – Luyện nói nhại', icon: Headphones },
     { id: 'write', label: 'Luyện viết chữ Hán', icon: PenTool },
     { id: 'reading', label: 'Thư viện đọc hiểu', icon: BookMarked },
     { id: 'listening', label: 'Luyện nghe hiểu', icon: Headphones },
@@ -155,6 +157,7 @@ export function App() {
                 {currentTab === 'grammar' && <GrammarView />}
                 {currentTab === 'practice' && <PracticeView onNavigate={handleSelectTab} />}
                 {currentTab === 'pronounce' && <PronunciationView />}
+                {currentTab === 'shadowing' && <ShadowingView onNavigate={handleSelectTab} />}
                 {currentTab === 'write' && <HanziWritingView />}
                 {currentTab === 'reading' && <ReadingView />}
                 {currentTab === 'listening' && <ListeningView />}
@@ -216,7 +219,7 @@ export function App() {
             </div>
 
             <div className="text-[11px] text-slate-400 text-center pt-4 border-t border-slate-100 dark:border-slate-800">
-              Halo Chinese v1.8.0 • Chinese Pronunciation Lab & Audio AI Studio
+              Halo Chinese v1.9.0 • Chinese Shadowing Practice & Pronunciation Lab
             </div>
           </div>
         </div>

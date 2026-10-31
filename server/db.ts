@@ -460,6 +460,53 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_pronounce_created ON pronunciation_records(created_at);
   CREATE INDEX IF NOT EXISTS idx_pronounce_weak_sound ON pronunciation_weaknesses(sound_key);
 
+  -- Shadowing Lessons (7 Levels, dialogue/monologue, segmented meaningful chunks / 意群)
+  CREATE TABLE IF NOT EXISTS shadowing_lessons (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    level INTEGER DEFAULT 1, -- 1: Single words, 2: Phrases, 3: Short sentences, 4: Long sentences, 5: Dialogue, 6: Monologue, 7: Natural speed
+    hsk_level INTEGER DEFAULT 1,
+    topic TEXT NOT NULL,
+    difficulty TEXT DEFAULT 'medium', -- 'easy', 'medium', 'hard'
+    recommended_speed REAL DEFAULT 1.0,
+    full_zh TEXT NOT NULL,
+    full_pinyin TEXT NOT NULL,
+    full_vi TEXT NOT NULL,
+    dialogue_roles_json TEXT,
+    chunks_json TEXT NOT NULL,
+    comprehension_questions_json TEXT,
+    source TEXT DEFAULT 'seed', -- 'seed', 'ai_personalized', 'custom'
+    target_weaknesses_json TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+
+  -- Shadowing Practice Records
+  CREATE TABLE IF NOT EXISTS shadowing_practice_records (
+    id TEXT PRIMARY KEY,
+    lesson_id TEXT NOT NULL,
+    user_id TEXT DEFAULT 'default',
+    mode TEXT NOT NULL, -- 'echo', 'delayed', 'simultaneous', 'listen_repeat', 'full_passage', 'no_subtitle'
+    practice_step INTEGER NOT NULL, -- 1-6
+    completed_chunks_count INTEGER DEFAULT 0,
+    total_chunks_count INTEGER DEFAULT 0,
+    speed_used REAL DEFAULT 1.0,
+    user_audio_duration_ms INTEGER DEFAULT 0,
+    score REAL DEFAULT 0,
+    fluency_score REAL DEFAULT 0,
+    accuracy_score REAL DEFAULT 0,
+    transcript TEXT,
+    strengths_json TEXT,
+    weaknesses_json TEXT,
+    flagged_sounds_json TEXT,
+    evaluation_feedback_vi TEXT,
+    created_at INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_shadowing_level ON shadowing_lessons(level, hsk_level);
+  CREATE INDEX IF NOT EXISTS idx_shadowing_records_lesson ON shadowing_practice_records(lesson_id, user_id);
+  CREATE INDEX IF NOT EXISTS idx_shadowing_records_created ON shadowing_practice_records(created_at);
+
   CREATE INDEX IF NOT EXISTS idx_srs_next_review ON srs_items(next_review_at, status);
   CREATE INDEX IF NOT EXISTS idx_srs_type_ref ON srs_items(item_type, reference_id);
   CREATE INDEX IF NOT EXISTS idx_srs_lapses ON srs_items(lapses);

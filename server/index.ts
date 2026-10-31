@@ -17,6 +17,7 @@ import { geminiPathService } from './geminiPathService.js';
 import { geminiSrsService } from './geminiSrsService.js';
 import { geminiAnalysisService } from './geminiAnalysisService.js';
 import { geminiPronunciationService } from './geminiPronunciationService.js';
+import { geminiShadowingService } from './geminiShadowingService.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -1082,6 +1083,88 @@ app.post('/api/pronunciation/generate-drills', async (req, res) => {
     res.json({ success: true, data: drills });
   } catch (err: any) {
     console.error('Pronunciation generate-drills error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==================== CHINESE SHADOWING PRACTICE ====================
+// Lấy danh sách bài luyện Shadowing (hỗ trợ lọc theo cấp độ 1-7, HSK, chủ đề)
+app.get('/api/shadowing/lessons', (req, res) => {
+  try {
+    const level = req.query.level ? parseInt(req.query.level as string, 10) : undefined;
+    const hskLevel = req.query.hskLevel ? parseInt(req.query.hskLevel as string, 10) : undefined;
+    const topic = req.query.topic as string | undefined;
+
+    const lessons = geminiShadowingService.getLessons({ level, hskLevel, topic });
+    res.json({ success: true, data: lessons });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Lấy chi tiết bài luyện Shadowing
+app.get('/api/shadowing/lessons/:id', (req, res) => {
+  try {
+    const lesson = geminiShadowingService.getLessonById(req.params.id);
+    if (!lesson) {
+      return res.status(404).json({ success: false, error: 'Không tìm thấy bài luyện Shadowing.' });
+    }
+    res.json({ success: true, data: lesson });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Đánh giá trung thực 3 lớp buổi luyện Shadowing
+app.post('/api/shadowing/evaluate', async (req, res) => {
+  try {
+    const result = await geminiShadowingService.evaluate(req.body);
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    console.error('Shadowing evaluate endpoint error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// AI sinh bài luyện Shadowing cá nhân hóa từ điểm yếu lưu trong SQLite
+app.post('/api/shadowing/generate', async (req, res) => {
+  try {
+    const { profileId = 'default' } = req.body;
+    const result = await geminiShadowingService.generatePersonalizedLesson(profileId);
+    res.json(result);
+  } catch (err: any) {
+    console.error('Shadowing generate endpoint error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Đồng bộ cụm/câu Shadowing vào hàng đợi Spaced Repetition (SRS SM-2)
+app.post('/api/shadowing/sync-srs', (req, res) => {
+  try {
+    const result = geminiShadowingService.syncToSrs(req.body);
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Thống kê tiến độ Shadowing
+app.get('/api/shadowing/stats', (req, res) => {
+  try {
+    const stats = geminiShadowingService.getStats();
+    res.json({ success: true, data: stats });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Lịch sử luyện Shadowing
+app.get('/api/shadowing/history', (req, res) => {
+  try {
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
+    const history = geminiShadowingService.getHistory(limit);
+    res.json({ success: true, data: history });
+  } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
 });

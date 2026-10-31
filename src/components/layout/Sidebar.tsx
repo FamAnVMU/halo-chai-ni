@@ -25,6 +25,7 @@ export type NavTab =
   | 'grammar'
   | 'practice'
   | 'pronounce'
+  | 'shadowing'
   | 'write'
   | 'reading'
   | 'listening'
@@ -64,6 +65,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
       label: 'Luyện phát âm',
       subLabel: 'Phòng Lab Pinyin & AI',
       icon: Mic,
+      highlight: true
+    },
+    {
+      id: 'shadowing',
+      label: 'Shadowing',
+      subLabel: 'Luyện nói nhại theo mẫu',
+      icon: Headphones,
       highlight: true
     },
     { id: 'write', label: 'Luyện viết', subLabel: 'Thứ tự nét bút', icon: PenTool },
