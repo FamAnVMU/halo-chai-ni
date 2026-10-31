@@ -195,7 +195,7 @@ export function App() {
             </div>
 
             <div className="text-[11px] text-slate-400 text-center pt-4 border-t border-slate-100 dark:border-slate-800">
-              Halo Chinese v1.1.0 • Local Backend & Gemini Live API
+              Halo Chinese v1.2.0 • Android Native & Local Backend
             </div>
           </div>
         </div>

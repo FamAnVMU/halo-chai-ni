@@ -3,6 +3,8 @@
  * Transmits 16kHz PCM audio from microphone and plays back 24kHz PCM audio from Gemini Live
  */
 
+import { backendClient } from './backendClient';
+
 export class GeminiLiveAudioClient {
   private ws: WebSocket | null = null;
   private audioCtx: AudioContext | null = null;
@@ -56,7 +58,7 @@ export class GeminiLiveAudioClient {
       voice: options.voice || 'Aoede'
     });
 
-    const wsUrl = `ws://localhost:3001/api/live?${query.toString()}`;
+    const wsUrl = `${backendClient.getWsUrl()}/api/live?${query.toString()}`;
     this.ws = new WebSocket(wsUrl);
 
     this.ws.onopen = () => {

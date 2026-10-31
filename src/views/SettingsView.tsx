@@ -13,6 +13,9 @@ import {
   Radio,
   Eye,
   EyeOff,
+  Wifi,
+  Smartphone,
+  Laptop,
 } from 'lucide-react';
 import type { UserProfile } from '../types';
 import { db } from '../db';
@@ -51,6 +54,35 @@ export const SettingsView: React.FC<SettingsViewProps> = () => {
 
   const [micTestStatus, setMicTestStatus] = useState<string | null>(null);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+
+  // Server Host configuration (For Android connecting to PC Localhost/LAN)
+  const [serverHost, setServerHost] = useState(backendClient.getServerHost());
+  const [serverHostMsg, setServerHostMsg] = useState<{ success: boolean; message: string } | null>(null);
+  const [isCheckingHost, setIsCheckingHost] = useState(false);
+
+  const handleSaveAndTestHost = async (hostToTest?: string) => {
+    const host = (hostToTest !== undefined ? hostToTest : serverHost).trim();
+    if (!host) return;
+    setIsCheckingHost(true);
+    setServerHostMsg(null);
+    backendClient.setServerHost(host);
+    setServerHost(host);
+    const isAlive = await backendClient.checkHealth();
+    setBackendOnline(isAlive);
+    setIsCheckingHost(false);
+    if (isAlive) {
+      setServerHostMsg({
+        success: true,
+        message: `✓ Kết nối thành công tới máy chủ PC (${host})!`
+      });
+      checkBackendAndLoadConfig();
+    } else {
+      setServerHostMsg({
+        success: false,
+        message: `✗ Không thể kết nối tới máy chủ (${host}). Hãy kiểm tra xem PC đã chạy "npm run server" chưa và điện thoại có chung mạng Wi-Fi với máy tính không.`
+      });
+    }
+  };
 
   useEffect(() => {
     checkBackendAndLoadConfig();
@@ -214,32 +246,111 @@ export const SettingsView: React.FC<SettingsViewProps> = () => {
         </p>
       </div>
 
-      {/* Backend Status Banner */}
-      <div className={`p-4 rounded-2xl border text-xs flex items-center justify-between ${
-        backendOnline
-          ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
-          : 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800 text-rose-900 dark:text-rose-200'
-      }`}>
-        <div className="flex items-center gap-2.5">
-          <Server className={`w-5 h-5 ${backendOnline ? 'text-emerald-600' : 'text-rose-600'}`} />
-          <div>
-            <div className="font-bold text-sm">
-              Trạng thái Backend: {backendOnline ? 'Đang hoạt động (http://localhost:3001)' : 'Chưa kết nối'}
-            </div>
-            <div className="text-[11px] opacity-80">
-              {backendOnline
-                ? 'SQLite database & Gemini Service sẵn sàng phục vụ.'
-                : 'Hãy chạy lệnh: "npm run server" trong terminal để khởi động Local Backend.'}
+      {/* Backend Status & Server Connection Card */}
+      <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex items-center gap-2.5">
+            <Server className={`w-5 h-5 ${backendOnline ? 'text-emerald-500' : 'text-rose-500'}`} />
+            <div>
+              <div className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <span>Máy Chủ PC (Local Backend)</span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                  backendOnline
+                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                    : 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'
+                }`}>
+                  {backendOnline ? 'Đang hoạt động' : 'Chưa kết nối'}
+                </span>
+              </div>
+              <div className="text-xs text-slate-500">
+                URL hiện tại: <code className="font-mono text-primary-600 dark:text-primary-400 font-semibold">{backendClient.getBaseUrl()}</code>
+              </div>
             </div>
           </div>
+
+          <button
+            onClick={checkBackendAndLoadConfig}
+            className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-700 self-start sm:self-auto"
+          >
+            Kiểm tra lại
+          </button>
         </div>
 
-        <button
-          onClick={checkBackendAndLoadConfig}
-          className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold hover:bg-slate-50"
-        >
-          Làm mới
-        </button>
+        {/* Server Host Input Form */}
+        <div className="space-y-3">
+          <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+            <Wifi className="w-4 h-4 text-primary-600" />
+            <span>Địa chỉ IP máy tính PC (Host:Port):</span>
+          </label>
+
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              type="text"
+              value={serverHost}
+              onChange={(e) => setServerHost(e.target.value)}
+              placeholder="Ví dụ: 192.168.1.15:3001 hoặc localhost:3001"
+              className="flex-1 px-3 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-mono text-slate-800 dark:text-slate-100 focus:outline-none focus:border-primary-500"
+            />
+            <button
+              type="button"
+              onClick={() => handleSaveAndTestHost()}
+              disabled={isCheckingHost}
+              className="px-4 py-2.5 rounded-xl bg-primary-600 text-white font-bold text-xs shadow hover:bg-primary-700 active:scale-95 transition-all shrink-0 flex items-center justify-center gap-1.5"
+            >
+              {isCheckingHost ? 'Đang kết nối...' : 'Lưu & Kết nối'}
+            </button>
+          </div>
+
+          {/* Quick Preset Buttons */}
+          <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px]">
+            <span className="text-slate-400">Chọn nhanh:</span>
+            <button
+              type="button"
+              onClick={() => {
+                setServerHost('localhost:3001');
+                handleSaveAndTestHost('localhost:3001');
+              }}
+              className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 font-mono"
+            >
+              localhost:3001
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setServerHost('10.0.2.2:3001');
+                handleSaveAndTestHost('10.0.2.2:3001');
+              }}
+              className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 font-mono"
+            >
+              10.0.2.2:3001 (Emulator)
+            </button>
+          </div>
+
+          {/* Host result feedback */}
+          {serverHostMsg && (
+            <div className={`p-3 rounded-xl text-xs font-semibold ${
+              serverHostMsg.success
+                ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-200 border border-emerald-200'
+                : 'bg-rose-50 dark:bg-rose-950/60 text-rose-800 dark:text-rose-200 border border-rose-200'
+            }`}>
+              {serverHostMsg.message}
+            </div>
+          )}
+
+          {/* Android Guide Callout */}
+          <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 text-xs text-slate-600 dark:text-slate-300 space-y-1.5">
+            <div className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+              <Smartphone className="w-4 h-4 text-primary-600" />
+              <span>Hướng dẫn kết nối App Android với Máy tính PC:</span>
+            </div>
+            <ol className="list-decimal list-inside space-y-1 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+              <li>Mở Terminal trên máy tính PC và gõ: <code className="font-mono text-slate-800 dark:text-slate-200 font-bold">npm run server</code>.</li>
+              <li>Terminal máy tính sẽ hiển thị các địa chỉ IP mạng nội bộ (ví dụ: <code className="font-mono text-primary-600 dark:text-primary-300">192.168.1.X:3001</code>).</li>
+              <li>Đảm bảo điện thoại và máy tính kết nối <strong>chung một mạng Wi-Fi</strong>.</li>
+              <li>Nhập địa chỉ IP đó vào ô trên rồi bấm <strong>"Lưu & Kết nối"</strong>. Nếu cắm cáp USB và gõ lệnh <code className="font-mono text-slate-700 dark:text-slate-300">adb reverse tcp:3001 tcp:3001</code> thì bạn có thể dùng thẳng <code className="font-mono text-slate-700 dark:text-slate-300">localhost:3001</code>.</li>
+            </ol>
+          </div>
+        </div>
       </div>
 
       {/* Security Privacy Notice */}

@@ -4,7 +4,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import os from 'os';
 
 dotenv.config();
 
@@ -19,8 +19,22 @@ const wss = new WebSocketServer({ server, path: '/api/live' });
 app.use(cors());
 app.use(express.json());
 
-const PORT = process.env.PORT || 3001;
-const HOST = process.env.HOST || 'localhost';
+const PORT = parseInt(process.env.PORT || '3001', 10);
+const HOST = process.env.HOST || '0.0.0.0';
+
+// Helper to get local network IPv4 addresses
+function getLocalIpAddresses(): string[] {
+  const interfaces = os.networkInterfaces();
+  const addresses: string[] = [];
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name] || []) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        addresses.push(iface.address);
+      }
+    }
+  }
+  return addresses;
+}
 
 // ==================== HEALTH & STATUS ====================
 app.get('/api/health', (req, res) => {
@@ -28,12 +42,12 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     uptime: process.uptime(),
     timestamp: Date.now(),
-    database: 'connected (SQLite WAL)'
+    database: 'connected (SQLite WAL)',
+    localIps: getLocalIpAddresses()
   });
 });
 
 // ==================== API KEY MANAGEMENT ====================
-// Get current configured status (WITHOUT exposing raw secret keys)
 app.get('/api/settings/keys', (req, res) => {
   const textKey = geminiTextService.getApiKey();
   const liveKey = geminiLiveService.getApiKey();
@@ -104,7 +118,7 @@ app.post('/api/settings/test-live', async (req, res) => {
   res.json(result);
 });
 
-// Test Voice Audio Sample (Returns a synthesized speech text or validates voice)
+// Test Voice Audio Sample
 app.get('/api/settings/test-voice-sample', (req, res) => {
   res.json({
     sampleText: '你好！欢迎使用中文学习应用，发音测试正常。',
@@ -125,25 +139,21 @@ app.post('/api/tutor/chat', async (req, res) => {
   try {
     const aiResponse = await geminiTextService.chat(message, history, mode, hskLevel, scenario);
 
-    // Save turn to SQLite
     const now = Date.now();
     const userMsgId = `u_${now}`;
     const aiMsgId = `a_${now}`;
 
-    // Ensure session exists
     db.prepare(`
       INSERT INTO chat_sessions (id, mode, hsk_level, title, scenario, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET updated_at = excluded.updated_at
     `).run(sessionId, mode, hskLevel, 'Buổi học tiếng Trung', scenario || '', now, now);
 
-    // Insert user message
     db.prepare(`
       INSERT INTO chat_messages (id, session_id, sender, text, created_at)
       VALUES (?, ?, ?, ?, ?)
     `).run(userMsgId, sessionId, 'user', message, now);
 
-    // Insert AI response
     db.prepare(`
       INSERT INTO chat_messages (id, session_id, sender, text, pinyin, translation_vi, correction_json, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -257,11 +267,19 @@ wss.on('connection', (ws: WebSocket, req) => {
   });
 });
 
-// Start Server
-server.listen(PORT as number, HOST, () => {
+// Start Server on 0.0.0.0
+server.listen(PORT, '0.0.0.0', () => {
+  const ips = getLocalIpAddresses();
   console.log(`=======================================================`);
-  console.log(`🚀 Halo Chinese Local Backend is running on http://${HOST}:${PORT}`);
-  console.log(`🎙️  Gemini Live WebSocket bridge available at ws://${HOST}:${PORT}/api/live`);
+  console.log(`🚀 HALO CHINESE LOCAL BACKEND ĐANG CHẠY`);
+  console.log(`📡 Máy tính (Localhost): http://localhost:${PORT}`);
+  if (ips.length > 0) {
+    console.log(`📱 KẾT NỐI TỪ ĐIỆN THOẠI ANDROID (cùng mạng Wi-Fi):`);
+    ips.forEach(ip => {
+      console.log(`   👉 Địa chỉ máy chủ: http://${ip}:${PORT}`);
+    });
+  }
+  console.log(`🎙️  Live WebSocket: ws://<IP>:${PORT}/api/live`);
   console.log(`📁 SQLite Database: ${path.resolve(process.cwd(), 'data/halo_chinese.db')}`);
   console.log(`=======================================================`);
 });
