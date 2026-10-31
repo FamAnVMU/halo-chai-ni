@@ -643,7 +643,7 @@ wss.on('connection', (ws: WebSocket, req) => {
 });
 
 // Start Server on 0.0.0.0
-server.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, HOST, () => {
   const ips = getLocalIpAddresses();
   console.log(`=======================================================`);
   console.log(`🚀 HALO CHINESE LOCAL BACKEND ĐANG CHẠY`);
