@@ -14,6 +14,9 @@ import {
   BookmarkPlus,
   Radio,
   Server,
+  Sparkles,
+  ArrowRight,
+  CheckCircle2,
 } from 'lucide-react';
 import type {
   AIChatMessage,
@@ -29,8 +32,13 @@ import { speechService } from '../utils/speechRecognition';
 import { GeminiLiveAudioClient } from '../utils/geminiLiveAudioClient';
 import { backendClient } from '../utils/backendClient';
 import { RubyText } from '../components/common/RubyText';
+import type { NavTab } from '../components/layout/Sidebar';
 
-export const AITutorView: React.FC = () => {
+interface AITutorViewProps {
+  onNavigate?: (tab: NavTab) => void;
+}
+
+export const AITutorView: React.FC<AITutorViewProps> = ({ onNavigate }) => {
   const [activeSubMode, setActiveSubMode] = useState<'text' | 'voice'>('text');
   const [chatMode, setChatMode] = useState<AIChatMode>('free');
   const [hskLevel, setHskLevel] = useState<HSKLevel>(1);
@@ -63,6 +71,46 @@ export const AITutorView: React.FC = () => {
   const [isMemoryModalOpen, setIsMemoryModalOpen] = useState<boolean>(false);
   const [postReport, setPostReport] = useState<PostSessionReport | null>(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
+
+  // Auto Analysis & Lesson Generation
+  const [isAnalyzingAndCreating, setIsAnalyzingAndCreating] = useState<boolean>(false);
+  const [analysisResultModal, setAnalysisResultModal] = useState<any | null>(null);
+
+  const handleAnalyzeAndCreateLesson = async () => {
+    setIsAnalyzingAndCreating(true);
+    try {
+      const isAlive = await backendClient.checkHealth();
+      if (!isAlive) {
+        alert('Local Backend chưa kết nối. Vui lòng chạy "npm run server" trên máy tính.');
+        setIsAnalyzingAndCreating(false);
+        return;
+      }
+
+      // 1. Analyze Session
+      const analysisRes = await backendClient.analyzeSession(currentSessionId);
+      if (!analysisRes.success) {
+        alert('Lỗi phân tích: ' + (analysisRes.error || 'Vui lòng trò chuyện thêm một vài câu trước khi phân tích'));
+        setIsAnalyzingAndCreating(false);
+        return;
+      }
+
+      // 2. Auto Generate Lesson from analysis suggestion
+      const lessonRes = await backendClient.generateLesson({
+        topic: analysisRes.data?.suggestedLesson?.topic,
+        lessonType: analysisRes.data?.suggestedLesson?.lessonType || 'reinforce',
+        sessionId: currentSessionId
+      });
+
+      setAnalysisResultModal({
+        analysis: analysisRes.data,
+        lesson: lessonRes.data
+      });
+    } catch (e: any) {
+      alert('Lỗi: ' + e.message);
+    } finally {
+      setIsAnalyzingAndCreating(false);
+    }
+  };
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -406,6 +454,17 @@ export const AITutorView: React.FC = () => {
           >
             <FileText className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Báo cáo</span>
+          </button>
+
+          <button
+            onClick={handleAnalyzeAndCreateLesson}
+            disabled={isAnalyzingAndCreating}
+            className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-primary-600 to-rose-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+            title="AI phân tích kiến thức đã dạy và tự động tạo bài học cá nhân hóa mới"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{isAnalyzingAndCreating ? 'Đang phân tích...' : 'Tạo bài học từ hội thoại'}</span>
+            <span className="sm:hidden">{isAnalyzingAndCreating ? '...' : 'Tạo bài'}</span>
           </button>
         </div>
       </div>
@@ -843,6 +902,98 @@ export const AITutorView: React.FC = () => {
                 Đang tổng hợp báo cáo...
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Auto-Analysis & Created Lesson Dialog */}
+      {analysisResultModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-primary-600" />
+                <h3 className="font-bold text-base text-slate-800 dark:text-slate-100">
+                  AI Đã Phân Tích & Tạo Bài Học Mới!
+                </h3>
+              </div>
+              <button
+                onClick={() => setAnalysisResultModal(null)}
+                className="text-xs text-slate-400 hover:text-slate-600"
+              >
+                Đóng
+              </button>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-primary-600 to-rose-600 text-white space-y-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-rose-200">
+                Bài học được tạo cho riêng bạn:
+              </span>
+              <div className="font-black text-base">{analysisResultModal.lesson?.title}</div>
+              <div className="text-xs text-rose-100">
+                🎯 {analysisResultModal.lesson?.recommendationReason}
+              </div>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-1.5">
+                <span className="font-bold text-slate-800 dark:text-slate-200 block">
+                  Tóm tắt buổi hội thoại:
+                </span>
+                <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                  {analysisResultModal.analysis?.summaryVi}
+                </p>
+              </div>
+
+              {analysisResultModal.analysis?.newVocabTaught?.length > 0 && (
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-1">
+                  <span className="font-bold text-slate-800 dark:text-slate-200 block">
+                    ✓ Đã ghi nhận từ vựng mới vào Bộ nhớ học tập:
+                  </span>
+                  <div className="flex flex-wrap gap-1.5 pt-0.5">
+                    {analysisResultModal.analysis.newVocabTaught.map((v: any, vi: number) => (
+                      <span key={vi} className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-chinese font-semibold text-[11px]">
+                        {v.simplified} [{v.pinyin}]: {v.meaningVi}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {analysisResultModal.analysis?.mistakesDetected?.length > 0 && (
+                <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 space-y-1">
+                  <span className="font-bold text-amber-800 dark:text-amber-200 block">
+                    ! Đã lưu lỗi sai để theo dõi & đưa vào bài tập:
+                  </span>
+                  {analysisResultModal.analysis.mistakesDetected.map((err: any, ei: number) => (
+                    <div key={ei} className="text-slate-700 dark:text-slate-300">
+                      • <span className="font-semibold">{err.title}</span> (Câu sai: <i>{err.userSentence}</i>)
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                onClick={() => setAnalysisResultModal(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-500 hover:bg-slate-100"
+              >
+                Học sau
+              </button>
+              <button
+                onClick={() => {
+                  setAnalysisResultModal(null);
+                  if (onNavigate) {
+                    onNavigate('ai_lessons');
+                  }
+                }}
+                className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-primary-600 text-white font-bold text-xs shadow hover:bg-primary-700"
+              >
+                <span>Mở Bài Học Để Bắt Đầu Học Ngay</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -19,6 +19,8 @@ import { HanziWritingView } from './views/HanziWritingView';
 import { ReadingView } from './views/ReadingView';
 import { ListeningView } from './views/ListeningView';
 import { AITutorView } from './views/AITutorView';
+import { GeneratedLessonsView } from './views/GeneratedLessonsView';
+import { LearnerMemoryView } from './views/LearnerMemoryView';
 import { StatsView } from './views/StatsView';
 import { SettingsView } from './views/SettingsView';
 
@@ -36,6 +38,8 @@ import {
   BotMessageSquare,
   BarChart3,
   Settings,
+  Sparkles,
+  Brain,
 } from 'lucide-react';
 
 export function App() {
@@ -98,6 +102,8 @@ export function App() {
     { id: 'reading', label: 'Thư viện đọc hiểu', icon: BookMarked },
     { id: 'listening', label: 'Luyện nghe hiểu', icon: Headphones },
     { id: 'ai_tutor', label: 'AI Tutor & Voice Chat', icon: BotMessageSquare },
+    { id: 'ai_lessons', label: 'Bài học dành cho bạn', icon: Sparkles },
+    { id: 'ai_memory', label: 'Bộ nhớ học tập', icon: Brain },
     { id: 'stats', label: 'Thống kê tiến độ', icon: BarChart3 },
     { id: 'settings', label: 'Cài đặt & Quản lý API', icon: Settings },
   ];
@@ -140,7 +146,9 @@ export function App() {
               {currentTab === 'write' && <HanziWritingView />}
               {currentTab === 'reading' && <ReadingView />}
               {currentTab === 'listening' && <ListeningView />}
-              {currentTab === 'ai_tutor' && <AITutorView />}
+              {currentTab === 'ai_tutor' && <AITutorView onNavigate={handleSelectTab} />}
+              {currentTab === 'ai_lessons' && <GeneratedLessonsView />}
+              {currentTab === 'ai_memory' && <LearnerMemoryView />}
               {currentTab === 'stats' && <StatsView user={user} />}
               {currentTab === 'settings' && <SettingsView user={user} />}
             </>
@@ -195,7 +203,7 @@ export function App() {
             </div>
 
             <div className="text-[11px] text-slate-400 text-center pt-4 border-t border-slate-100 dark:border-slate-800">
-              Halo Chinese v1.2.0 • Android Native & Local Backend
+              Halo Chinese v1.3.0 • AI Personalized Curriculum & Memory
             </div>
           </div>
         </div>

@@ -12,6 +12,8 @@ import {
   BotMessageSquare,
   BarChart3,
   Settings,
+  Sparkles,
+  Brain,
 } from 'lucide-react';
 
 export type NavTab =
@@ -25,6 +27,8 @@ export type NavTab =
   | 'reading'
   | 'listening'
   | 'ai_tutor'
+  | 'ai_lessons'
+  | 'ai_memory'
   | 'stats'
   | 'settings';
 
@@ -56,6 +60,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
       subLabel: 'Voice & Text Chat',
       icon: BotMessageSquare,
       highlight: true,
+    },
+    {
+      id: 'ai_lessons',
+      label: 'Bài học dành cho bạn',
+      subLabel: 'AI tạo cá nhân hóa',
+      icon: Sparkles,
+      highlight: true,
+    },
+    {
+      id: 'ai_memory',
+      label: 'Bộ nhớ học tập',
+      subLabel: 'Quản lý kiến thức đã dạy',
+      icon: Brain,
     },
     { id: 'stats', label: 'Thống kê', subLabel: 'Tiến độ học tập', icon: BarChart3 },
     { id: 'settings', label: 'Cài đặt', subLabel: 'API & Dữ liệu', icon: Settings },

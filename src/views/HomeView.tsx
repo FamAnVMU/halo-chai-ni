@@ -106,6 +106,14 @@ export const HomeView: React.FC<HomeViewProps> = ({ user, onNavigate }) => {
               <span>Voice Chat Với AI</span>
             </button>
 
+            <button
+              onClick={() => onNavigate('ai_lessons')}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-md text-white font-bold text-sm border border-white/20 transition-all"
+            >
+              <Sparkles className="w-4 h-4 text-amber-300" />
+              <span>Bài Học Dành Cho Bạn</span>
+            </button>
+
             {nextLesson && (
               <button
                 onClick={() => onNavigate('roadmap')}

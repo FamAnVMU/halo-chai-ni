@@ -152,6 +152,155 @@ export class LocalBackendClient {
     });
     return await res.json();
   }
+
+  // ==================== ADVANCED STRUCTURED MEMORY ====================
+  public async getFullMemory() {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/memory/all`);
+      if (res.ok) return await res.json();
+      return { success: false, error: 'Không thể tải bộ nhớ học tập' };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async updateProfile(data: any) {
+    const res = await fetch(`${this.getBaseUrl()}/api/memory/profile`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return await res.json();
+  }
+
+  public async saveVocabulary(data: any) {
+    const res = await fetch(`${this.getBaseUrl()}/api/memory/vocabulary`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return await res.json();
+  }
+
+  public async deleteVocabulary(id: number) {
+    const res = await fetch(`${this.getBaseUrl()}/api/memory/vocabulary/${id}`, {
+      method: 'DELETE'
+    });
+    return await res.json();
+  }
+
+  public async saveGrammar(data: any) {
+    const res = await fetch(`${this.getBaseUrl()}/api/memory/grammar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return await res.json();
+  }
+
+  public async deleteGrammar(id: number) {
+    const res = await fetch(`${this.getBaseUrl()}/api/memory/grammar/${id}`, {
+      method: 'DELETE'
+    });
+    return await res.json();
+  }
+
+  public async saveError(data: any) {
+    const res = await fetch(`${this.getBaseUrl()}/api/memory/errors`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return await res.json();
+  }
+
+  public async deleteError(id: number) {
+    const res = await fetch(`${this.getBaseUrl()}/api/memory/errors/${id}`, {
+      method: 'DELETE'
+    });
+    return await res.json();
+  }
+
+  // ==================== AI LESSON & CONVERSATION ANALYSIS ====================
+  public async analyzeSession(sessionId = 'session_default') {
+    const res = await fetch(`${this.getBaseUrl()}/api/ai/analyze-session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId })
+    });
+    return await res.json();
+  }
+
+  public async getAnalyses() {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/ai/analyses`);
+      if (res.ok) return await res.json();
+      return { success: false, data: [] };
+    } catch {
+      return { success: false, data: [] };
+    }
+  }
+
+  public async getGeneratedLessons(filter?: { status?: string; type?: string }) {
+    try {
+      const params = new URLSearchParams();
+      if (filter?.status) params.append('status', filter.status);
+      if (filter?.type) params.append('type', filter.type);
+      const url = `${this.getBaseUrl()}/api/ai/lessons${params.toString() ? `?${params.toString()}` : ''}`;
+      const res = await fetch(url);
+      if (res.ok) return await res.json();
+      return { success: false, data: [] };
+    } catch {
+      return { success: false, data: [] };
+    }
+  }
+
+  public async getGeneratedLesson(id: string) {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/ai/lessons/${id}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async generateLesson(params: {
+    topic?: string;
+    lessonType?: 'new' | 'review' | 'reinforce' | 'advanced' | 'error_correction';
+    hskLevel?: number;
+    customRequest?: string;
+    sessionId?: string;
+  }) {
+    const res = await fetch(`${this.getBaseUrl()}/api/ai/generate-lesson`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    return await res.json();
+  }
+
+  public async completeLesson(lessonId: string, submission: { userAnswers: Record<string, string>; timeSpentSeconds?: number }) {
+    const res = await fetch(`${this.getBaseUrl()}/api/ai/lessons/${lessonId}/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(submission)
+    });
+    return await res.json();
+  }
+
+  public async simplifyLesson(lessonId: string) {
+    const res = await fetch(`${this.getBaseUrl()}/api/ai/lessons/${lessonId}/simplify`, {
+      method: 'POST'
+    });
+    return await res.json();
+  }
+
+  public async deleteGeneratedLesson(id: string) {
+    const res = await fetch(`${this.getBaseUrl()}/api/ai/lessons/${id}`, {
+      method: 'DELETE'
+    });
+    return await res.json();
+  }
 }
 
 export const backendClient = new LocalBackendClient();

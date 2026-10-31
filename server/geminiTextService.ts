@@ -83,22 +83,34 @@ export class GeminiTextService {
     const model = this.getModel();
     const client = this.getClient(apiKey);
 
-    // Retrieve learner memory from SQLite
-    const memoryRow = db.prepare('SELECT * FROM learner_memory WHERE id = ?').get('default') as any;
-    const weaknesses = memoryRow?.weaknesses_json ? JSON.parse(memoryRow.weaknesses_json) : [];
-    const mispronounced = memoryRow?.mispronounced_json ? JSON.parse(memoryRow.mispronounced_json) : [];
-    const strugglingGrammar = memoryRow?.struggling_grammar_json ? JSON.parse(memoryRow.struggling_grammar_json) : [];
+    // Retrieve structured learner memory from SQLite tables
+    const profile = (db.prepare('SELECT * FROM learner_profile WHERE id = ?').get('default') as any) || {};
+    const masteredVocab = (db.prepare("SELECT simplified, pinyin, meaning_vi FROM vocabulary_memory WHERE mastery_level = 'mastered' LIMIT 8").all() as any[]) || [];
+    const reviewVocab = (db.prepare("SELECT simplified, pinyin, meaning_vi FROM vocabulary_memory WHERE mastery_level = 'needs_review' OR mastery_level = 'learning' LIMIT 8").all() as any[]) || [];
+    const masteredGrammar = (db.prepare("SELECT pattern_name, formula FROM grammar_memory WHERE mastery_level = 'mastered' LIMIT 5").all() as any[]) || [];
+    const learningGrammar = (db.prepare("SELECT pattern_name, formula FROM grammar_memory WHERE mastery_level != 'mastered' LIMIT 5").all() as any[]) || [];
+    const pendingErrors = (db.prepare("SELECT title, user_sentence, corrected_sentence, explanation_vi FROM learning_errors WHERE status != 'resolved' LIMIT 4").all() as any[]) || [];
+
+    const weaknesses = profile.weaknesses_json ? JSON.parse(profile.weaknesses_json) : [];
+    const strengths = profile.strengths_json ? JSON.parse(profile.strengths_json) : [];
 
     const systemPrompt = `
 Bạn là "Lão Sư AI" (老师) - Giáo viên dạy tiếng Trung cá nhân tận tâm, kiên nhẫn, thân thiện dành riêng cho người Việt Nam.
-Trình độ người học: HSK ${hskLevel}.
+Trình độ người học: HSK ${profile.current_hsk || hskLevel} (Mục tiêu: HSK ${profile.target_hsk || 3}).
 Chế độ học tập hiện tại: ${mode} ${scenario ? `(Tình huống đóng vai: ${scenario})` : ''}.
 
-Thông tin bộ nhớ người học (từ SQLite Database):
-- Điểm yếu cần chú ý: ${weaknesses.join(', ') || 'Chưa có'}
-- Từ hay phát âm sai: ${mispronounced.join(', ') || 'Chưa có'}
-- Ngữ pháp đang học: ${strugglingGrammar.join(', ') || 'Chưa có'}
-- Ghi chú: ${memoryRow?.notes || ''}
+=== HỒ SƠ BỘ NHỚ HỌC TẬP CỦA HỌC VIÊN (Từ SQLite Local Database) ===
+1. ĐIỂM MẠNH ĐÃ NẮM VỮNG:
+   - Từ vựng đã thành thạo: ${masteredVocab.map(v => `${v.simplified} [${v.pinyin}] (${v.meaning_vi})`).join(', ') || 'Chưa có'}
+   - Ngữ pháp đã làm chủ: ${masteredGrammar.map(g => `${g.pattern_name}: ${g.formula}`).join('; ') || 'Chưa có'}
+   - Điểm mạnh khác: ${strengths.join(', ') || 'Chưa có'}
+
+2. ĐIỂM YẾU & KIẾN THỨC CẦN CỦNG CỐ:
+   - Từ vựng đang học/cần ôn: ${reviewVocab.map(v => `${v.simplified} [${v.pinyin}] (${v.meaning_vi})`).join(', ') || 'Chưa có'}
+   - Ngữ pháp đang học: ${learningGrammar.map(g => `${g.pattern_name}: ${g.formula}`).join('; ') || 'Chưa có'}
+   - LỖI SAI THƯỜNG GẶP CẦN ĐỂ Ý ĐẶC BIỆT:
+     ${pendingErrors.map(e => `* ${e.title} -> Câu sai: "${e.user_sentence}" (Đúng: "${e.corrected_sentence}")`).join('\n     ') || 'Chưa có lỗi nào được ghi nhận'}
+   - Điểm yếu chung: ${weaknesses.join(', ') || 'Chưa có'}
 
 QUY TẮC BẮT BUỘC:
 1. Luôn sử dụng tiếng Trung phù hợp với cấp độ HSK ${hskLevel} của người học. Đừng dùng từ quá cao siêu hoặc văn phong quá hàn lâm trừ khi ở cấp cao.

@@ -118,7 +118,7 @@ Ngay trong giao diện Cài đặt trên điện thoại:
 
 ---
 
-## 🌟 12 Phân Hệ Học Tập Cốt Lõi Trên Android
+## 🌟 Các Phân Hệ Học Tập Cốt Lõi Trên Android
 
 1. **Trang chủ:** Chuỗi học tập (Streak), đếm từ cần ôn SRS hôm nay, bài học kế tiếp, danh ngôn tiếng Trung.
 2. **Lộ trình HSK 1 - 6:** Cấu trúc bài học rõ ràng với mục tiêu, hội thoại có audio, từ vựng, ngữ pháp và bài tập; hỗ trợ chế độ tự do tùy chọn bài.
@@ -129,9 +129,11 @@ Ngay trong giao diện Cài đặt trên điện thoại:
 7. **Luyện viết chữ Hán (Hanzi Writer):** Hoạt họa thứ tự nét bút trên ô điền tự (米字格) và chấm nét vẽ cảm ứng trực tiếp trên màn hình điện thoại.
 8. **Đọc hiểu phân cấp (Graded Readers):** Hỗ trợ Ruby Pinyin, ẩn/hiện bản dịch tiếng Việt, audio đọc truyện, tra từ tức thì và câu hỏi đọc hiểu.
 9. **Luyện nghe hiểu:** Điều chỉnh tốc độ nói (0.8x, 1.0x, 1.2x), ẩn/hiện lời thoại và kiểm tra nghe hiểu.
-10. **AI Tutor & Voice Chat 2 chiều:** Luyện nói với Gemini 3.8 Live API; 5 chế độ đàm thoại, phân tích lỗi sai và lưu trữ bộ nhớ học tập dài hạn trong SQLite.
-11. **Thống kê học tập:** Theo dõi thời gian, từ đã thuộc, biểu đồ học tập tuần và đặt mục tiêu ngày.
-12. **Cài đặt & Quản lý API:** Cấu hình IP máy chủ PC linh hoạt, quản lý Text API & Live API riêng biệt, kiểm tra tổng thể và sao lưu dữ liệu JSON.
+10. **AI Tutor & Voice Chat 2 chiều:** Luyện nói với Gemini 3.8 Live API; 5 chế độ đàm thoại, sửa lỗi câu trực tiếp và lưu trữ bộ nhớ học tập dài hạn.
+11. **Bài học dành cho bạn (AI Personalized Curriculum):** Tự động phân tích hội thoại và biên soạn bài học cá nhân hóa với cơ chế chống dạy trùng lặp kiến thức, bài tập tương tác chấm điểm tự động.
+12. **Bộ nhớ học tập dài hạn (SQLite Memory Ledger):** Lưu trữ có cấu trúc mọi từ vựng đã dạy, cấu trúc ngữ pháp, mức độ thành thạo và sổ tay lỗi sai thường gặp.
+13. **Thống kê học tập:** Theo dõi thời gian, từ đã thuộc, biểu đồ học tập tuần và đặt mục tiêu ngày.
+14. **Cài đặt & Quản lý API:** Cấu hình IP máy chủ PC linh hoạt, quản lý Text API & Live API riêng biệt, kiểm tra tổng thể và sao lưu dữ liệu JSON.
 
 ---
 
@@ -147,7 +149,7 @@ npx cap sync android
 npx cap open android
 ```
 
-Hoặc khi bạn tạo Git tag mới (ví dụ: `git tag v1.2.0 && git push origin main --tags`), GitHub Actions sẽ tự động biên dịch APK release có chữ ký và phát hành trên GitHub Releases.
+Hoặc khi bạn tạo Git tag mới (ví dụ: `git tag v1.3.0 && git push origin main --tags`), GitHub Actions sẽ tự động biên dịch APK release có chữ ký và phát hành trên GitHub Releases.
 
 ---
 

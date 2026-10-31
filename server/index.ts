@@ -11,6 +11,7 @@ dotenv.config();
 import { db } from './db.js';
 import { geminiTextService } from './geminiTextService.js';
 import { geminiLiveService } from './geminiLiveService.js';
+import { geminiLessonService } from './geminiLessonService.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -249,6 +250,380 @@ app.post('/api/memory', (req, res) => {
     now
   );
   res.json({ success: true, message: 'Đã cập nhật hồ sơ bộ nhớ học tập.' });
+});
+
+// ==================== ADVANCED STRUCTURED MEMORY MANAGEMENT ====================
+// Get Full Memory Overview
+app.get('/api/memory/all', (req, res) => {
+  try {
+    const profile = db.prepare('SELECT * FROM learner_profile WHERE id = ?').get('default') as any || {};
+    const vocabularies = db.prepare('SELECT * FROM vocabulary_memory ORDER BY last_reviewed_at DESC, id DESC').all() as any[];
+    const grammar = db.prepare('SELECT * FROM grammar_memory ORDER BY last_reviewed_at DESC, id DESC').all() as any[];
+    const errors = db.prepare('SELECT * FROM learning_errors ORDER BY status ASC, last_occurred_at DESC').all() as any[];
+    const analyses = db.prepare('SELECT * FROM conversation_analyses ORDER BY created_at DESC LIMIT 10').all() as any[];
+
+    // Parse JSON fields
+    const parsedVocab = vocabularies.map(v => ({
+      ...v,
+      examples: v.examples_json ? JSON.parse(v.examples_json) : []
+    }));
+
+    const parsedGrammar = grammar.map(g => ({
+      ...g,
+      examples: g.examples_json ? JSON.parse(g.examples_json) : [],
+      commonMistakes: g.common_mistakes_json ? JSON.parse(g.common_mistakes_json) : []
+    }));
+
+    const parsedAnalyses = analyses.map(a => ({
+      ...a,
+      topics: a.topics_json ? JSON.parse(a.topics_json) : [],
+      newVocabTaught: a.new_vocab_taught_json ? JSON.parse(a.new_vocab_taught_json) : [],
+      grammarTaught: a.grammar_taught_json ? JSON.parse(a.grammar_taught_json) : [],
+      correctExpressions: a.correct_expressions_json ? JSON.parse(a.correct_expressions_json) : [],
+      mistakesDetected: a.mistakes_detected_json ? JSON.parse(a.mistakes_detected_json) : [],
+      knowledgeGaps: a.knowledge_gaps_json ? JSON.parse(a.knowledge_gaps_json) : []
+    }));
+
+    const stats = {
+      totalVocab: vocabularies.length,
+      masteredVocab: vocabularies.filter(v => v.mastery_level === 'mastered').length,
+      needsReviewVocab: vocabularies.filter(v => v.mastery_level === 'needs_review' || v.mastery_level === 'learning').length,
+      totalGrammar: grammar.length,
+      masteredGrammar: grammar.filter(g => g.mastery_level === 'mastered').length,
+      pendingErrors: errors.filter(e => e.status !== 'resolved').length,
+      resolvedErrors: errors.filter(e => e.status === 'resolved').length,
+      totalStudyMinutes: profile.total_study_minutes || 0
+    };
+
+    res.json({
+      success: true,
+      data: {
+        profile: {
+          ...profile,
+          learningGoals: profile.learning_goals_json ? JSON.parse(profile.learning_goals_json) : [],
+          strengths: profile.strengths_json ? JSON.parse(profile.strengths_json) : [],
+          weaknesses: profile.weaknesses_json ? JSON.parse(profile.weaknesses_json) : []
+        },
+        vocabularies: parsedVocab,
+        grammar: parsedGrammar,
+        errors,
+        analyses: parsedAnalyses,
+        stats
+      }
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Update Learner Profile
+app.post('/api/memory/profile', (req, res) => {
+  try {
+    const { name, currentHsk, targetHsk, learningGoals, strengths, weaknesses } = req.body;
+    const now = Date.now();
+    db.prepare(`
+      INSERT INTO learner_profile (id, name, current_hsk, target_hsk, learning_goals_json, strengths_json, weaknesses_json, created_at, updated_at)
+      VALUES ('default', ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        name = COALESCE(excluded.name, learner_profile.name),
+        current_hsk = COALESCE(excluded.current_hsk, learner_profile.current_hsk),
+        target_hsk = COALESCE(excluded.target_hsk, learner_profile.target_hsk),
+        learning_goals_json = COALESCE(excluded.learning_goals_json, learner_profile.learning_goals_json),
+        strengths_json = COALESCE(excluded.strengths_json, learner_profile.strengths_json),
+        weaknesses_json = COALESCE(excluded.weaknesses_json, learner_profile.weaknesses_json),
+        updated_at = excluded.updated_at
+    `).run(
+      name || 'Học viên',
+      currentHsk || 1,
+      targetHsk || 3,
+      JSON.stringify(learningGoals || []),
+      JSON.stringify(strengths || []),
+      JSON.stringify(weaknesses || []),
+      now,
+      now
+    );
+    res.json({ success: true, message: 'Đã cập nhật hồ sơ người học!' });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Add or edit Vocabulary Memory item
+app.post('/api/memory/vocabulary', (req, res) => {
+  try {
+    const { id, simplified, traditional, pinyin, meaningVi, wordType, hskLevel, masteryLevel, notes } = req.body;
+    const now = Date.now();
+    if (id) {
+      db.prepare(`
+        UPDATE vocabulary_memory
+        SET simplified = ?, traditional = ?, pinyin = ?, meaning_vi = ?, word_type = ?, hsk_level = ?, mastery_level = ?, notes = ?, last_reviewed_at = ?
+        WHERE id = ?
+      `).run(simplified, traditional || simplified, pinyin, meaningVi, wordType || 'từ vựng', hskLevel || 1, masteryLevel || 'introduced', notes || '', now, id);
+    } else {
+      db.prepare(`
+        INSERT INTO vocabulary_memory (simplified, traditional, pinyin, meaning_vi, word_type, hsk_level, mastery_level, notes, first_taught_at, last_reviewed_at, review_count)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+        ON CONFLICT(simplified) DO UPDATE SET
+          pinyin = excluded.pinyin,
+          meaning_vi = excluded.meaning_vi,
+          mastery_level = excluded.mastery_level,
+          last_reviewed_at = excluded.last_reviewed_at
+      `).run(simplified, traditional || simplified, pinyin, meaningVi, wordType || 'từ vựng', hskLevel || 1, masteryLevel || 'introduced', notes || '', now, now);
+    }
+    res.json({ success: true, message: 'Đã lưu từ vựng vào bộ nhớ học tập!' });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Delete Vocabulary Memory item
+app.delete('/api/memory/vocabulary/:id', (req, res) => {
+  try {
+    db.prepare('DELETE FROM vocabulary_memory WHERE id = ?').run(req.params.id);
+    res.json({ success: true, message: 'Đã xóa từ vựng khỏi bộ nhớ.' });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Add or edit Grammar Memory item
+app.post('/api/memory/grammar', (req, res) => {
+  try {
+    const { id, patternName, formula, meaningVi, usageNotes, hskLevel, masteryLevel, notes } = req.body;
+    const now = Date.now();
+    if (id) {
+      db.prepare(`
+        UPDATE grammar_memory
+        SET pattern_name = ?, formula = ?, meaning_vi = ?, usage_notes = ?, hsk_level = ?, mastery_level = ?, notes = ?, last_reviewed_at = ?
+        WHERE id = ?
+      `).run(patternName, formula, meaningVi, usageNotes || '', hskLevel || 1, masteryLevel || 'introduced', notes || '', now, id);
+    } else {
+      db.prepare(`
+        INSERT INTO grammar_memory (pattern_name, formula, meaning_vi, usage_notes, hsk_level, mastery_level, notes, first_taught_at, last_reviewed_at, review_count)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+        ON CONFLICT(pattern_name) DO UPDATE SET
+          formula = excluded.formula,
+          meaning_vi = excluded.meaning_vi,
+          mastery_level = excluded.mastery_level,
+          last_reviewed_at = excluded.last_reviewed_at
+      `).run(patternName, formula, meaningVi, usageNotes || '', hskLevel || 1, masteryLevel || 'introduced', notes || '', now, now);
+    }
+    res.json({ success: true, message: 'Đã lưu cấu trúc ngữ pháp vào bộ nhớ học tập!' });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Delete Grammar Memory item
+app.delete('/api/memory/grammar/:id', (req, res) => {
+  try {
+    db.prepare('DELETE FROM grammar_memory WHERE id = ?').run(req.params.id);
+    res.json({ success: true, message: 'Đã xóa cấu trúc ngữ pháp khỏi bộ nhớ.' });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Update Learning Error (e.g. resolve error or update note)
+app.post('/api/memory/errors', (req, res) => {
+  try {
+    const { id, status, title, userSentence, correctedSentence, explanationVi } = req.body;
+    const now = Date.now();
+    if (id) {
+      db.prepare(`
+        UPDATE learning_errors
+        SET status = ?, resolved_at = CASE WHEN ? = 'resolved' THEN ? ELSE resolved_at END,
+            title = COALESCE(?, title),
+            user_sentence = COALESCE(?, user_sentence),
+            corrected_sentence = COALESCE(?, corrected_sentence),
+            explanation_vi = COALESCE(?, explanation_vi)
+        WHERE id = ?
+      `).run(status, status, now, title, userSentence, correctedSentence, explanationVi, id);
+    } else {
+      db.prepare(`
+        INSERT INTO learning_errors (error_type, title, user_sentence, corrected_sentence, explanation_vi, occurrence_count, last_occurred_at, status)
+        VALUES ('grammar', ?, ?, ?, ?, 1, ?, 'pending')
+      `).run(title, userSentence, correctedSentence, explanationVi, now);
+    }
+    res.json({ success: true, message: 'Đã cập nhật trạng thái lỗi sai!' });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Delete Learning Error
+app.delete('/api/memory/errors/:id', (req, res) => {
+  try {
+    db.prepare('DELETE FROM learning_errors WHERE id = ?').run(req.params.id);
+    res.json({ success: true, message: 'Đã xóa lỗi sai khỏi danh sách theo dõi.' });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==================== AI LESSON GENERATION & CONVERSATION ANALYSIS ====================
+
+// Analyze Conversation Session & Update Long-term Memory
+app.post('/api/ai/analyze-session', async (req, res) => {
+  try {
+    const { sessionId = 'session_default' } = req.body;
+    const result = await geminiLessonService.analyzeSession(sessionId);
+    res.json(result);
+  } catch (err: any) {
+    console.error('Analyze session error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Get Conversation Analyses History
+app.get('/api/ai/analyses', (req, res) => {
+  try {
+    const analyses = db.prepare('SELECT * FROM conversation_analyses ORDER BY created_at DESC LIMIT 15').all() as any[];
+    res.json({
+      success: true,
+      data: analyses.map(a => ({
+        ...a,
+        topics: a.topics_json ? JSON.parse(a.topics_json) : [],
+        newVocabTaught: a.new_vocab_taught_json ? JSON.parse(a.new_vocab_taught_json) : [],
+        grammarTaught: a.grammar_taught_json ? JSON.parse(a.grammar_taught_json) : [],
+        correctExpressions: a.correct_expressions_json ? JSON.parse(a.correct_expressions_json) : [],
+        mistakesDetected: a.mistakes_detected_json ? JSON.parse(a.mistakes_detected_json) : [],
+        knowledgeGaps: a.knowledge_gaps_json ? JSON.parse(a.knowledge_gaps_json) : []
+      }))
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Generate Personalized Lesson
+app.post('/api/ai/generate-lesson', async (req, res) => {
+  try {
+    const { topic, lessonType, hskLevel, customRequest, sessionId } = req.body;
+    const lesson = await geminiLessonService.generateLesson({
+      topic,
+      lessonType,
+      hskLevel,
+      customRequest,
+      sessionId
+    });
+    res.json({ success: true, data: lesson });
+  } catch (err: any) {
+    console.error('Generate lesson error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Get Generated Lessons List
+app.get('/api/ai/lessons', (req, res) => {
+  try {
+    const { status, type } = req.query;
+    let query = 'SELECT * FROM generated_lessons WHERE 1=1';
+    const params: any[] = [];
+
+    if (status) {
+      query += ' AND status = ?';
+      params.push(status);
+    }
+    if (type) {
+      query += ' AND lesson_type = ?';
+      params.push(type);
+    }
+    query += ' ORDER BY created_at DESC';
+
+    const rows = db.prepare(query).all(...params) as any[];
+    const parsed = rows.map(r => ({
+      id: r.id,
+      title: r.title,
+      lessonType: r.lesson_type,
+      hskLevel: r.hsk_level,
+      estimatedMinutes: r.estimated_minutes,
+      recommendationReason: r.recommendation_reason,
+      objectives: r.objectives_json ? JSON.parse(r.objectives_json) : [],
+      knowledgePoints: r.knowledge_points_json ? JSON.parse(r.knowledge_points_json) : [],
+      explanationVi: r.explanation_vi,
+      content: r.content_json ? JSON.parse(r.content_json) : {},
+      exercises: r.exercises_json ? JSON.parse(r.exercises_json) : [],
+      quiz: r.quiz_json ? JSON.parse(r.quiz_json) : [],
+      status: r.status,
+      score: r.score,
+      createdAt: r.created_at,
+      completedAt: r.completed_at
+    }));
+
+    res.json({ success: true, data: parsed });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Get Single Generated Lesson Detail
+app.get('/api/ai/lessons/:id', (req, res) => {
+  try {
+    const r = db.prepare('SELECT * FROM generated_lessons WHERE id = ?').get(req.params.id) as any;
+    if (!r) {
+      return res.status(404).json({ success: false, error: 'Không tìm thấy bài học' });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        id: r.id,
+        title: r.title,
+        lessonType: r.lesson_type,
+        hskLevel: r.hsk_level,
+        estimatedMinutes: r.estimated_minutes,
+        recommendationReason: r.recommendation_reason,
+        objectives: r.objectives_json ? JSON.parse(r.objectives_json) : [],
+        knowledgePoints: r.knowledge_points_json ? JSON.parse(r.knowledge_points_json) : [],
+        explanationVi: r.explanation_vi,
+        content: r.content_json ? JSON.parse(r.content_json) : {},
+        exercises: r.exercises_json ? JSON.parse(r.exercises_json) : [],
+        quiz: r.quiz_json ? JSON.parse(r.quiz_json) : [],
+        status: r.status,
+        score: r.score,
+        createdAt: r.created_at,
+        completedAt: r.completed_at
+      }
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Complete Lesson (Submit exercises, auto-grade, sync memory mastery)
+app.post('/api/ai/lessons/:id/complete', async (req, res) => {
+  try {
+    const { userAnswers = {}, timeSpentSeconds = 600 } = req.body;
+    const result = await geminiLessonService.completeLesson(req.params.id, {
+      userAnswers,
+      timeSpentSeconds
+    });
+    res.json(result);
+  } catch (err: any) {
+    console.error('Complete lesson error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Simplify Lesson Explanation
+app.post('/api/ai/lessons/:id/simplify', async (req, res) => {
+  try {
+    const simplifiedText = await geminiLessonService.simplifyLesson(req.params.id);
+    res.json({ success: true, simplifiedExplanation: simplifiedText });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Delete Generated Lesson
+app.delete('/api/ai/lessons/:id', (req, res) => {
+  try {
+    db.prepare('DELETE FROM generated_lessons WHERE id = ?').run(req.params.id);
+    res.json({ success: true, message: 'Đã xóa bài học thành công.' });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // ==================== LIVE API WEBSOCKET BRIDGE ====================
