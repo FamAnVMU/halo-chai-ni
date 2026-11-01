@@ -130,6 +130,7 @@ async function runUnifiedLearningMemoryTests() {
     activityType: 'application',
     sourceModule: 'voice_chat',
     action: 'voice_response',
+    sessionId: `voice_session_${Date.now()}`,
     observedData: {
       speaker: 'user',
       userUtterance: '这个苹果很甜。',

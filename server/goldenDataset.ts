@@ -1,6 +1,6 @@
 /**
  * Chinese Knowledge Benchmark - Golden Dataset
- * Phase B4 - Chinese Knowledge Benchmark (Halo Chinese v2.7.0)
+ * Phase B4 - Chinese Knowledge Benchmark (Halo Chinese v2.8.0)
  *
  * Handcrafted, rigorously verified benchmark dataset covering 6 core knowledge domains:
  * 1. Vocabulary: Polysemy & Near-Synonyms (想/要, 会/能/可以, 怎么/为什么, 再/又, 得, 二/两)

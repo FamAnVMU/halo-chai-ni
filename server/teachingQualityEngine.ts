@@ -1,5 +1,5 @@
 /**
- * AI Teaching Quality Engine (Halo Chinese v2.7.0)
+ * AI Teaching Quality Engine (Halo Chinese v2.8.0)
  * Phase B4 - AI Teaching Quality Engine & Knowledge Benchmark
  *
  * Core engine providing:
@@ -23,7 +23,7 @@ import {
 } from './teachingQualityTypes.js';
 
 export class TeachingQualityEngine {
-  private static readonly ENGINE_VERSION = 'v2.7.0';
+  private static readonly ENGINE_VERSION = 'v2.8.0';
 
   /**
    * 1. Xác định ý định sư phạm thực tế của người học (Learner Intent Detection)
@@ -150,9 +150,11 @@ export class TeachingQualityEngine {
     const origLower = orig.toLowerCase();
 
     // 1. Lỗi trật tự từ (Word Order / L1 Interference)
-    // Người Việt hay đặt cụm thời gian / địa điểm sau động từ (vd: 去商店八点, 学汉语在学校)
+    // Người Việt hay đặt cụm thời gian / địa điểm sau động từ (vd: 去商店八点, 学汉语在学校, 我学中文在学校)
     if (
+      (grammarPoint && (grammarPoint.toLowerCase().includes('trật tự') || grammarPoint.toLowerCase().includes('word_order'))) ||
       (/\d+点/.test(orig) && !/在?\s*\d+点/.test(orig.substring(0, orig.indexOf('点') + 2))) ||
+      (orig.includes('在') && corr.includes('在') && orig.indexOf('在') > corr.indexOf('在')) ||
       (orig.includes('在') && !corr.includes('在') === false && orig.indexOf('在') > orig.indexOf('去') && orig.indexOf('去') !== -1)
     ) {
       return {

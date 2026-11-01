@@ -1,5 +1,5 @@
 /**
- * Test Suite: Phase B4 - Chinese Knowledge Benchmark (Halo Chinese v2.7.0)
+ * Test Suite: Phase B4 - Chinese Knowledge Benchmark (Halo Chinese v2.8.0)
  *
  * Verifies:
  * 1. Golden Dataset integrity & 6-domain coverage.
@@ -33,7 +33,7 @@ function assert(condition: boolean, message: string) {
 
 async function runBenchmarkTestSuite() {
   console.log('================================================================');
-  console.log('🚀 RUNNING CHINESE KNOWLEDGE BENCHMARK SUITE (PHASE B4 - v2.7.0)');
+  console.log('🚀 RUNNING CHINESE KNOWLEDGE BENCHMARK SUITE (PHASE B4 - v2.8.0)');
   console.log('================================================================\n');
 
   // -------------------------------------------------------------

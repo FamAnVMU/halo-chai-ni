@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { db } from './db.js';
 import { geminiTextService } from './geminiTextService.js';
+import { unifiedAIOrchestrator } from './unifiedAIOrchestrator.js';
 
 export interface GeneratedLesson {
   id: string;
@@ -159,16 +160,44 @@ Hãy trả lời HOÀN TOÀN bằng định dạng JSON thuần túy (không mar
 }
 `;
 
-    const client = this.getClient();
-    const res = await client.models.generateContent({
-      model: this.getModel(),
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json'
-      }
-    });
+    const startLessonTime = Date.now();
+    const requestId = `req_session_analysis_${sessionId}_${Date.now()}`;
+    const targetModel = this.getModel();
 
-    const rawText = res.text?.trim() || '{}';
+    let rawText = '{}';
+    try {
+      rawText = await unifiedAIOrchestrator.invokeWithTimeoutAndRetry(
+        targetModel,
+        'Bạn là chuyên gia thiết kế bài học tiếng Trung của Halo Chinese. Chỉ trả về JSON thuần túy.',
+        prompt,
+        'json',
+        0.3,
+        30000,
+        1
+      );
+      unifiedAIOrchestrator.logAudit({
+        requestId,
+        taskId: 'GENERATE_LESSON',
+        modelCategory: 'text_out',
+        modelId: targetModel,
+        promptVersion: 'v2.8.0',
+        status: 'completed',
+        latencyMs: Date.now() - startLessonTime
+      });
+    } catch (err: any) {
+      console.warn('[GeminiLessonService] Lesson analysis error:', err);
+      unifiedAIOrchestrator.logAudit({
+        requestId,
+        taskId: 'GENERATE_LESSON',
+        modelCategory: 'text_out',
+        modelId: targetModel,
+        promptVersion: 'v2.8.0',
+        status: 'failed',
+        latencyMs: Date.now() - startLessonTime,
+        errorMessage: err?.message
+      });
+      throw err;
+    }
     let analysis: any;
     try {
       analysis = JSON.parse(rawText);
@@ -440,16 +469,44 @@ Trả về định dạng JSON thuần túy (không markdown, không bọc trong
 }
 `;
 
-    const client = this.getClient();
-    const res = await client.models.generateContent({
-      model: this.getModel(),
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json'
-      }
-    });
+    const startLessonTime = Date.now();
+    const requestId = `req_lesson_gen_${Date.now()}`;
+    const targetModel = this.getModel();
 
-    const rawText = res.text?.trim() || '{}';
+    let rawText = '{}';
+    try {
+      rawText = await unifiedAIOrchestrator.invokeWithTimeoutAndRetry(
+        targetModel,
+        'Bạn là chuyên gia thiết kế bài học tiếng Trung của Halo Chinese. Chỉ trả về JSON thuần túy.',
+        prompt,
+        'json',
+        0.3,
+        30000,
+        1
+      );
+      unifiedAIOrchestrator.logAudit({
+        requestId,
+        taskId: 'GENERATE_LESSON',
+        modelCategory: 'text_out',
+        modelId: targetModel,
+        promptVersion: 'v2.8.0',
+        status: 'completed',
+        latencyMs: Date.now() - startLessonTime
+      });
+    } catch (err: any) {
+      console.warn('[GeminiLessonService] Lesson analysis error:', err);
+      unifiedAIOrchestrator.logAudit({
+        requestId,
+        taskId: 'GENERATE_LESSON',
+        modelCategory: 'text_out',
+        modelId: targetModel,
+        promptVersion: 'v2.8.0',
+        status: 'failed',
+        latencyMs: Date.now() - startLessonTime,
+        errorMessage: err?.message
+      });
+      throw err;
+    }
     let data: any;
     try {
       data = JSON.parse(rawText);
@@ -645,13 +702,16 @@ Nhiệm vụ: Viết lại phần giải thích trên theo cách:
 4. Có ví dụ minh họa trực quan.
 `;
 
-    const client = this.getClient();
-    const res = await client.models.generateContent({
-      model: this.getModel(),
-      contents: prompt
-    });
-
-    const simplifiedText = res.text?.trim() || '';
+    const targetModel = this.getModel();
+    const simplifiedText = await unifiedAIOrchestrator.invokeWithTimeoutAndRetry(
+      targetModel,
+      'Bạn là giáo viên dạy tiếng Trung chuyên đơn giản hóa kiến thức khó cho người mới bắt đầu.',
+      prompt,
+      'text',
+      0.4,
+      25000,
+      1
+    );
     db.prepare('UPDATE generated_lessons SET explanation_vi = ? WHERE id = ?').run(simplifiedText, lessonId);
     return simplifiedText;
   }

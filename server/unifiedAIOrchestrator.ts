@@ -287,7 +287,7 @@ export class UnifiedAIOrchestrator {
 
   // --- 3. Invocation with Timeout & Exponential Backoff Retry ---
 
-  private async invokeWithTimeoutAndRetry(
+  public async invokeWithTimeoutAndRetry(
     model: string,
     systemInstruction: string,
     prompt: string,
@@ -530,7 +530,7 @@ export class UnifiedAIOrchestrator {
 
   // --- 6. Audit Logging ---
 
-  private logAudit(entry: {
+  public logAudit(entry: {
     requestId: string;
     taskId: AITaskId;
     modelCategory: string;

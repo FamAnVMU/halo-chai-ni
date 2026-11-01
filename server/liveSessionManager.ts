@@ -142,6 +142,8 @@ export class LiveSessionManager {
       status: 'connecting',
       modelId: model,
       voiceName: voice,
+      mode,
+      hskLevel,
       startedAt: Date.now(),
       lastActiveAt: Date.now(),
       userTurnCount: 0,
@@ -355,9 +357,12 @@ export class LiveSessionManager {
     // Save session record to chat_sessions
     try {
       const now = Date.now();
+      const sessionMode = state.mode || 'free';
+      const sessionHsk = state.hskLevel || 1;
+
       db.prepare(`
-        INSERT INTO chat_sessions (id, title, scenario, session_type, status, duration_seconds, message_count, created_at, updated_at)
-        VALUES (?, ?, ?, 'voice', 'completed', ?, ?, ?, ?)
+        INSERT INTO chat_sessions (id, mode, hsk_level, title, scenario, session_type, status, duration_seconds, message_count, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, 'voice', 'completed', ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           status = 'completed',
           duration_seconds = ?,
@@ -365,6 +370,8 @@ export class LiveSessionManager {
           updated_at = ?
       `).run(
         sessionId,
+        sessionMode,
+        sessionHsk,
         `Voice Chat (${new Date().toLocaleTimeString('vi-VN')})`,
         'Live Voice Session',
         durationSeconds,
@@ -376,19 +383,44 @@ export class LiveSessionManager {
         now
       );
 
+      // Lưu chi tiết transcript vào chat_messages để luồng Text Chat có thể tiếp tục ngữ cảnh
+      if (state.accumulatedUserTranscript.trim().length > 0) {
+        db.prepare(`
+          INSERT INTO chat_messages (id, session_id, sender, text, is_audio, created_at)
+          VALUES (?, ?, 'user', ?, 1, ?)
+        `).run(`msg_voice_u_${sessionId}`, sessionId, state.accumulatedUserTranscript.trim(), now);
+      }
+      if (state.accumulatedAiTranscript.trim().length > 0) {
+        db.prepare(`
+          INSERT INTO chat_messages (id, session_id, sender, text, is_audio, created_at)
+          VALUES (?, ?, 'assistant', ?, 1, ?)
+        `).run(`msg_voice_a_${sessionId}`, sessionId, state.accumulatedAiTranscript.trim(), now);
+      }
+
       // If user had meaningful speech, log a learning activity to Unified Memory
       if (state.accumulatedUserTranscript.trim().length > 3) {
+        const textSample = state.accumulatedUserTranscript.slice(0, 30).trim();
         unifiedLearningMemoryService.recordLearningActivity({
-          activityType: 'live_voice_chat',
-          activityId: sessionId,
+          sourceModule: 'voice_chat',
+          activityType: 'application',
+          action: 'speak',
           learnerId,
-          speaker: 'user',
-          textExcerpt: state.accumulatedUserTranscript.slice(0, 200),
+          sessionId,
+          displayText: textSample,
+          hanziSimplified: textSample,
+          itemType: 'sentence_pattern',
+          observedData: {
+            speaker: 'user',
+            userUtterance: state.accumulatedUserTranscript.slice(0, 200),
+            metadata: {
+              durationSeconds,
+              userTurns: state.userTurnCount,
+              modelTurns: state.modelTurnCount
+            }
+          },
           assessmentData: {
-            durationSeconds,
-            userTurns: state.userTurnCount,
-            modelTurns: state.modelTurnCount,
-            completedNaturally: true
+            isCorrect: true,
+            score: 0.95
           }
         });
       }

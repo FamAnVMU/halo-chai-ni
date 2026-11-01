@@ -143,6 +143,8 @@ export interface LiveSessionState {
   status: 'idle' | 'connecting' | 'active' | 'interrupted' | 'closing' | 'closed' | 'error';
   modelId: string;
   voiceName: string;
+  mode?: string;
+  hskLevel?: number;
   startedAt: number;
   lastActiveAt: number;
   userTurnCount: number;

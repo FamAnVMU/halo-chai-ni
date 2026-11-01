@@ -1,6 +1,6 @@
 /**
  * Chinese Knowledge Benchmark - Evaluator Engine
- * Phase B4 - Chinese Knowledge Benchmark (Halo Chinese v2.7.0)
+ * Phase B4 - Chinese Knowledge Benchmark (Halo Chinese v2.8.0)
  *
  * Provides a 3-tier grading engine:
  * 1. Tier 1: Deterministic checks (Keywords, Pinyin tone marks, Forbidden terms, False-Positive checks).

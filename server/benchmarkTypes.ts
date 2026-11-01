@@ -1,6 +1,6 @@
 /**
  * Chinese Knowledge Benchmark - Type Definitions & Contracts
- * Phase B4 - Chinese Knowledge Benchmark (Halo Chinese v2.7.0)
+ * Phase B4 - Chinese Knowledge Benchmark (Halo Chinese v2.8.0)
  *
  * Defines the core types for deterministic tests, semantic rubrics, behavioral
  * memory evaluations, golden dataset specifications, and regression comparison reports.

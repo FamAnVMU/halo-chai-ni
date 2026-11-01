@@ -1,6 +1,6 @@
 /**
  * Chinese Knowledge Benchmark - Master Runner & Comparison Engine
- * Phase B4 - Chinese Knowledge Benchmark (Halo Chinese v2.7.0)
+ * Phase B4 - Chinese Knowledge Benchmark (Halo Chinese v2.8.0)
  *
  * Core capabilities:
  * 1. Offline runner: Instant, free, deterministic regression testing on Golden Dataset.
@@ -121,21 +121,49 @@ export class BenchmarkRunner {
       let pinyin: string | undefined;
       let tokensUsed = 0;
 
+      let correctionJson: string | null = null;
       try {
+        // Resolve valid AITaskId from TaskRegistry
+        let taskId: any = 'AI_TUTOR_CHAT';
+        let inputData: any = {
+          message: testCase.promptInput,
+          userSentence: testCase.userSentence,
+          hskLevel: testCase.hskLevel,
+          mode: 'free',
+          systemContext: testCase.systemContext
+        };
+
+        if (testCase.domain === 'grammar') {
+          taskId = 'EXPLAIN_GRAMMAR';
+          inputData = {
+            patternName: testCase.subDomain,
+            userMessage: testCase.promptInput,
+            hskLevel: testCase.hskLevel
+          };
+        } else if (testCase.domain === 'vocabulary' && testCase.subDomain === 'near_synonyms') {
+          taskId = 'COMPARE_WORDS';
+          inputData = {
+            wordA: testCase.title.split(' ')[0] || 'A',
+            wordB: testCase.title.split(' ')[1] || 'B',
+            userMessage: testCase.promptInput,
+            hskLevel: testCase.hskLevel
+          };
+        }
+
         // Route through Unified AI Orchestrator
         const response = await this.orchestrator.executeTask({
-          taskId: testCase.domain === 'error_correction' ? 'analyze_mistake' : 'text_chat',
-          input: {
-            userMessage: testCase.promptInput,
-            userSentence: testCase.userSentence,
-            hskLevel: testCase.hskLevel,
-            systemContext: testCase.systemContext
-          },
+          taskId,
+          input: inputData,
           overrideModel: targetModel
         });
 
-        actualText = response.data?.replyText || response.data?.explanation_vi || JSON.stringify(response.data);
-        pinyin = response.data?.pinyin;
+        if (response.data?.replyZh) {
+          actualText = `${response.data.replyZh}\n${response.data.replyPinyin || ''}\n${response.data.replyVi || ''}`;
+        } else {
+          actualText = response.data?.summaryVi || response.data?.explanationVi || response.data?.explanation_vi || response.rawText || JSON.stringify(response.data);
+        }
+        pinyin = response.data?.replyPinyin || response.data?.pinyin;
+        correctionJson = response.data?.hasCorrection ? JSON.stringify(response.data.correction) : (response.data?.correction_json || null);
         tokensUsed = response.metrics?.tokenUsage?.totalTokens || 100;
       } catch (err: any) {
         actualText = `Lỗi gọi model: ${err.message}`;
@@ -147,7 +175,7 @@ export class BenchmarkRunner {
 
       const result = BenchmarkEvaluator.evaluateCase(
         testCase,
-        { text: actualText, pinyin },
+        { text: actualText, pinyin, correction_json: correctionJson },
         caseLatency,
         tokensUsed,
         runId

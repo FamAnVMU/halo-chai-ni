@@ -3,6 +3,7 @@ import { db } from './db.js';
 import { geminiTextService } from './geminiTextService.js';
 import { geminiSrsService } from './geminiSrsService.js';
 import { learningEvidenceService } from './learningEvidenceService.js';
+import { unifiedAIOrchestrator } from './unifiedAIOrchestrator.js';
 
 export type VocabCategory = 'A_mastered_used_well' | 'B_known_used_inaccurately' | 'C_newly_exposed' | 'D_needs_review';
 export type ErrorCategory = 'vocabulary' | 'grammar' | 'word_order' | 'particle' | 'sentence_structure' | 'unnatural_expression' | 'misunderstanding' | 'pronunciation';
@@ -339,19 +340,43 @@ Hãy trả lời HOÀN TOÀN bằng định dạng JSON thuần túy (không mar
 }
 `;
 
-    const client = this.getClient();
     let rawText = '';
+    const startAnalysisTime = Date.now();
+    const requestId = `req_analysis_${sessionId}_${Date.now()}`;
+    const targetModel = this.getModel();
+
     try {
-      const res = await client.models.generateContent({
-        model: this.getModel(),
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json'
-        }
+      rawText = await unifiedAIOrchestrator.invokeWithTimeoutAndRetry(
+        targetModel,
+        'Bạn là Trưởng bộ môn Sư phạm Tiếng Trung Halo Chinese. Chỉ trả về JSON thuần túy.',
+        prompt,
+        'json',
+        0.2,
+        45000,
+        1
+      );
+
+      unifiedAIOrchestrator.logAudit({
+        requestId,
+        taskId: 'ANALYZE_CONVERSATION',
+        modelCategory: 'text_out',
+        modelId: targetModel,
+        promptVersion: 'v2.8.0',
+        status: 'completed',
+        latencyMs: Date.now() - startAnalysisTime
       });
-      rawText = res.text?.trim() || '{}';
     } catch (e: any) {
-      console.warn('Gemini generateContent error in analysis, using intelligent fallback:', e);
+      console.warn('AI Orchestrator analysis notice, using intelligent fallback:', e);
+      unifiedAIOrchestrator.logAudit({
+        requestId,
+        taskId: 'ANALYZE_CONVERSATION',
+        modelCategory: 'text_out',
+        modelId: targetModel,
+        promptVersion: 'v2.8.0',
+        status: 'fallback',
+        latencyMs: Date.now() - startAnalysisTime,
+        errorMessage: e?.message
+      });
       return this.generateSmartFallbackReport(sessionId, sessionType, messages, profile);
     }
 
