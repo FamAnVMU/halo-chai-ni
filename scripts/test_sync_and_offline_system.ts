@@ -14,6 +14,7 @@
 import { db } from '../server/db.js';
 import { syncService, SyncMutationItem } from '../server/syncService.js';
 import { authService } from '../server/authService.js';
+import { parseServerAddress } from '../src/utils/connectionManager.js';
 
 let passed = 0;
 let failed = 0;
@@ -432,6 +433,47 @@ async function runSyncAndOfflineTestSuite() {
   assert(
     allDevices.c >= 2,
     'G4. Hệ thống theo dõi chính xác nhiều thiết bị (Mobile + Desktop) hoạt động trên cùng một tài khoản'
+  );
+
+  // -------------------------------------------------------------------------
+  // TÌNH HUỐNG H: PHÂN GIẢI VÀ CHUẨN HÓA ĐỊA CHỈ SERVER (CLOUDFLARE, HTTPS, LAN)
+  // -------------------------------------------------------------------------
+  console.log('\n📌 [TÌNH HUỐNG H – CHUẨN HÓA URL SERVER & PHÒNG THỦ LỖI PROTOCOL/PORT]');
+
+  const testH1 = parseServerAddress('https://democratic-penetration-affecting-joy.trycloudflare.com', '443');
+  assert(
+    testH1.scheme === 'https' && testH1.baseUrl === 'https://democratic-penetration-affecting-joy.trycloudflare.com',
+    'H1. Cloudflare URL với port 443 tự động nhận diện HTTPS và loại bỏ port thừa'
+  );
+
+  const testH2 = parseServerAddress('http://https://democratic-penetration-affecting-joy.trycloudflare.com:443');
+  assert(
+    testH2.baseUrl === 'https://democratic-penetration-affecting-joy.trycloudflare.com',
+    'H2. Loại bỏ hoàn toàn lỗi lặp protocol http://https:// và port 443'
+  );
+
+  const testH3 = parseServerAddress('https://democratic-penetration-affecting-joy.trycloudflare.com', '3001');
+  assert(
+    testH3.baseUrl === 'https://democratic-penetration-affecting-joy.trycloudflare.com',
+    'H3. Không gán nhầm port 3001 của Localhost vào tên miền Cloudflare Tunnel'
+  );
+
+  const testH4 = parseServerAddress('192.168.1.5', '3001');
+  assert(
+    testH4.scheme === 'http' && testH4.baseUrl === 'http://192.168.1.5:3001',
+    'H4. Kết nối mạng nội bộ LAN HTTP định dạng chính xác http://IP:3001'
+  );
+
+  const testH5 = parseServerAddress('192.168.1.5:3001', '');
+  assert(
+    testH5.baseUrl === 'http://192.168.1.5:3001',
+    'H5. Tự động tách port khi người dùng nhập dính vào ô host'
+  );
+
+  const testH6 = parseServerAddress('https://my-secure-backend.com:8443', '');
+  assert(
+    testH6.baseUrl === 'https://my-secure-backend.com:8443',
+    'H6. Bảo toàn custom port bảo mật trên tên miền HTTPS'
   );
 
   // Clean up test data

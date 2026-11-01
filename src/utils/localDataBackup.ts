@@ -59,7 +59,7 @@ export class LocalDataBackupManager {
       const backupPackage: LocalBackupPackage = {
         manifest: {
           app: 'Halo Chinese',
-          appVersion: '3.2.1',
+          appVersion: '3.2.2',
           schemaVersion: 5,
           exportedAt: timestamp,
           exportedAtIso: new Date(timestamp).toISOString(),

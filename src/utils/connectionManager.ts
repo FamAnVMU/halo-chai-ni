@@ -36,6 +36,86 @@ export interface ConnectionTestResult {
   code?: 'NETWORK_ERROR' | 'TIMEOUT' | 'INCOMPATIBLE_VERSION' | 'INVALID_CONFIG' | 'OK';
 }
 
+export interface ParsedServerAddress {
+  scheme: 'http' | 'https';
+  wsScheme: 'ws' | 'wss';
+  host: string;
+  port: string;
+  baseUrl: string;
+  wsUrl: string;
+}
+
+/**
+ * Chuẩn hóa và phân giải địa chỉ Server
+ * Xử lý mọi trường hợp người dùng dán URL: http://, https://, http://https://, có hoặc không có port,
+ * Cloudflare Tunnel, domain tùy chỉnh hoặc IP mạng LAN.
+ */
+export function parseServerAddress(rawHost?: string, rawPort?: string, preferredScheme?: 'http' | 'https'): ParsedServerAddress {
+  let input = (rawHost || '').trim();
+  let portInput = (rawPort || '').trim();
+
+  // 1. Nhận diện HTTPS
+  let isHttps = false;
+  if (/https:\/\//i.test(input)) {
+    isHttps = true;
+  } else if (/http:\/\//i.test(input)) {
+    isHttps = false;
+  } else if (preferredScheme === 'https') {
+    isHttps = true;
+  } else if (
+    input.includes('trycloudflare.com') ||
+    input.includes('.ngrok') ||
+    input.includes('.loca.lt') ||
+    input.includes('pages.dev')
+  ) {
+    isHttps = true;
+  }
+
+  // 2. Dọn sạch triệt để mọi tiền tố protocol (kể cả bị lặp http://https://)
+  input = input.replace(/^(https?:\/\/)+/gi, '').replace(/\/.*$/, '').trim();
+
+  // 3. Tách port nếu người dùng nhập dính trong ô host (vd: 192.168.1.5:3001 hoặc domain.com:8443)
+  let hostPart = input;
+  let portPart = portInput;
+  if (hostPart.includes(':')) {
+    const parts = hostPart.split(':');
+    hostPart = parts[0];
+    if (!portPart) {
+      portPart = parts[1] || '';
+    }
+  }
+
+  // 4. Chuẩn hóa port theo scheme
+  if (isHttps) {
+    // Với kết nối an toàn HTTPS (Cloudflare hoặc domain), port 443 hoặc 80 là mặc định.
+    // Nếu người dùng nhập 3001 trên Cloudflare Tunnel domain, tunnel đã proxy nên cũng bỏ qua port 3001 ở client.
+    if (portPart === '443' || portPart === '80' || (hostPart.includes('trycloudflare.com') && portPart === '3001')) {
+      portPart = '';
+    }
+  } else {
+    // Với kết nối HTTP (LAN hoặc Localhost)
+    if (portPart === '80') {
+      portPart = '';
+    } else if (!portPart) {
+      portPart = '3001';
+    }
+  }
+
+  const scheme = isHttps ? 'https' : 'http';
+  const wsScheme = isHttps ? 'wss' : 'ws';
+  const baseUrl = portPart ? `${scheme}://${hostPart}:${portPart}` : `${scheme}://${hostPart}`;
+  const wsUrl = portPart ? `${wsScheme}://${hostPart}:${portPart}` : `${wsScheme}://${hostPart}`;
+
+  return {
+    scheme,
+    wsScheme,
+    host: hostPart,
+    port: portPart,
+    baseUrl,
+    wsUrl,
+  };
+}
+
 class ConnectionManager {
   private state: ConnectionState = 'not_configured';
   private listeners = new Set<(state: ConnectionState) => void>();
@@ -127,70 +207,47 @@ class ConnectionManager {
     }
 
     const savedHost = localStorage.getItem('halo_server_host');
-    const savedPort = localStorage.getItem('halo_server_port') || '3001';
+    const savedPort = localStorage.getItem('halo_server_port');
+    const savedScheme = localStorage.getItem('halo_server_scheme') as 'http' | 'https' | null;
 
     let host = savedHost;
-    let port = savedPort;
+    let port = savedPort !== null ? savedPort : '3001';
     let isConfigured = !!savedHost;
 
     if (!host) {
       // Tự động suy luận nếu chạy trên Web Browser
       if (window.location && window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
         host = window.location.hostname;
-        port = window.location.port || '3001';
+        port = window.location.port || (window.location.protocol === 'https:' ? '' : '3001');
       } else {
         host = 'localhost';
         port = '3001';
       }
     }
 
-    const rawHost = host || '';
-    const isSecure = rawHost.startsWith('https://') || rawHost.includes('trycloudflare.com');
-    let cleanHost = rawHost.trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
-    let cleanPort = port.trim();
-
-    // Nếu là tên miền Cloudflare hoặc domain HTTPS, mặc định không ép port 3001
-    if (isSecure && (cleanPort === '3001' || cleanPort === '443' || cleanPort === '')) {
-      cleanPort = '';
-    } else if (!isSecure && !cleanPort) {
-      cleanPort = '3001';
-    }
-
-    if (cleanHost.includes(':')) {
-      const parts = cleanHost.split(':');
-      cleanHost = parts[0];
-      cleanPort = parts[1] || cleanPort;
-    }
-
-    const scheme = isSecure ? 'https' : 'http';
-    const wsScheme = isSecure ? 'wss' : 'ws';
-    const baseUrl = cleanPort ? `${scheme}://${cleanHost}:${cleanPort}` : `${scheme}://${cleanHost}`;
-    const wsUrl = cleanPort ? `${wsScheme}://${cleanHost}:${cleanPort}` : `${wsScheme}://${cleanHost}`;
-
-    return { host: cleanHost, port: cleanPort, baseUrl, wsUrl, isConfigured };
+    const parsed = parseServerAddress(host, port, savedScheme || undefined);
+    return {
+      host: parsed.host,
+      port: parsed.port,
+      baseUrl: parsed.baseUrl,
+      wsUrl: parsed.wsUrl,
+      isConfigured,
+    };
   }
 
   /**
    * Lưu cấu hình Server
    */
-  public setServerConfig(rawHost: string, rawPort: string) {
+  public setServerConfig(rawHost: string, rawPort?: string) {
     if (typeof window === 'undefined') return;
-    let host = rawHost.trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
-    let port = rawPort.trim();
+    const parsed = parseServerAddress(rawHost, rawPort);
 
-    if (host.includes(':')) {
-      const parts = host.split(':');
-      host = parts[0];
-      port = parts[1] || port;
-    }
-
-    if (!port) port = '3001';
-
-    localStorage.setItem('halo_server_host', host);
-    localStorage.setItem('halo_server_port', port);
+    localStorage.setItem('halo_server_host', parsed.host);
+    localStorage.setItem('halo_server_port', parsed.port);
+    localStorage.setItem('halo_server_scheme', parsed.scheme);
 
     // Cập nhật lại key tương thích cũ
-    localStorage.setItem('halo_old_host_legacy', `${host}:${port}`);
+    localStorage.setItem('halo_old_host_legacy', parsed.baseUrl);
   }
 
   /**
@@ -200,6 +257,7 @@ class ConnectionManager {
     if (typeof window === 'undefined') return;
     localStorage.removeItem('halo_server_host');
     localStorage.removeItem('halo_server_port');
+    localStorage.removeItem('halo_server_scheme');
     this.setState('not_configured');
   }
 
@@ -277,25 +335,8 @@ class ConnectionManager {
       };
     }
 
-    const rawHost = host || '';
-    const isSecure = rawHost.startsWith('https://') || rawHost.includes('trycloudflare.com');
-    let cleanHost = rawHost.trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
-    let cleanPort = port ? port.trim() : '';
-
-    if (isSecure && (cleanPort === '3001' || cleanPort === '443' || cleanPort === '')) {
-      cleanPort = '';
-    } else if (!isSecure && !cleanPort) {
-      cleanPort = '3001';
-    }
-
-    if (cleanHost.includes(':')) {
-      const parts = cleanHost.split(':');
-      cleanHost = parts[0];
-      cleanPort = parts[1] || cleanPort;
-    }
-
-    const scheme = isSecure ? 'https' : 'http';
-    const targetUrl = cleanPort ? `${scheme}://${cleanHost}:${cleanPort}` : `${scheme}://${cleanHost}`;
+    const parsed = parseServerAddress(host, port);
+    const targetUrl = parsed.baseUrl;
     const startTime = performance.now();
 
     try {

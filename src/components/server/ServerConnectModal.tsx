@@ -12,7 +12,7 @@ import {
   ShieldCheck,
   Zap,
 } from 'lucide-react';
-import { connectionManager, type ConnectionTestResult, type ConnectionState } from '../../utils/connectionManager';
+import { connectionManager, parseServerAddress, type ConnectionTestResult, type ConnectionState } from '../../utils/connectionManager';
 import { syncEngine } from '../../utils/syncEngine';
 
 interface ServerConnectModalProps {
@@ -53,7 +53,8 @@ export const ServerConnectModal: React.FC<ServerConnectModalProps> = ({
     setIsTesting(true);
     setTestResult(null);
     try {
-      const result = await connectionManager.testConnection(host, port);
+      const parsed = parseServerAddress(host, port);
+      const result = await connectionManager.testConnection(parsed.host, parsed.port);
       setTestResult(result);
     } catch (err: any) {
       setTestResult({
@@ -71,8 +72,9 @@ export const ServerConnectModal: React.FC<ServerConnectModalProps> = ({
     setIsConnecting(true);
     setTestResult(null);
     try {
-      connectionManager.setServerConfig(host, port);
-      const test = await connectionManager.testConnection(host, port);
+      const parsed = parseServerAddress(host, port);
+      connectionManager.setServerConfig(parsed.host, parsed.port);
+      const test = await connectionManager.testConnection(parsed.host, parsed.port);
       setTestResult(test);
 
       if (test.success) {
@@ -173,8 +175,16 @@ export const ServerConnectModal: React.FC<ServerConnectModalProps> = ({
                 <input
                   type="text"
                   value={host}
-                  onChange={(e) => setHost(e.target.value)}
-                  placeholder="Ví dụ: 192.168.1.100 hoặc api.domain.com"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setHost(val);
+                    if (val.includes('trycloudflare.com') || val.startsWith('https://')) {
+                      if (port === '3001' || port === '443') {
+                        setPort('');
+                      }
+                    }
+                  }}
+                  placeholder="Ví dụ: 192.168.1.100 hoặc https://tunnel-name.trycloudflare.com"
                   className="w-full px-3 py-2 text-xs rounded-xl bg-white dark:bg-[#1A2418] border border-[#E3EBDD] dark:border-[#2D3A2C] text-[#263326] dark:text-[#EAF5D5] focus:outline-none focus:border-[#A3D635]"
                 />
               </div>
@@ -187,24 +197,25 @@ export const ServerConnectModal: React.FC<ServerConnectModalProps> = ({
                   type="text"
                   value={port}
                   onChange={(e) => setPort(e.target.value)}
-                  placeholder="3001"
+                  placeholder="3001 (hoặc để trống)"
                   className="w-full px-3 py-2 text-xs rounded-xl bg-white dark:bg-[#1A2418] border border-[#E3EBDD] dark:border-[#2D3A2C] text-[#263326] dark:text-[#EAF5D5] focus:outline-none focus:border-[#A3D635]"
                 />
               </div>
             </div>
 
-            <div className="text-[11px] text-[#647560] dark:text-[#889B84]">
-              Đường dẫn đầy đủ:{' '}
-              <code className="font-mono text-[#355A26] dark:text-[#A3D635]">
-                {(() => {
-                  const isSec = host.startsWith('https://') || host.includes('trycloudflare.com');
-                  const cleanH = host.trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
-                  const p = port.trim();
-                  const effectivePort = (isSec && (p === '3001' || p === '443' || p === '')) ? '' : p;
-                  const scheme = isSec ? 'https' : 'http';
-                  return effectivePort ? `${scheme}://${cleanH}:${effectivePort}` : `${scheme}://${cleanH}`;
-                })()}
-              </code>
+            <div className="text-[11px] text-[#647560] dark:text-[#889B84] flex items-center justify-between">
+              <div>
+                Đường dẫn đầy đủ:{' '}
+                <code className="font-mono text-[#355A26] dark:text-[#A3D635] font-semibold">
+                  {parseServerAddress(host, port).baseUrl}
+                </code>
+              </div>
+              {parseServerAddress(host, port).scheme === 'https' && (
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>HTTPS An Toàn</span>
+                </span>
+              )}
             </div>
 
             {/* Test connection result display */}

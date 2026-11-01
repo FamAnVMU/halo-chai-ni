@@ -150,7 +150,7 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     app: 'Halo Chinese Backend',
-    version: '3.2.1',
+    version: '3.2.2',
     apiVersion: 'v1',
     schemaVersion: migrationManager.getCurrentDatabaseSchemaVersion(),
     uptime: process.uptime(),
@@ -167,7 +167,7 @@ app.get('/api/server/test', (req, res) => {
     success: true,
     status: 'ok',
     app: 'Halo Chinese Backend',
-    version: '3.2.1',
+    version: '3.2.2',
     apiVersion: 'v1',
     schemaVersion: migrationManager.getCurrentDatabaseSchemaVersion(),
     serverTime: Date.now(),
@@ -365,7 +365,7 @@ app.get('/api/backup/stats', (req, res) => {
       success: true,
       stats,
       schemaVersion,
-      appVersion: '3.2.1',
+      appVersion: '3.2.2',
       integrity
     });
   } catch (err: any) {

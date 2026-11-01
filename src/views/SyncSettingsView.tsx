@@ -17,7 +17,7 @@ import {
   Smartphone,
   Check,
 } from 'lucide-react';
-import { connectionManager, type ConnectionState, type ConnectionTestResult } from '../utils/connectionManager';
+import { connectionManager, parseServerAddress, type ConnectionState, type ConnectionTestResult } from '../utils/connectionManager';
 import { syncEngine, type SyncEngineStatus } from '../utils/syncEngine';
 import { backendClient } from '../utils/backendClient';
 import { db, type ClientSyncQueueItem } from '../db';
@@ -93,7 +93,8 @@ export const SyncSettingsView: React.FC<SyncSettingsViewProps> = ({ onBack }) =>
     setIsTesting(true);
     setTestResult(null);
     try {
-      const res = await connectionManager.testConnection(host, port);
+      const parsed = parseServerAddress(host, port);
+      const res = await connectionManager.testConnection(parsed.host, parsed.port);
       setTestResult(res);
     } finally {
       setIsTesting(false);
@@ -101,8 +102,9 @@ export const SyncSettingsView: React.FC<SyncSettingsViewProps> = ({ onBack }) =>
   };
 
   const handleSaveConfig = async () => {
-    connectionManager.setServerConfig(host, port);
-    const res = await connectionManager.testConnection(host, port);
+    const parsed = parseServerAddress(host, port);
+    connectionManager.setServerConfig(parsed.host, parsed.port);
+    const res = await connectionManager.testConnection(parsed.host, parsed.port);
     setTestResult(res);
     if (res.success) {
       connectionManager.switchToOnline();
@@ -321,8 +323,16 @@ export const SyncSettingsView: React.FC<SyncSettingsViewProps> = ({ onBack }) =>
                 <input
                   type="text"
                   value={host}
-                  onChange={(e) => setHost(e.target.value)}
-                  placeholder="localhost hoặc 192.168.1.100"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setHost(val);
+                    if (val.includes('trycloudflare.com') || val.startsWith('https://')) {
+                      if (port === '3001' || port === '443') {
+                        setPort('');
+                      }
+                    }
+                  }}
+                  placeholder="localhost hoặc https://tunnel-name.trycloudflare.com"
                   className="w-full px-3.5 py-2 text-xs rounded-xl bg-[#F6FAF2] dark:bg-[#151D14] border border-[#E3EBDD] dark:border-[#2D3A2C] text-[#263326] dark:text-[#EAF5D5] focus:outline-none focus:border-[#A3D635]"
                 />
               </div>
@@ -335,10 +345,25 @@ export const SyncSettingsView: React.FC<SyncSettingsViewProps> = ({ onBack }) =>
                   type="text"
                   value={port}
                   onChange={(e) => setPort(e.target.value)}
-                  placeholder="3001"
+                  placeholder="3001 (hoặc để trống)"
                   className="w-full px-3.5 py-2 text-xs rounded-xl bg-[#F6FAF2] dark:bg-[#151D14] border border-[#E3EBDD] dark:border-[#2D3A2C] text-[#263326] dark:text-[#EAF5D5] focus:outline-none focus:border-[#A3D635]"
                 />
               </div>
+            </div>
+
+            <div className="text-[11px] text-[#647560] dark:text-[#889B84] flex items-center justify-between">
+              <div>
+                Đường dẫn kết nối:{' '}
+                <code className="font-mono text-[#355A26] dark:text-[#A3D635] font-semibold">
+                  {parseServerAddress(host, port).baseUrl}
+                </code>
+              </div>
+              {parseServerAddress(host, port).scheme === 'https' && (
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>HTTPS An Toàn</span>
+                </span>
+              )}
             </div>
 
             {/* Test result message */}
