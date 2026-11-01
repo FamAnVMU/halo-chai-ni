@@ -1,6 +1,6 @@
 /**
- * AI Teaching Quality Engine (Halo Chinese v2.6.0)
- * Phase B3 - AI Teaching Quality Engine
+ * AI Teaching Quality Engine (Halo Chinese v2.7.0)
+ * Phase B4 - AI Teaching Quality Engine & Knowledge Benchmark
  *
  * Core engine providing:
  * 1. Unified 5-category Error Taxonomy & Severity classification.
@@ -23,7 +23,7 @@ import {
 } from './teachingQualityTypes.js';
 
 export class TeachingQualityEngine {
-  private static readonly ENGINE_VERSION = 'v2.6.0';
+  private static readonly ENGINE_VERSION = 'v2.7.0';
 
   /**
    * 1. Xác định ý định sư phạm thực tế của người học (Learner Intent Detection)

@@ -1,6 +1,6 @@
 /**
- * Prompt Manager (Halo Chinese v2.6.0)
- * Phase B3 - AI Teaching Quality Engine
+ * Prompt Manager (Halo Chinese v2.7.0)
+ * Phase B4 - Chinese Knowledge Benchmark
  *
  * Centralized, versioned prompt repository with modular templates,
  * pedagogical guidelines, error taxonomy integration, and task-specific instructions.
@@ -15,13 +15,13 @@ export interface PromptBuildResult {
 }
 
 export class PromptManager {
-  private static readonly PROMPT_VERSION = 'v2.6.0';
+  private static readonly PROMPT_VERSION = 'v2.7.0';
 
   /**
-   * Nguyên tắc sư phạm cốt lõi áp dụng chung cho mọi tác vụ giảng dạy tiếng Trung (Phase B3)
+   * Nguyên tắc sư phạm cốt lõi áp dụng chung cho mọi tác vụ giảng dạy tiếng Trung (Phase B4)
    */
   private static readonly CORE_PEDAGOGIC_RULES = `
-QUY TẮC SƯ PHẠM CỐT LÕI (CORE PEDAGOGIC RULES - v2.6.0):
+QUY TẮC SƯ PHẠM CỐT LÕI (CORE PEDAGOGIC RULES - v2.7.0):
 1. Chuẩn mực ngôn ngữ: Sử dụng tiếng Trung Giản thể (Simplified Chinese) chuẩn Quan thoại Bắc Kinh. Tuyệt đối không dùng chữ Phồn thể.
 2. Phiên âm Pinyin: Bắt buộc có dấu thanh điệu chuẩn quốc tế (ā, á, ǎ, à). Riêng thanh nhẹ (khinh thanh) giữ nguyên không dấu (le, de, ba, ma). Tuyệt đối không dùng số thay dấu (không viết hao3, ma1).
 3. Dịch nghĩa tiếng Việt: Phải tự nhiên, thuần Việt, đúng ngữ cảnh, không dịch thô cứng kiểu "word-by-word".

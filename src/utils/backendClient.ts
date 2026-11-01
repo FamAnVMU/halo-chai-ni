@@ -2456,6 +2456,63 @@ export class LocalBackendClient {
       return { success: false, error: e.message };
     }
   }
+
+  // ==================== CHINESE KNOWLEDGE BENCHMARK (PHASE B4) ====================
+  public async runBenchmark(options: {
+    mode?: 'offline' | 'live';
+    domain?: string;
+    runName?: string;
+    modelId?: string;
+    maxCases?: number;
+  } = {}): Promise<{ success: boolean; run?: any; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/benchmark/run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(options)
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getBenchmarkRuns(limit: number = 20): Promise<{ success: boolean; runs?: any[]; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/benchmark/runs?limit=${limit}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getBenchmarkRunDetails(runId: string): Promise<{ success: boolean; run?: any; cases?: any[]; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/benchmark/runs/${encodeURIComponent(runId)}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async compareBenchmarkRuns(baselineId: string, targetId: string): Promise<{ success: boolean; report?: any; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/benchmark/compare?baselineId=${encodeURIComponent(baselineId)}&targetId=${encodeURIComponent(targetId)}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getBenchmarkDataset(domain?: string): Promise<{ success: boolean; total?: number; cases?: any[]; error?: string }> {
+    try {
+      const url = domain ? `${this.getBaseUrl()}/api/benchmark/dataset?domain=${encodeURIComponent(domain)}` : `${this.getBaseUrl()}/api/benchmark/dataset`;
+      const res = await fetch(url);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
 }
 
 export const backendClient = new LocalBackendClient();

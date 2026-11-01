@@ -141,8 +141,8 @@ async function runAIOrchestratorSuite() {
   const p1 = PromptManager.buildPrompt('AI_TUTOR_CHAT', { mode: 'free', hskLevel: 1 });
   const p2 = PromptManager.buildPrompt('EXPLAIN_VOCABULARY', { word: '学习' });
   assert(
-    p1.promptVersion === 'v2.6.0' && p2.promptVersion === 'v2.6.0' && TaskRegistry.getTask('AI_TUTOR_CHAT').promptVersion === 'v2.6.0',
-    '8. Prompt được quản lý tập trung tại PromptManager với cơ chế đánh phiên bản (v2.6.0)',
+    p1.promptVersion === 'v2.7.0' && p2.promptVersion === 'v2.7.0' && TaskRegistry.getTask('AI_TUTOR_CHAT').promptVersion === 'v2.7.0',
+    '8. Prompt được quản lý tập trung tại PromptManager với cơ chế đánh phiên bản (v2.7.0)',
     `Prompt versions: ${p1.promptVersion}, ${p2.promptVersion}`
   );
 

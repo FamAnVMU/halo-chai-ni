@@ -1,5 +1,5 @@
 /**
- * AI Task Registry (Halo Chinese v2.6.0)
+ * AI Task Registry (Halo Chinese v2.7.0)
  * B1 - Unified AI Orchestrator
  *
  * Central registry of all AI tasks, their model binding, timeout,
@@ -16,7 +16,7 @@ export const TASK_REGISTRY: Record<AITaskId, TaskDefinition> = {
     modelCategory: 'text_out',
     defaultTimeoutMs: 25000,
     maxRetries: 1,
-    promptVersion: 'v2.6.0',
+    promptVersion: 'v2.7.0',
     contextRequirements: {
       requiresLearnerProfile: true,
       requiresRecentErrors: true,
@@ -35,7 +35,7 @@ export const TASK_REGISTRY: Record<AITaskId, TaskDefinition> = {
     modelCategory: 'text_out',
     defaultTimeoutMs: 20000,
     maxRetries: 1,
-    promptVersion: 'v2.6.0',
+    promptVersion: 'v2.7.0',
     contextRequirements: {
       requiresLearnerProfile: true,
       requiresRecentErrors: true,
@@ -54,7 +54,7 @@ export const TASK_REGISTRY: Record<AITaskId, TaskDefinition> = {
     modelCategory: 'text_out',
     defaultTimeoutMs: 20000,
     maxRetries: 1,
-    promptVersion: 'v2.6.0',
+    promptVersion: 'v2.7.0',
     contextRequirements: {
       requiresLearnerProfile: true,
       requiresRecentErrors: false,
@@ -73,7 +73,7 @@ export const TASK_REGISTRY: Record<AITaskId, TaskDefinition> = {
     modelCategory: 'text_out',
     defaultTimeoutMs: 25000,
     maxRetries: 1,
-    promptVersion: 'v2.6.0',
+    promptVersion: 'v2.7.0',
     contextRequirements: {
       requiresLearnerProfile: true,
       requiresRecentErrors: true,
@@ -92,7 +92,7 @@ export const TASK_REGISTRY: Record<AITaskId, TaskDefinition> = {
     modelCategory: 'text_out',
     defaultTimeoutMs: 15000,
     maxRetries: 1,
-    promptVersion: 'v2.6.0',
+    promptVersion: 'v2.7.0',
     contextRequirements: {
       requiresLearnerProfile: false,
       requiresRecentErrors: false,
@@ -111,7 +111,7 @@ export const TASK_REGISTRY: Record<AITaskId, TaskDefinition> = {
     modelCategory: 'text_out',
     defaultTimeoutMs: 45000,
     maxRetries: 1,
-    promptVersion: 'v2.6.0',
+    promptVersion: 'v2.7.0',
     contextRequirements: {
       requiresLearnerProfile: true,
       requiresRecentErrors: true,
@@ -130,7 +130,7 @@ export const TASK_REGISTRY: Record<AITaskId, TaskDefinition> = {
     modelCategory: 'text_out',
     defaultTimeoutMs: 40000,
     maxRetries: 1,
-    promptVersion: 'v2.6.0',
+    promptVersion: 'v2.7.0',
     contextRequirements: {
       requiresLearnerProfile: true,
       requiresRecentErrors: true,
@@ -149,7 +149,7 @@ export const TASK_REGISTRY: Record<AITaskId, TaskDefinition> = {
     modelCategory: 'text_out',
     defaultTimeoutMs: 45000,
     maxRetries: 1,
-    promptVersion: 'v2.6.0',
+    promptVersion: 'v2.7.0',
     contextRequirements: {
       requiresLearnerProfile: true,
       requiresRecentErrors: true,
@@ -168,7 +168,7 @@ export const TASK_REGISTRY: Record<AITaskId, TaskDefinition> = {
     modelCategory: 'text_out',
     defaultTimeoutMs: 30000,
     maxRetries: 1,
-    promptVersion: 'v2.6.0',
+    promptVersion: 'v2.7.0',
     contextRequirements: {
       requiresLearnerProfile: true,
       requiresRecentErrors: false,
@@ -187,7 +187,7 @@ export const TASK_REGISTRY: Record<AITaskId, TaskDefinition> = {
     modelCategory: 'text_out',
     defaultTimeoutMs: 20000,
     maxRetries: 1,
-    promptVersion: 'v2.6.0',
+    promptVersion: 'v2.7.0',
     contextRequirements: {
       requiresLearnerProfile: true,
       requiresRecentErrors: true,
@@ -206,7 +206,7 @@ export const TASK_REGISTRY: Record<AITaskId, TaskDefinition> = {
     modelCategory: 'text_out',
     defaultTimeoutMs: 20000,
     maxRetries: 1,
-    promptVersion: 'v2.6.0',
+    promptVersion: 'v2.7.0',
     contextRequirements: {
       requiresLearnerProfile: false,
       requiresRecentErrors: false,
@@ -225,7 +225,7 @@ export const TASK_REGISTRY: Record<AITaskId, TaskDefinition> = {
     modelCategory: 'text_out',
     defaultTimeoutMs: 20000,
     maxRetries: 1,
-    promptVersion: 'v2.6.0',
+    promptVersion: 'v2.7.0',
     contextRequirements: {
       requiresLearnerProfile: true,
       requiresRecentErrors: false,
@@ -244,7 +244,7 @@ export const TASK_REGISTRY: Record<AITaskId, TaskDefinition> = {
     modelCategory: 'text_out',
     defaultTimeoutMs: 20000,
     maxRetries: 1,
-    promptVersion: 'v2.6.0',
+    promptVersion: 'v2.7.0',
     contextRequirements: {
       requiresLearnerProfile: false,
       requiresRecentErrors: false,
@@ -263,7 +263,7 @@ export const TASK_REGISTRY: Record<AITaskId, TaskDefinition> = {
     modelCategory: 'text_out',
     defaultTimeoutMs: 20000,
     maxRetries: 1,
-    promptVersion: 'v2.6.0',
+    promptVersion: 'v2.7.0',
     contextRequirements: {
       requiresLearnerProfile: false,
       requiresRecentErrors: false,
@@ -282,7 +282,7 @@ export const TASK_REGISTRY: Record<AITaskId, TaskDefinition> = {
     modelCategory: 'text_out',
     defaultTimeoutMs: 30000,
     maxRetries: 1,
-    promptVersion: 'v2.6.0',
+    promptVersion: 'v2.7.0',
     contextRequirements: {
       requiresLearnerProfile: true,
       requiresRecentErrors: true,
@@ -301,7 +301,7 @@ export const TASK_REGISTRY: Record<AITaskId, TaskDefinition> = {
     modelCategory: 'text_out',
     defaultTimeoutMs: 35000,
     maxRetries: 1,
-    promptVersion: 'v2.6.0',
+    promptVersion: 'v2.7.0',
     contextRequirements: {
       requiresLearnerProfile: true,
       requiresRecentErrors: true,
@@ -320,7 +320,7 @@ export const TASK_REGISTRY: Record<AITaskId, TaskDefinition> = {
     modelCategory: 'text_out',
     defaultTimeoutMs: 15000,
     maxRetries: 1,
-    promptVersion: 'v2.6.0',
+    promptVersion: 'v2.7.0',
     contextRequirements: {
       requiresLearnerProfile: false,
       requiresRecentErrors: false,
@@ -339,7 +339,7 @@ export const TASK_REGISTRY: Record<AITaskId, TaskDefinition> = {
     modelCategory: 'text_out',
     defaultTimeoutMs: 10000,
     maxRetries: 0,
-    promptVersion: 'v2.6.0',
+    promptVersion: 'v2.7.0',
     contextRequirements: {
       requiresLearnerProfile: false,
       requiresRecentErrors: false,
@@ -357,7 +357,7 @@ export const TASK_REGISTRY: Record<AITaskId, TaskDefinition> = {
     modelCategory: 'live',
     defaultTimeoutMs: 0, // Streaming WebSocket
     maxRetries: 0,
-    promptVersion: 'v2.6.0',
+    promptVersion: 'v2.7.0',
     contextRequirements: {
       requiresLearnerProfile: true,
       requiresRecentErrors: true,

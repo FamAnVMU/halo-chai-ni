@@ -30,6 +30,8 @@ import { TaskRegistry } from './taskRegistry.js';
 import { contextBuilderService } from './contextBuilderService.js';
 import { ConversationSummarizer } from './conversationSummarizer.js';
 import { TeachingQualityEngine } from './teachingQualityEngine.js';
+import { benchmarkRunner } from './benchmarkRunner.js';
+import { GOLDEN_DATASET } from './goldenDataset.js';
 import { tokenizeChinese } from '../src/data/seedDictionary.js';
 
 const app = express();
@@ -310,6 +312,68 @@ app.post('/api/teaching/audit-quality', (req, res) => {
     const { responseJson, intent = 'general_chat', hskLevel = 1, userQuery = '' } = req.body;
     const audit = TeachingQualityEngine.auditTeachingQuality(responseJson, { intent, hskLevel, userQuery });
     res.json({ success: true, audit });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==================== CHINESE KNOWLEDGE BENCHMARK (PHASE B4) ====================
+app.post('/api/benchmark/run', async (req, res) => {
+  try {
+    const { mode = 'offline', domain, runName, modelId, maxCases } = req.body;
+    let result;
+    if (mode === 'live') {
+      result = await benchmarkRunner.runLiveBenchmark({ domain, runName, modelId, maxCases });
+    } else {
+      result = benchmarkRunner.runOfflineBenchmark({ domain, runName, maxCases });
+    }
+    res.json({ success: true, run: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/benchmark/runs', (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit as string || '20', 10);
+    const runs = benchmarkRunner.listRuns(limit);
+    res.json({ success: true, runs });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/benchmark/runs/:runId', (req, res) => {
+  try {
+    const { runId } = req.params;
+    const details = benchmarkRunner.getRun(runId);
+    if (!details) {
+      return res.status(404).json({ success: false, error: 'Không tìm thấy kết quả benchmark' });
+    }
+    res.json({ success: true, ...details });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/benchmark/compare', (req, res) => {
+  try {
+    const { baselineId, targetId } = req.query;
+    if (!baselineId || !targetId) {
+      return res.status(400).json({ success: false, error: 'Cần truyền baselineId và targetId' });
+    }
+    const report = benchmarkRunner.compareRuns(String(baselineId), String(targetId));
+    res.json({ success: true, report });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/benchmark/dataset', (req, res) => {
+  try {
+    const domain = req.query.domain as string | undefined;
+    const cases = domain ? GOLDEN_DATASET.filter(c => c.domain === domain) : GOLDEN_DATASET;
+    res.json({ success: true, total: cases.length, cases });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }

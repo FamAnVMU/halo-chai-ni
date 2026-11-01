@@ -1023,6 +1023,47 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_trcd_learner ON teaching_root_cause_diagnoses(learner_id, concept_key);
   CREATE INDEX IF NOT EXISTS idx_trcd_verified ON teaching_root_cause_diagnoses(is_verified);
 
+  -- 8. Chinese Knowledge Benchmark Tables (Phase B4)
+  CREATE TABLE IF NOT EXISTS benchmark_runs (
+    id TEXT PRIMARY KEY,
+    run_name TEXT NOT NULL,
+    mode TEXT NOT NULL, -- 'offline' | 'live'
+    model_id TEXT NOT NULL,
+    total_cases INTEGER NOT NULL,
+    passed_cases INTEGER NOT NULL,
+    failed_cases INTEGER NOT NULL,
+    warning_cases INTEGER DEFAULT 0,
+    accuracy_rate REAL NOT NULL,
+    false_correction_rate REAL NOT NULL,
+    error_detection_precision REAL NOT NULL,
+    avg_latency_ms REAL NOT NULL,
+    total_tokens INTEGER DEFAULT 0,
+    domain_breakdown_json TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS benchmark_case_results (
+    id TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL,
+    case_id TEXT NOT NULL,
+    domain TEXT NOT NULL,
+    sub_domain TEXT NOT NULL,
+    title TEXT NOT NULL,
+    tier TEXT NOT NULL,
+    status TEXT NOT NULL, -- 'passed' | 'failed' | 'warning'
+    score REAL NOT NULL,
+    metrics_json TEXT NOT NULL,
+    expected_summary TEXT NOT NULL,
+    actual_summary TEXT NOT NULL,
+    error_details TEXT,
+    latency_ms INTEGER DEFAULT 0,
+    tokens_used INTEGER DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY(run_id) REFERENCES benchmark_runs(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_bench_run ON benchmark_case_results(run_id);
+  CREATE INDEX IF NOT EXISTS idx_bench_case ON benchmark_case_results(case_id);
+
   CREATE INDEX IF NOT EXISTS idx_reading_level ON reading_passages(level, hsk_level);
   CREATE INDEX IF NOT EXISTS idx_reading_topic ON reading_passages(topic);
   CREATE INDEX IF NOT EXISTS idx_reading_genre ON reading_passages(genre);
