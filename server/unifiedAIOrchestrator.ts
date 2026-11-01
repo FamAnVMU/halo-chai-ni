@@ -361,6 +361,12 @@ export class UnifiedAIOrchestrator {
       switch (taskId) {
         case 'AI_TUTOR_CHAT': {
           if (outputData?.hasCorrection && outputData.correction) {
+            // BẢO VỆ CHỐNG SỬA OAN (Phase B3): Chỉ ghi nhận Evidence nếu là lỗi sai thực sự (isGenuineError)
+            if (outputData.correction.isGenuineError === false || outputData.correction.isPolishing === true) {
+              // Đây chỉ là gợi ý diễn đạt nâng cao/tự nhiên hơn, KHÔNG ghi nhận lỗi vào Ledger
+              return false;
+            }
+
             unifiedLearningMemoryService.recordLearningActivity({
               activityType: 'text_chat',
               activityId: req.sessionId || `chat_${Date.now()}`,
@@ -369,9 +375,11 @@ export class UnifiedAIOrchestrator {
               textExcerpt: outputData.correction.original,
               assessmentData: {
                 isCorrect: false,
-                severity: outputData.correction.severity || 'grammar',
+                severity: outputData.correction.severity || 'major',
                 corrected: outputData.correction.corrected,
-                explanation: outputData.correction.explanationVi
+                explanation: outputData.correction.explanationVi,
+                errorCategory: outputData.correction.errorCategory,
+                errorType: outputData.correction.errorType
               }
             });
             contextBuilderService.invalidateContextCache(learnerId);

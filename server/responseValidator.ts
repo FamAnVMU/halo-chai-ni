@@ -154,6 +154,16 @@ export class ResponseValidator {
           if (!data.correction.original || !data.correction.corrected) {
             errors.push('Khối correction thiếu thông tin original hoặc corrected.');
           }
+          // Chuẩn hóa cờ phân biệt sửa lỗi vs đề xuất nâng cao (Phase B3)
+          if (data.correction.isGenuineError === undefined) {
+            data.correction.isGenuineError = data.correction.severity !== 'style';
+          }
+          if (data.correction.isPolishing === undefined) {
+            data.correction.isPolishing = data.correction.severity === 'style';
+          }
+          if (!Array.isArray(data.correction.alternativeExpressions)) {
+            data.correction.alternativeExpressions = [];
+          }
         }
         break;
       }

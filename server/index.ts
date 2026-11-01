@@ -29,6 +29,7 @@ import { unifiedAIOrchestrator } from './unifiedAIOrchestrator.js';
 import { TaskRegistry } from './taskRegistry.js';
 import { contextBuilderService } from './contextBuilderService.js';
 import { ConversationSummarizer } from './conversationSummarizer.js';
+import { TeachingQualityEngine } from './teachingQualityEngine.js';
 import { tokenizeChinese } from '../src/data/seedDictionary.js';
 
 const app = express();
@@ -248,6 +249,67 @@ app.post('/api/context/summarize', (req, res) => {
   try {
     const summary = ConversationSummarizer.summarizeAndSaveSession(req.body);
     res.json({ success: true, summary });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==================== PHASE B3: AI TEACHING QUALITY ENGINE ====================
+app.post('/api/teaching/detect-intent', (req, res) => {
+  try {
+    const { message = '' } = req.body;
+    const intent = TeachingQualityEngine.detectTeachingIntent(message);
+    res.json({ success: true, intent });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/teaching/classify-error', (req, res) => {
+  try {
+    const { originalSentence = '', correctedSentence = '', grammarPoint } = req.body;
+    const classification = TeachingQualityEngine.classifyError(originalSentence, correctedSentence, grammarPoint);
+    res.json({ success: true, classification });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/teaching/diagnose-root-cause', (req, res) => {
+  try {
+    const { conceptKey = '', learnerId = 'default' } = req.body;
+    const diagnosis = TeachingQualityEngine.diagnoseRootCause(conceptKey, learnerId);
+    res.json({ success: true, diagnosis });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/teaching/diagnoses/:learnerId', (req, res) => {
+  try {
+    const { learnerId = 'default' } = req.params;
+    const diagnoses = TeachingQualityEngine.getLearnerDiagnoses(learnerId);
+    res.json({ success: true, diagnoses });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/teaching/verify-diagnosis', (req, res) => {
+  try {
+    const { diagnosisId, passed } = req.body;
+    const result = TeachingQualityEngine.verifyDiagnosis(diagnosisId, Boolean(passed));
+    res.json({ success: true, verified: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/teaching/audit-quality', (req, res) => {
+  try {
+    const { responseJson, intent = 'general_chat', hskLevel = 1, userQuery = '' } = req.body;
+    const audit = TeachingQualityEngine.auditTeachingQuality(responseJson, { intent, hskLevel, userQuery });
+    res.json({ success: true, audit });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }

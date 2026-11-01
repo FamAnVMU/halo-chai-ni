@@ -1001,6 +1001,28 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_ctx_trace_req ON context_retrieval_traces(request_id);
   CREATE INDEX IF NOT EXISTS idx_ctx_trace_task ON context_retrieval_traces(task_id, created_at DESC);
 
+  -- 7. Teaching Root Cause Diagnoses (Chẩn đoán nguyên nhân gốc rễ lỗi lặp lại - Phase B3)
+  CREATE TABLE IF NOT EXISTS teaching_root_cause_diagnoses (
+    id TEXT PRIMARY KEY,
+    learner_id TEXT NOT NULL DEFAULT 'default',
+    concept_key TEXT NOT NULL,
+    concept_name TEXT NOT NULL,
+    symptom TEXT NOT NULL,
+    suspected_cause TEXT NOT NULL,
+    cause_explanation_vi TEXT NOT NULL,
+    evidence_ids_json TEXT NOT NULL DEFAULT '[]',
+    observation_count INTEGER NOT NULL DEFAULT 1,
+    confidence REAL NOT NULL DEFAULT 0.7,
+    is_verified INTEGER NOT NULL DEFAULT 0,
+    verification_prompt_json TEXT NOT NULL,
+    remedy_plan_vi TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_trcd_learner ON teaching_root_cause_diagnoses(learner_id, concept_key);
+  CREATE INDEX IF NOT EXISTS idx_trcd_verified ON teaching_root_cause_diagnoses(is_verified);
+
   CREATE INDEX IF NOT EXISTS idx_reading_level ON reading_passages(level, hsk_level);
   CREATE INDEX IF NOT EXISTS idx_reading_topic ON reading_passages(topic);
   CREATE INDEX IF NOT EXISTS idx_reading_genre ON reading_passages(genre);

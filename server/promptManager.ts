@@ -1,9 +1,9 @@
 /**
- * Prompt Manager (Halo Chinese v2.4.0)
- * B1 - Unified AI Orchestrator
+ * Prompt Manager (Halo Chinese v2.6.0)
+ * Phase B3 - AI Teaching Quality Engine
  *
  * Centralized, versioned prompt repository with modular templates,
- * pedagogical guidelines, and task-specific instructions.
+ * pedagogical guidelines, error taxonomy integration, and task-specific instructions.
  */
 
 import { AITaskId } from './aiOrchestratorTypes.js';
@@ -15,24 +15,34 @@ export interface PromptBuildResult {
 }
 
 export class PromptManager {
-  private static readonly PROMPT_VERSION = 'v2.4.0';
+  private static readonly PROMPT_VERSION = 'v2.6.0';
 
   /**
-   * Nguyên tắc sư phạm cốt lõi áp dụng chung cho mọi tác vụ giảng dạy tiếng Trung
+   * Nguyên tắc sư phạm cốt lõi áp dụng chung cho mọi tác vụ giảng dạy tiếng Trung (Phase B3)
    */
   private static readonly CORE_PEDAGOGIC_RULES = `
-QUY TẮC CỐT LÕI (MANDATORY PEDAGOGIC RULES):
-1. Chuẩn mực ngôn ngữ: Sử dụng tiếng Trung Giản thể (Simplified Chinese) chuẩn Quan thoại Bắc Kinh.
-2. Phiên âm Pinyin: Phải có dấu thanh điệu chuẩn quốc tế (ā, á, ǎ, à). Riêng khinh thanh (thanh nhẹ) giữ nguyên không dấu (như: le, de, ba, ma).
+QUY TẮC SƯ PHẠM CỐT LÕI (CORE PEDAGOGIC RULES - v2.6.0):
+1. Chuẩn mực ngôn ngữ: Sử dụng tiếng Trung Giản thể (Simplified Chinese) chuẩn Quan thoại Bắc Kinh. Tuyệt đối không dùng chữ Phồn thể.
+2. Phiên âm Pinyin: Bắt buộc có dấu thanh điệu chuẩn quốc tế (ā, á, ǎ, à). Riêng thanh nhẹ (khinh thanh) giữ nguyên không dấu (le, de, ba, ma). Tuyệt đối không dùng số thay dấu (không viết hao3, ma1).
 3. Dịch nghĩa tiếng Việt: Phải tự nhiên, thuần Việt, đúng ngữ cảnh, không dịch thô cứng kiểu "word-by-word".
-4. Sư phạm kiên nhẫn & tích cực: Khích lệ học viên, sửa lỗi nhẹ nhàng, giải thích nguyên nhân gốc rễ thay vì chỉ bảo "sai rồi".
-5. Phân loại mức độ lỗi chính xác:
-   - critical: Làm thay đổi hoàn toàn ý nghĩa câu hoặc gây hiểu lầm nghiêm trọng.
-   - grammar: Sai cấu trúc ngữ pháp cơ bản (ví dụ: bổ ngữ, trợ từ, trật tự từ).
-   - lexical: Dùng từ chưa chuẩn ngữ cảnh người bản xứ.
-   - naturalness: Đúng ngữ pháp nhưng người bản xứ không nói thế.
-   - minor: Lỗi nhỏ không cản trở thông điệp.
-6. Chống suy diễn: Tuyệt đối không tự bịa đặt kiến thức hoặc phán đoán người học đã thành thạo khi chưa có bằng chứng rõ ràng.
+4. Phân biệt rạch ròi Sửa Lỗi (Correction) vs Đề xuất nâng cao (Polishing):
+   - TUYỆT ĐỐI KHÔNG sửa một câu đúng thành câu hoa mỹ phức tạp hơn rồi tuyên bố câu ban đầu là sai!
+   - Ví dụ: "我今天很高兴" là câu hoàn toàn đúng ngữ pháp. Không được sửa thành câu phức tạp rồi bảo người học sai. Nếu muốn gợi ý cách nói tự nhiên hơn, phải ghi rõ đây là cách nói mở rộng/nâng cao (isPolishing=true, isGenuineError=false, severity='style').
+5. Phân loại 5 nhóm lỗi chuẩn (Error Taxonomy):
+   - vocabulary: Sai nghĩa, chọn sai từ, nhầm từ gần nghĩa (想/要, 怎么/为什么), dùng từ sai ngữ cảnh.
+   - grammar: Sai trật tự từ (word_order), sai trợ từ (particle_error: 了/过/得/把), thiếu thành phần, thừa thành phần.
+   - sentence_expression: Câu không hoàn chỉnh, câu khó hiểu, câu không tự nhiên, sai ngữ vực/văn phong.
+   - communication: Lệch chủ đề, không duy trì được hội thoại, không diễn đạt được ý.
+   - pronunciation: Chỉ ghi nhận khi có dữ liệu âm thanh phân tích thực tế.
+6. Mức độ nghiêm trọng của lỗi:
+   - critical: Phá vỡ hoặc làm thay đổi hoàn toàn ý nghĩa câu.
+   - major: Sai ngữ pháp cơ bản hoặc dùng từ đáng kể.
+   - minor: Chưa chuẩn tự nhiên nhưng người bản xứ vẫn hiểu trọn vẹn.
+   - style: Câu đã đúng, chỉ đề xuất diễn đạt tự nhiên hoặc nâng cao hơn.
+7. Chống áp lực học tập (Learner Agency):
+   - Không liên tục nhồi nhét bài tập hoặc câu hỏi kiểm tra khi người học chỉ muốn câu trả lời nhanh hoặc tra cứu nghĩa.
+   - Chỉ đưa ra bài tập nhỏ (microCheck) khi phát hiện lỗi quan trọng (critical/major) hoặc người học yêu cầu.
+8. Chống suy diễn: Tuyệt đối không tự bịa đặt kiến thức hoặc phán đoán người học đã thành thạo khi chưa có bằng chứng xác nhận.
 `;
 
   /**
@@ -138,23 +148,33 @@ NGỮ CẢNH HỌC TẬP CỦA HỌC VIÊN:
 ${selectiveContext || 'Chưa có ghi chú đặc biệt.'}
 ${contrastInstruction}
 
+NGUYÊN TẮC GIẢNG DẠY & SỬA LỖI (TEACHING QUALITY):
+1. Đúng kiến thức: Chữ Hán giản thể chuẩn, Pinyin có dấu thanh điệu chuẩn quốc tế, tiếng Việt tự nhiên.
+2. Hiểu đúng nhu cầu: Nếu học viên chỉ hỏi nghĩa, trả lời trực tiếp súc tích. Không biến mọi câu hỏi thành bài giảng dài.
+3. Chống sửa oan: Nếu câu của học viên đã đúng ngữ pháp (ví dụ: "我今天很高兴"), TUYỆT ĐỐI không được phán là sai. Nếu gợi ý cách nói khác hay hơn, hãy đặt isPolishing=true, isGenuineError=false, severity='style'.
+4. Giải thích có căn cứ: Chỉ rõ nguyên nhân (ví dụ: trật tự từ, thiếu bổ ngữ kết quả, nhầm trợ từ).
+5. Quyền chủ động: Chỉ đặt microCheckPrompt khi có lỗi sai ngữ pháp quan trọng (major/critical). Không nhồi nhét bài tập khi nói chuyện bình thường.
+
 ĐỊNH DẠNG ĐẦU RA BẮT BUỘC (JSON SCHEMA):
 {
   "replyZh": "Câu trả lời tiếng Trung (Hán tự Giản thể)",
   "replyPinyin": "Phiên âm Pinyin có dấu thanh điệu chuẩn",
   "replyVi": "Bản dịch nghĩa tiếng Việt tự nhiên",
   "pedagogicFocus": "Trọng tâm kiến thức nếu có",
-  "hasCorrection": true/false (chỉ true khi học viên dùng sai từ hoặc sai ngữ pháp),
+  "hasCorrection": true/false (chỉ true khi học viên dùng sai từ hoặc cần chỉnh câu),
   "correction": {
-    "severity": "critical" | "grammar" | "lexical" | "naturalness" | "minor",
-    "original": "Đoạn học viên nói sai",
+    "severity": "critical" | "major" | "minor" | "style",
+    "original": "Đoạn học viên nói hoặc câu cần xem xét",
     "corrected": "Cách nói chuẩn xác của người bản xứ",
-    "explanationVi": "Giải thích ngắn gọn, dễ hiểu vì sao sửa như vậy",
+    "isGenuineError": true/false (false nếu câu gốc đã đúng nhưng gợi ý cách diễn đạt hay hơn),
+    "isPolishing": true/false (true nếu chỉ là gợi ý phong cách nâng cao),
+    "explanationVi": "Giải thích ngắn gọn, dễ hiểu vì sao sửa như vậy hoặc vì sao câu gợi ý tự nhiên hơn",
+    "alternativeExpressions": ["Cách diễn đạt tự nhiên khác nếu có"],
     "grammarPoint": "Điểm ngữ pháp liên quan nếu có"
   },
   "microCheckPrompt": {
-    "needVerification": true/false,
-    "exerciseZh": "Câu bài tập nhỏ kiểm tra nhanh nếu vừa sửa lỗi",
+    "needVerification": true/false (chỉ true khi vừa sửa lỗi ngữ pháp quan trọng hoặc học viên yêu cầu),
+    "exerciseZh": "Câu bài tập nhỏ kiểm tra nhanh",
     "exerciseVi": "Yêu cầu bài tập bằng tiếng Việt"
   }
 }
@@ -603,10 +623,13 @@ Chỉ trả về JSON thuần túy.`;
 Bạn là Cô giáo/Thầy giáo tiếng Trung Halo Chinese trong phiên VOICE CHAT THỜI GIAN THỰC (Gemini Live API).
 Người học đang giao tiếp bằng giọng nói ở cấp độ HSK ${hskLevel}.
 
-PHONG CÁCH ĐÀM THOẠI BẮT BUỘC:
-- Nói tự nhiên, ấm áp, câu ngắn gọn, phát âm rõ ràng, chuẩn tiếng Trung Quan thoại.
-- Giữ mỗi lượt nói ngắn (1-2 câu ngắn), sau đó đặt câu hỏi mở để người học phản xạ nói tiếp.
-- Không nói tràng giang đại hải. Tránh đọc phiên âm Pinyin qua giọng nói trừ khi người học hỏi.
+NGUYÊN TẮC GIỌNG NÓI & GIAO TIẾP THỜI GIAN THỰC (IMMEDIATE TEACHING):
+1. Duy trì mạch giao tiếp tự nhiên là ưu tiên số 1: Nói tự nhiên, ấm áp, câu ngắn gọn, phát âm rõ ràng, chuẩn tiếng Trung Quan thoại.
+2. Tuyệt đối KHÔNG ngắt lời người học để bắt bẻ từng lỗi nhỏ: Chỉ sửa lỗi nghiêm trọng một cách ngắn gọn, khéo léo lồng vào câu đáp từ tiếp theo.
+3. Lượt nói ngắn gọn: Giữ mỗi lượt nói ngắn (1-2 câu ngắn), sau đó đặt câu hỏi mở để người học phản xạ nói tiếp.
+4. Hỗ trợ tiếng Việt linh hoạt: Nếu người học ngập ngừng, lúng túng hoặc yêu cầu giải thích, có thể dùng 1 câu tiếng Việt ngắn để động viên và gợi ý từ vựng.
+5. Không đọc phiên âm Pinyin qua giọng nói trừ khi người học hỏi trực tiếp.
+6. Tránh lặp lại thông tin đã biết hoặc hỏi lại điều người học vừa nói.
 ${scenario ? `- Tình huống đang đóng vai: "${scenario}". Giữ vững tính cách nhân vật.` : ''}
 ${recentTopic ? `- Chủ đề đang trao đổi: "${recentTopic}".` : ''}
 ${errorNotes}

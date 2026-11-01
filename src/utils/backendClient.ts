@@ -2370,6 +2370,92 @@ export class LocalBackendClient {
       return { success: false, error: e.message };
     }
   }
+
+  // ==================== TEACHING QUALITY ENGINE (B3) ====================
+
+  public async detectTeachingIntent(message: string): Promise<{ success: boolean; intent?: string; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/teaching/detect-intent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async classifyTeachingError(
+    originalSentence: string,
+    correctedSentence: string,
+    grammarPoint?: string
+  ): Promise<{ success: boolean; classification?: any; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/teaching/classify-error`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ originalSentence, correctedSentence, grammarPoint })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async diagnoseTeachingRootCause(
+    conceptKey: string,
+    learnerId: string = 'default'
+  ): Promise<{ success: boolean; diagnosis?: any; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/teaching/diagnose-root-cause`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conceptKey, learnerId })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getLearnerDiagnoses(learnerId: string = 'default'): Promise<{ success: boolean; diagnoses?: any[]; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/teaching/diagnoses/${encodeURIComponent(learnerId)}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async verifyTeachingDiagnosis(diagnosisId: string, passed: boolean): Promise<{ success: boolean; verified?: boolean; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/teaching/verify-diagnosis`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ diagnosisId, passed })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async auditTeachingQuality(
+    responseJson: any,
+    context: { intent?: string; hskLevel?: number; userQuery?: string } = {}
+  ): Promise<{ success: boolean; audit?: any; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/teaching/audit-quality`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ responseJson, ...context })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
 }
 
 export const backendClient = new LocalBackendClient();
