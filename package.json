@@ -1,7 +1,7 @@
 {
   "name": "halo-chinese",
   "private": true,
-  "version": "3.2.0",
+  "version": "3.2.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,7 +11,8 @@
     "build:apk": "npm run build && npx cap sync android && cd android && gradlew.bat assembleDebug",
     "lint": "oxlint",
     "benchmark": "node --import tsx/esm scripts/test_chinese_benchmark.ts",
-    "test": "node --import tsx/esm scripts/test_chinese_benchmark.ts && node --import tsx/esm scripts/test_teaching_quality.ts && node --import tsx/esm scripts/test_context_retrieval.ts && node --import tsx/esm scripts/test_unified_ai_orchestrator.ts && node --import tsx/esm scripts/test_unified_learning_memory.ts && node --import tsx/esm scripts/test_mastery_engine.ts && node --import tsx/esm scripts/test_learning_evidence.ts && node --import tsx/esm scripts/test_knowledge_registry.ts && node --import tsx/esm scripts/test_ai_tutor_intelligence.ts && tsx scripts/test_comprehensive_audit.ts && node --import tsx/esm scripts/test_ai_system_integration_audit.ts && node --import tsx/esm scripts/test_auth_and_mobile_system.ts && node --import tsx/esm scripts/test_sync_and_offline_system.ts && node --import tsx/esm scripts/test_installation_and_data_protection.ts",
+    "test": "node --import tsx/esm scripts/test_chinese_benchmark.ts && node --import tsx/esm scripts/test_teaching_quality.ts && node --import tsx/esm scripts/test_context_retrieval.ts && node --import tsx/esm scripts/test_unified_ai_orchestrator.ts && node --import tsx/esm scripts/test_unified_learning_memory.ts && node --import tsx/esm scripts/test_mastery_engine.ts && node --import tsx/esm scripts/test_learning_evidence.ts && node --import tsx/esm scripts/test_knowledge_registry.ts && node --import tsx/esm scripts/test_ai_tutor_intelligence.ts && tsx scripts/test_comprehensive_audit.ts && node --import tsx/esm scripts/test_ai_system_integration_audit.ts && node --import tsx/esm scripts/test_auth_and_mobile_system.ts && node --import tsx/esm scripts/test_sync_and_offline_system.ts && node --import tsx/esm scripts/test_installation_and_data_protection.ts && node --import tsx/esm scripts/system_logic_diagnostic.ts",
+    "test:logic": "node --import tsx/esm scripts/system_logic_diagnostic.ts",
     "test:protection": "node --import tsx/esm scripts/test_installation_and_data_protection.ts",
     "test:sync": "node --import tsx/esm scripts/test_sync_and_offline_system.ts",
     "test:auth": "node --import tsx/esm scripts/test_auth_and_mobile_system.ts",

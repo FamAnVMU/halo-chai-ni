@@ -150,7 +150,7 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     app: 'Halo Chinese Backend',
-    version: '3.2.0',
+    version: '3.2.1',
     apiVersion: 'v1',
     schemaVersion: migrationManager.getCurrentDatabaseSchemaVersion(),
     uptime: process.uptime(),
@@ -167,7 +167,7 @@ app.get('/api/server/test', (req, res) => {
     success: true,
     status: 'ok',
     app: 'Halo Chinese Backend',
-    version: '3.2.0',
+    version: '3.2.1',
     apiVersion: 'v1',
     schemaVersion: migrationManager.getCurrentDatabaseSchemaVersion(),
     serverTime: Date.now(),
@@ -308,9 +308,9 @@ app.post('/api/sync/push', authenticateUser, (req, res) => {
 
 app.get('/api/sync/pull', authenticateUser, (req, res) => {
   try {
-    const deviceId = req.query.deviceId as string;
-    const sinceSeq = parseInt((req.query.sinceSeq as string) || '0', 10);
-    const limit = parseInt((req.query.limit as string) || '100', 10);
+    const deviceId = (req.query.deviceId || req.query.device_id) as string;
+    const sinceSeq = parseInt((req.query.sinceSeq || req.query.since_seq || '0') as string, 10);
+    const limit = parseInt((req.query.limit || req.query.page_size || '100') as string, 10);
     if (!deviceId) {
       return res.status(400).json({ success: false, message: 'Thiếu tham số deviceId.' });
     }
@@ -323,7 +323,7 @@ app.get('/api/sync/pull', authenticateUser, (req, res) => {
 
 app.get('/api/sync/status', authenticateUser, (req, res) => {
   try {
-    const deviceId = (req.query.deviceId as string) || 'unknown_device';
+    const deviceId = ((req.query.deviceId || req.query.device_id) as string) || 'unknown_device';
     const result = syncService.getStatus(req.user.userId, deviceId);
     res.json(result);
   } catch (err: any) {
@@ -342,7 +342,8 @@ app.get('/api/sync/conflicts', authenticateUser, (req, res) => {
 
 app.post('/api/sync/resolve-conflict', authenticateUser, (req, res) => {
   try {
-    const { conflictId, resolution, mergedPayload } = req.body;
+    const { conflictId, resolution } = req.body;
+    const mergedPayload = req.body.mergedPayload || req.body.manualPayload;
     if (!conflictId || !resolution) {
       return res.status(400).json({ success: false, message: 'Thiếu conflictId hoặc resolution.' });
     }
@@ -364,7 +365,7 @@ app.get('/api/backup/stats', (req, res) => {
       success: true,
       stats,
       schemaVersion,
-      appVersion: '3.2.0',
+      appVersion: '3.2.1',
       integrity
     });
   } catch (err: any) {

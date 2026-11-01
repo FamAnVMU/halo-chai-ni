@@ -579,7 +579,7 @@ export class SyncService {
    * Lấy danh sách xung đột dữ liệu chưa giải quyết
    */
   public getConflicts(userId: string) {
-    const rows = db.prepare('SELECT * FROM sync_conflicts WHERE user_id = ? AND status = "pending" ORDER BY created_at DESC').all(userId) as any[];
+    const rows = db.prepare("SELECT * FROM sync_conflicts WHERE user_id = ? AND status = 'pending' ORDER BY created_at DESC").all(userId) as any[];
     return rows.map(r => ({
       ...r,
       clientPayload: JSON.parse(r.client_payload_json || '{}'),
@@ -596,12 +596,18 @@ export class SyncService {
 
     const now = Date.now();
     if (resolution === 'client') {
+      let clientData = {};
+      try {
+        clientData = JSON.parse(conflict.client_payload_json || '{}');
+      } catch {
+        clientData = {};
+      }
       this.applyMutationToDatabase(conflict.user_id, {
         id: `res_${conflictId}`,
         entityType: conflict.entity_type,
         entityId: conflict.entity_id,
         action: 'update',
-        payload: JSON.parse(conflict.client_payload_json),
+        payload: clientData,
         timestamp: now,
         idempotencyKey: `res_${conflictId}_${now}`
       });

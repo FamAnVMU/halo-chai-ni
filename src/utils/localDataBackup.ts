@@ -27,6 +27,9 @@ export interface LocalBackupPackage {
     aiMemory: any[];
     dailyStats: any[];
     syncQueue: any[];
+    stories?: any[];
+    listening?: any[];
+    offlineProfiles?: any[];
   };
 }
 
@@ -45,6 +48,9 @@ export class LocalDataBackupManager {
       const aiMemory = await db.aiMemory.toArray();
       const dailyStats = await db.dailyStats.toArray();
       const syncQueue = await db.syncQueue.toArray();
+      const stories = await db.stories.toArray();
+      const listening = await db.listening.toArray();
+      const offlineProfiles = await db.offlineProfiles.toArray();
 
       const timestamp = Date.now();
       const dateStr = new Date(timestamp).toISOString().split('T')[0];
@@ -53,7 +59,7 @@ export class LocalDataBackupManager {
       const backupPackage: LocalBackupPackage = {
         manifest: {
           app: 'Halo Chinese',
-          appVersion: '3.2.0',
+          appVersion: '3.2.1',
           schemaVersion: 5,
           exportedAt: timestamp,
           exportedAtIso: new Date(timestamp).toISOString(),
@@ -68,6 +74,9 @@ export class LocalDataBackupManager {
             aiMemory: aiMemory.length,
             dailyStats: dailyStats.length,
             syncQueue: syncQueue.length,
+            stories: stories.length,
+            listening: listening.length,
+            offlineProfiles: offlineProfiles.length,
           }
         },
         data: {
@@ -80,6 +89,9 @@ export class LocalDataBackupManager {
           aiMemory,
           dailyStats,
           syncQueue,
+          stories,
+          listening,
+          offlineProfiles,
         }
       };
 
@@ -123,7 +135,7 @@ export class LocalDataBackupManager {
 
       await db.transaction(
         'rw',
-        [db.users, db.vocabularies, db.srsCards, db.grammarRules, db.lessons, db.aiSessions, db.aiMemory, db.dailyStats, db.syncQueue],
+        [db.users, db.vocabularies, db.srsCards, db.grammarRules, db.lessons, db.aiSessions, db.aiMemory, db.dailyStats, db.syncQueue, db.stories, db.listening, db.offlineProfiles],
         async () => {
           if (Array.isArray(data.users) && data.users.length > 0) {
             await db.users.bulkPut(data.users);
@@ -149,9 +161,25 @@ export class LocalDataBackupManager {
             await db.aiSessions.bulkPut(data.aiSessions);
             counts.aiSessions = data.aiSessions.length;
           }
+          if (Array.isArray(data.aiMemory) && data.aiMemory.length > 0) {
+            await db.aiMemory.bulkPut(data.aiMemory);
+            counts.aiMemory = data.aiMemory.length;
+          }
           if (Array.isArray(data.dailyStats) && data.dailyStats.length > 0) {
             await db.dailyStats.bulkPut(data.dailyStats);
             counts.dailyStats = data.dailyStats.length;
+          }
+          if (Array.isArray(data.stories) && data.stories.length > 0) {
+            await db.stories.bulkPut(data.stories);
+            counts.stories = data.stories.length;
+          }
+          if (Array.isArray(data.listening) && data.listening.length > 0) {
+            await db.listening.bulkPut(data.listening);
+            counts.listening = data.listening.length;
+          }
+          if (Array.isArray(data.offlineProfiles) && data.offlineProfiles.length > 0) {
+            await db.offlineProfiles.bulkPut(data.offlineProfiles);
+            counts.offlineProfiles = data.offlineProfiles.length;
           }
         }
       );

@@ -2803,6 +2803,7 @@ export class LocalBackendClient {
         body: JSON.stringify({
           conflictId,
           resolution,
+          mergedPayload: manualPayload,
           manualPayload
         })
       });

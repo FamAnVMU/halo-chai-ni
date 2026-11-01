@@ -275,7 +275,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       {/* App Version Info */}
       <div className="text-center text-xs text-[#889B84] pt-4 flex flex-col gap-1">
         <span>Halo Chinese • Mobile-First Personal AI Edition</span>
-        <span className="font-mono text-[11px]">Phiên bản 3.2.0 (v3.2.0)</span>
+        <span className="font-mono text-[11px]">Phiên bản 3.2.1 (v3.2.1)</span>
       </div>
 
       {/* Modals */}

@@ -37,8 +37,15 @@ async function runAuthTests() {
   console.log('🔐 RUNNING AUTHENTICATION, ROLES & LAN SECURITY SUITE (v3.0.0)');
   console.log('================================================================\n');
 
-  // 1. Kiểm tra Bootstrap Admin
+  // 1. Kiểm tra Bootstrap Admin (Đảm bảo trạng thái ban đầu sạch)
   console.log('📌 [PHẦN 1: TÀI KHOẢN ADMIN MẶC ĐỊNH & BẢO MẬT MẬT KHẨU]');
+  authService.changePassword({
+    userId: 'admin',
+    newPassword: '123456a@B',
+    isForced: true
+  });
+  db.prepare('UPDATE users SET must_change_password = 1 WHERE username = ?').run('admin');
+
   const adminRow = db.prepare('SELECT * FROM users WHERE username = ?').get('admin') as any;
   assert(
     !!adminRow && adminRow.username === 'admin' && adminRow.role === 'admin',

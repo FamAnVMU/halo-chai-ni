@@ -23,7 +23,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   const isLearnActive = ['learn', 'roadmap', 'dictionary', 'vocab', 'grammar', 'pronounce', 'shadowing', 'write', 'reading', 'listening'].includes(currentTab);
   const isAiTutorActive = currentTab === 'ai_tutor';
   const isReviewActive = ['review', 'practice', 'ai_lessons', 'ai_memory'].includes(currentTab);
-  const isProfileActive = ['profile', 'placement_test', 'stats', 'settings'].includes(currentTab);
+  const isProfileActive = ['profile', 'placement_test', 'stats', 'settings', 'sync_settings', 'data_backup'].includes(currentTab);
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#1A2418]/95 backdrop-blur-md border-t border-[#E3EBDD] dark:border-[#2D3A2C] px-3 pb-safe pt-1 flex items-center justify-around shadow-lg transition-colors">

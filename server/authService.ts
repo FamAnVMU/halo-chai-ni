@@ -383,7 +383,10 @@ export class AuthService {
     }
 
     // Nếu không phải admin reset mà là người dùng tự đổi, bắt buộc kiểm tra mật khẩu cũ
-    if (!isForced && oldPassword) {
+    if (!isForced) {
+      if (!oldPassword) {
+        throw new Error('Vui lòng nhập mật khẩu hiện tại.');
+      }
       const isMatch = this.verifyPassword(oldPassword, user.password_hash);
       if (!isMatch) {
         throw new Error('Mật khẩu hiện tại không chính xác.');

@@ -173,7 +173,8 @@ export class BackupService {
 
     // 2. TẠO BẢN SAO LƯU DỰ PHÒNG CỦA TRẠNG THÁI HIỆN TẠI (Safety Rollback)
     try {
-      await this.createBackup('pre_restore', '3.2.0', 4, `Sao lưu an toàn trước khi khôi phục bản ${backupId}`);
+      const currentSchema = Number(db.pragma('user_version', { simple: true })) || 5;
+      await this.createBackup('pre_restore', '3.2.0', currentSchema, `Sao lưu an toàn trước khi khôi phục bản ${backupId}`);
     } catch (e: any) {
       console.warn('[BackupService] Cảnh báo tạo pre-restore backup:', e.message);
     }

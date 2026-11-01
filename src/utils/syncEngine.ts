@@ -270,7 +270,7 @@ class SyncEngine {
 
     try {
       const res = await fetch(
-        `${cfg.baseUrl}/api/sync/pull?since_seq=${sinceSeq}&limit=100&device_id=${encodeURIComponent(deviceId)}`,
+        `${cfg.baseUrl}/api/sync/pull?sinceSeq=${sinceSeq}&limit=100&deviceId=${encodeURIComponent(deviceId)}`,
         {
           method: 'GET',
           headers: {

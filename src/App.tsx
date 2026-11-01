@@ -281,7 +281,7 @@ export function App() {
             </div>
 
             <div className="text-[11px] text-[#647560] dark:text-[#889B84] text-center pt-4 border-t border-[#E3EBDD] dark:border-[#2D3A2C]">
-              Halo Chinese v3.2.0 • Mobile-First Personal AI
+              Halo Chinese v3.2.1 • Mobile-First Personal AI
             </div>
           </div>
         </div>
