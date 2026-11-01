@@ -35,6 +35,9 @@ import { GOLDEN_DATASET } from './goldenDataset.js';
 import { tokenizeChinese } from '../src/data/seedDictionary.js';
 import { authService, UserSession } from './authService.js';
 import { syncService } from './syncService.js';
+import { dataPathManager } from './dataPathManager.js';
+import { backupService } from './backupService.js';
+import { migrationManager } from './migrationManager.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -147,12 +150,14 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     app: 'Halo Chinese Backend',
-    version: '3.1.0',
+    version: '3.2.0',
     apiVersion: 'v1',
+    schemaVersion: migrationManager.getCurrentDatabaseSchemaVersion(),
     uptime: process.uptime(),
     timestamp: Date.now(),
     serverTime: Date.now(),
     database: 'connected (SQLite WAL)',
+    databasePath: dataPathManager.getDatabasePath(),
     localIps: getLocalIpAddresses()
   });
 });
@@ -162,8 +167,9 @@ app.get('/api/server/test', (req, res) => {
     success: true,
     status: 'ok',
     app: 'Halo Chinese Backend',
-    version: '3.1.0',
+    version: '3.2.0',
     apiVersion: 'v1',
+    schemaVersion: migrationManager.getCurrentDatabaseSchemaVersion(),
     serverTime: Date.now(),
     lanAccessEnabled: isLanAccessEnabled()
   });
@@ -342,6 +348,86 @@ app.post('/api/sync/resolve-conflict', authenticateUser, (req, res) => {
     }
     const success = syncService.resolveConflict(conflictId, resolution, mergedPayload);
     res.json({ success });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ==================== DATA MANAGEMENT & BACKUP APIS (v3.2.0) ====================
+app.get('/api/backup/stats', (req, res) => {
+  try {
+    const stats = dataPathManager.getStorageStats();
+    const schemaVersion = migrationManager.getCurrentDatabaseSchemaVersion();
+    const integrity = backupService.verifyDatabaseIntegrity();
+
+    res.json({
+      success: true,
+      stats,
+      schemaVersion,
+      appVersion: '3.2.0',
+      integrity
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.get('/api/backup/list', (req, res) => {
+  try {
+    const backups = backupService.listBackups();
+    res.json({ success: true, backups });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.post('/api/backup/create', (req, res) => {
+  try {
+    const { reason, notes } = req.body || {};
+    backupService.createBackup(reason || 'manual', '3.2.0', migrationManager.getCurrentDatabaseSchemaVersion(), notes)
+      .then((manifest) => {
+        res.json({ success: true, manifest });
+      })
+      .catch((err: any) => {
+        res.status(500).json({ success: false, message: err.message });
+      });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.post('/api/backup/restore', (req, res) => {
+  try {
+    const { backupId } = req.body;
+    if (!backupId) {
+      return res.status(400).json({ success: false, message: 'Thiếu backupId để khôi phục.' });
+    }
+    backupService.restoreFromBackup(backupId)
+      .then((result) => {
+        res.json(result);
+      })
+      .catch((err: any) => {
+        res.status(500).json({ success: false, message: err.message });
+      });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.get('/api/backup/integrity', (req, res) => {
+  try {
+    const integrity = backupService.verifyDatabaseIntegrity();
+    res.json({ success: true, integrity });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.get('/api/backup/migrations', (req, res) => {
+  try {
+    const history = migrationManager.getMigrationHistory();
+    const currentVersion = migrationManager.getCurrentDatabaseSchemaVersion();
+    res.json({ success: true, currentVersion, history });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -2586,11 +2672,32 @@ wss.on('connection', (ws: WebSocket, req) => {
   });
 });
 
+// Run Database Migrations before accepting requests
+migrationManager.runPendingMigrations().then((res) => {
+  if (res.success) {
+    console.log(`[Database] Đã đồng bộ Schema Version v${res.currentVersion} (${res.executedCount} migrations mới).`);
+  } else {
+    console.warn(`[Database] Cảnh báo Migration: ${res.error}`);
+  }
+}).catch((err) => {
+  console.error('[Database] Lỗi khởi tạo Migration:', err.message);
+});
+
+// Port collision error handling
+server.on('error', (err: any) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`\n❌ [PORT COLLISION] Cổng ${PORT} đang bị chiếm dụng bởi một tiến trình khác.`);
+    console.error(`👉 Hãy đóng phiên bản cũ đang chạy ngầm hoặc chỉ định cổng khác: PORT=3002 npm run server\n`);
+  } else {
+    console.error(`❌ [SERVER ERROR] ${err.message}`);
+  }
+});
+
 // Start Server on 0.0.0.0
 server.listen(PORT, HOST, () => {
   const ips = getLocalIpAddresses();
   console.log(`=======================================================`);
-  console.log(`🚀 HALO CHINESE LOCAL BACKEND ĐANG CHẠY`);
+  console.log(`🚀 HALO CHINESE LOCAL BACKEND ĐANG CHẠY (v3.2.0)`);
   console.log(`📡 Máy tính (Localhost): http://localhost:${PORT}`);
   if (ips.length > 0) {
     console.log(`📱 KẾT NỐI TỪ ĐIỆN THOẠI ANDROID (cùng mạng Wi-Fi):`);
@@ -2599,6 +2706,8 @@ server.listen(PORT, HOST, () => {
     });
   }
   console.log(`🎙️  Live WebSocket: ws://<IP>:${PORT}/api/live`);
-  console.log(`📁 SQLite Database: ${path.resolve(process.cwd(), 'data/halo_chinese.db')}`);
+  console.log(`📁 User Data Directory: ${dataPathManager.getUserDataDirectory()}`);
+  console.log(`🗄️ SQLite Database: ${dataPathManager.getDatabasePath()}`);
+  console.log(`💾 Backup Directory: ${dataPathManager.getBackupDirectory()}`);
   console.log(`=======================================================`);
 });

@@ -17,6 +17,7 @@ import {
   Award,
   BookA,
   Server,
+  Database,
 } from 'lucide-react';
 
 export type NavTab =
@@ -40,7 +41,8 @@ export type NavTab =
   | 'ai_memory'
   | 'stats'
   | 'settings'
-  | 'sync_settings';
+  | 'sync_settings'
+  | 'data_backup';
 
 interface SidebarProps {
   currentTab: NavTab;
@@ -87,6 +89,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
         { id: 'ai_memory', label: 'Bộ nhớ học tập', icon: Brain },
         { id: 'stats', label: 'Thống kê tiến độ', icon: BarChart3 },
         { id: 'sync_settings', label: 'Kết nối Server & Đồng bộ', icon: Server, highlight: true },
+        { id: 'data_backup', label: 'Quản lý dữ liệu & Sao lưu', icon: Database, highlight: true },
         { id: 'settings', label: 'Cài đặt & API Key', icon: Settings },
       ]
     }

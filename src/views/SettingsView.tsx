@@ -16,6 +16,7 @@ import {
   Wifi,
   Smartphone,
   Laptop,
+  Database,
 } from 'lucide-react';
 import type { UserProfile } from '../types';
 import { db } from '../db';
@@ -25,9 +26,10 @@ import { speechService } from '../utils/speechRecognition';
 
 interface SettingsViewProps {
   user?: UserProfile;
+  onNavigate?: (tab: any) => void;
 }
 
-export const SettingsView: React.FC<SettingsViewProps> = () => {
+export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate }) => {
   const [backendOnline, setBackendOnline] = useState<boolean>(false);
   const [keyConfig, setKeyConfig] = useState<BackendKeyConfig | null>(null);
 
@@ -390,6 +392,30 @@ export const SettingsView: React.FC<SettingsViewProps> = () => {
           <span className="font-bold block mb-0.5">Nguyên tắc bảo vệ API Key:</span>
           Hệ thống tuân thủ nghiêm ngặt mô hình <strong>Frontend ➔ Local Backend ➔ Gemini API</strong>. Khi bạn nhập Key, Backend sẽ lưu vào cơ sở dữ liệu SQLite cục bộ (hoặc biến môi trường <code>.env</code>). Giao diện frontend chỉ nhận diện trạng thái kết nối và key preview được ẩn danh.
         </div>
+      </div>
+
+      {/* DATA MANAGEMENT & BACKUP LINK */}
+      <div className="p-5 rounded-3xl bg-white dark:bg-[#1A2418] border border-[#E3EBDD] dark:border-[#2D3A2C] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-[#A3D635] text-[#263326] flex items-center justify-center shrink-0 shadow-xs">
+            <Database className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-[#263326] dark:text-[#EAF5D5]">
+              Quản Lý Dữ Liệu & Sao Lưu
+            </h3>
+            <p className="text-xs text-[#647560] dark:text-[#889B84] mt-0.5">
+              Tách biệt dữ liệu người dùng, sao lưu SQLite an toàn, xuất gói dự phòng offline và kiểm tra tính toàn vẹn.
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={() => onNavigate ? onNavigate('data_backup') : null}
+          className="touch-target px-4 py-2.5 rounded-xl bg-[#A3D635] text-[#263326] font-bold text-xs hover:brightness-105 active:scale-95 transition-all shadow-xs shrink-0"
+        >
+          Mở Quản Lý Dữ Liệu
+        </button>
       </div>
 
       {/* OVERALL TEST BUTTON */}

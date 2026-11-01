@@ -34,6 +34,7 @@ const LearnHubView = lazy(() => import('./views/LearnHubView').then(m => ({ defa
 const ReviewHubView = lazy(() => import('./views/ReviewHubView').then(m => ({ default: m.ReviewHubView })));
 const ProfileView = lazy(() => import('./views/ProfileView').then(m => ({ default: m.ProfileView })));
 const SyncSettingsView = lazy(() => import('./views/SyncSettingsView').then(m => ({ default: m.SyncSettingsView })));
+const DataBackupView = lazy(() => import('./views/DataBackupView').then(m => ({ default: m.DataBackupView })));
 
 import {
   X,
@@ -54,6 +55,7 @@ import {
   Award,
   BookA,
   Server,
+  Database,
 } from 'lucide-react';
 
 export function App() {
@@ -153,6 +155,7 @@ export function App() {
     { id: 'ai_memory', label: 'Bộ nhớ học tập', icon: Brain },
     { id: 'stats', label: 'Thống kê tiến độ', icon: BarChart3 },
     { id: 'sync_settings', label: 'Kết nối Server & Đồng bộ', icon: Server },
+    { id: 'data_backup', label: 'Quản lý dữ liệu & Sao lưu', icon: Database },
     { id: 'settings', label: 'Cài đặt & Quản lý API', icon: Settings },
   ];
 
@@ -223,7 +226,8 @@ export function App() {
                 {currentTab === 'ai_memory' && <LearnerMemoryView />}
                 {currentTab === 'stats' && <StatsView user={user} />}
                 {currentTab === 'sync_settings' && <SyncSettingsView onBack={() => handleSelectTab('home')} />}
-                {currentTab === 'settings' && <SettingsView user={user} />}
+                {currentTab === 'data_backup' && <DataBackupView onBack={() => handleSelectTab('settings')} />}
+                {currentTab === 'settings' && <SettingsView user={user} onNavigate={handleSelectTab} />}
               </>
             )}
           </Suspense>
@@ -277,7 +281,7 @@ export function App() {
             </div>
 
             <div className="text-[11px] text-[#647560] dark:text-[#889B84] text-center pt-4 border-t border-[#E3EBDD] dark:border-[#2D3A2C]">
-              Halo Chinese v3.1.0 • Mobile-First Personal AI
+              Halo Chinese v3.2.0 • Mobile-First Personal AI
             </div>
           </div>
         </div>

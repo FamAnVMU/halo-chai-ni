@@ -1,13 +1,9 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
+import { dataPathManager } from './dataPathManager';
 
-const dataDir = path.resolve(process.cwd(), 'data');
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
-}
-
-const dbPath = process.env.DATABASE_PATH || path.join(dataDir, 'halo_chinese.db');
+const dbPath = dataPathManager.getDatabasePath();
 export const db = new Database(dbPath);
 
 // Enable WAL mode & performance optimizations

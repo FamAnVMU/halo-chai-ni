@@ -2815,6 +2815,72 @@ export class LocalBackendClient {
   public async recordOfflineActivity(entityType: any, entityId: string, action: 'create' | 'update' | 'delete', payload: any) {
     return syncEngine.enqueueChange(entityType, entityId, action, payload);
   }
+
+  // ==========================================
+  // DATA MANAGEMENT & BACKUP HELPERS (v3.2.0)
+  // ==========================================
+
+  public async getStorageStats() {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/backup/stats`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getBackupList() {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/backup/list`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async createBackup(reason = 'manual', notes?: string) {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/backup/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason, notes })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async restoreBackup(backupId: string) {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/backup/restore`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ backupId })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async verifyIntegrity() {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/backup/integrity`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getMigrationHistory() {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/backup/migrations`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
 }
 
 export const backendClient = new LocalBackendClient();
