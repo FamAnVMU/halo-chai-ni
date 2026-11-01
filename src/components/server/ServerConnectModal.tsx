@@ -194,7 +194,17 @@ export const ServerConnectModal: React.FC<ServerConnectModalProps> = ({
             </div>
 
             <div className="text-[11px] text-[#647560] dark:text-[#889B84]">
-              Đường dẫn đầy đủ: <code className="font-mono text-[#355A26] dark:text-[#A3D635]">http://{host.trim()}:{port.trim()}</code>
+              Đường dẫn đầy đủ:{' '}
+              <code className="font-mono text-[#355A26] dark:text-[#A3D635]">
+                {(() => {
+                  const isSec = host.startsWith('https://') || host.includes('trycloudflare.com');
+                  const cleanH = host.trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+                  const p = port.trim();
+                  const effectivePort = (isSec && (p === '3001' || p === '443' || p === '')) ? '' : p;
+                  const scheme = isSec ? 'https' : 'http';
+                  return effectivePort ? `${scheme}://${cleanH}:${effectivePort}` : `${scheme}://${cleanH}`;
+                })()}
+              </code>
             </div>
 
             {/* Test connection result display */}

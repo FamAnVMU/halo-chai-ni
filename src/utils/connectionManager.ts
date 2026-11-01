@@ -144,18 +144,30 @@ class ConnectionManager {
       }
     }
 
-    // Làm sạch host
-    host = host.trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
-    if (host.includes(':')) {
-      const parts = host.split(':');
-      host = parts[0];
-      port = parts[1] || port;
+    const rawHost = host || '';
+    const isSecure = rawHost.startsWith('https://') || rawHost.includes('trycloudflare.com');
+    let cleanHost = rawHost.trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+    let cleanPort = port.trim();
+
+    // Nếu là tên miền Cloudflare hoặc domain HTTPS, mặc định không ép port 3001
+    if (isSecure && (cleanPort === '3001' || cleanPort === '443' || cleanPort === '')) {
+      cleanPort = '';
+    } else if (!isSecure && !cleanPort) {
+      cleanPort = '3001';
     }
 
-    const baseUrl = `http://${host}:${port}`;
-    const wsUrl = `ws://${host}:${port}`;
+    if (cleanHost.includes(':')) {
+      const parts = cleanHost.split(':');
+      cleanHost = parts[0];
+      cleanPort = parts[1] || cleanPort;
+    }
 
-    return { host, port, baseUrl, wsUrl, isConfigured };
+    const scheme = isSecure ? 'https' : 'http';
+    const wsScheme = isSecure ? 'wss' : 'ws';
+    const baseUrl = cleanPort ? `${scheme}://${cleanHost}:${cleanPort}` : `${scheme}://${cleanHost}`;
+    const wsUrl = cleanPort ? `${wsScheme}://${cleanHost}:${cleanPort}` : `${wsScheme}://${cleanHost}`;
+
+    return { host: cleanHost, port: cleanPort, baseUrl, wsUrl, isConfigured };
   }
 
   /**
@@ -265,15 +277,25 @@ class ConnectionManager {
       };
     }
 
-    host = host.trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
-    if (host.includes(':')) {
-      const parts = host.split(':');
-      host = parts[0];
-      port = parts[1] || port;
-    }
-    if (!port) port = '3001';
+    const rawHost = host || '';
+    const isSecure = rawHost.startsWith('https://') || rawHost.includes('trycloudflare.com');
+    let cleanHost = rawHost.trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+    let cleanPort = port ? port.trim() : '';
 
-    const targetUrl = `http://${host}:${port}`;
+    if (isSecure && (cleanPort === '3001' || cleanPort === '443' || cleanPort === '')) {
+      cleanPort = '';
+    } else if (!isSecure && !cleanPort) {
+      cleanPort = '3001';
+    }
+
+    if (cleanHost.includes(':')) {
+      const parts = cleanHost.split(':');
+      cleanHost = parts[0];
+      cleanPort = parts[1] || cleanPort;
+    }
+
+    const scheme = isSecure ? 'https' : 'http';
+    const targetUrl = cleanPort ? `${scheme}://${cleanHost}:${cleanPort}` : `${scheme}://${cleanHost}`;
     const startTime = performance.now();
 
     try {
