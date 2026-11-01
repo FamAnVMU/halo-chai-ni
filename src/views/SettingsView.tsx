@@ -264,7 +264,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate }) => {
   };
 
   return (
-    <div className="space-y-6 pb-20 md:pb-8 max-w-4xl mx-auto">
+    <div className="space-y-6 pb-20 md:pb-8 w-full max-w-4xl mx-auto overflow-x-hidden">
       {/* Title */}
       <div>
         <h1 className="text-2xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">

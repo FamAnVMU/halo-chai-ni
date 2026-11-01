@@ -383,7 +383,7 @@ export const PlacementTestView: React.FC<PlacementTestViewProps> = ({ onNavigate
   // =========================================================================
   if (viewState === 'intro') {
     return (
-      <div className="flex flex-col gap-5 max-w-4xl mx-auto pb-16">
+      <div className="flex flex-col gap-4 sm:gap-5 w-full max-w-4xl mx-auto overflow-x-hidden pb-16">
         {/* Header Hero */}
         <Card variant="highlight" className="p-5 sm:p-7 relative overflow-hidden">
           <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 opacity-10 pointer-events-none text-[150px] font-chinese font-black text-[#355A26] dark:text-[#A3D635]">
@@ -959,7 +959,7 @@ export const PlacementTestView: React.FC<PlacementTestViewProps> = ({ onNavigate
   // =========================================================================
   if (viewState === 'result' && currentResult) {
     return (
-      <div className="flex flex-col gap-5 max-w-4xl mx-auto pb-16">
+      <div className="flex flex-col gap-4 sm:gap-5 w-full max-w-4xl mx-auto overflow-x-hidden pb-16">
         {/* Score & Estimated HSK Card */}
         <Card variant="highlight" className="p-5 sm:p-7 relative overflow-hidden">
           <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-5">
@@ -1189,7 +1189,7 @@ export const PlacementTestView: React.FC<PlacementTestViewProps> = ({ onNavigate
   // =========================================================================
   if (viewState === 'history') {
     return (
-      <div className="flex flex-col gap-4 max-w-4xl mx-auto pb-16">
+      <div className="flex flex-col gap-4 w-full max-w-4xl mx-auto overflow-x-hidden pb-16">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-bold text-[#263326] dark:text-[#EAF5D5]">

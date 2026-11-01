@@ -82,7 +82,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-5 max-w-3xl mx-auto pb-16">
+    <div className="flex flex-col gap-4 sm:gap-5 w-full max-w-3xl mx-auto overflow-x-hidden pb-16">
       {/* Profile Header Card */}
       <Card variant="highlight" className="p-5 sm:p-6 flex flex-col gap-4">
         <div className="flex items-center justify-between">
@@ -275,7 +275,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       {/* App Version Info */}
       <div className="text-center text-xs text-[#889B84] pt-4 flex flex-col gap-1">
         <span>Halo Chinese • Mobile-First Personal AI Edition</span>
-        <span className="font-mono text-[11px]">Phiên bản 3.2.2 (v3.2.2)</span>
+        <span className="font-mono text-[11px]">Phiên bản 3.2.3 (v3.2.3)</span>
       </div>
 
       {/* Modals */}

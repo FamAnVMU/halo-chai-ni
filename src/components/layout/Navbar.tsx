@@ -54,33 +54,33 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onOpenAITutor, onOpenProfi
   };
 
   return (
-    <header className="sticky top-0 z-30 w-full backdrop-blur-md bg-white/90 dark:bg-[#1A2418]/90 border-b border-[#E3EBDD] dark:border-[#2D3A2C] px-3 sm:px-6 py-2.5 transition-colors">
-      <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
+    <header className="sticky top-0 z-30 w-full max-w-full overflow-x-hidden backdrop-blur-md bg-white/95 dark:bg-[#1A2418]/95 border-b border-[#E3EBDD] dark:border-[#2D3A2C] px-2.5 sm:px-6 pt-[calc(max(env(safe-area-inset-top,0px),16px)+6px)] pb-2 sm:pb-2.5 transition-colors">
+      <div className="max-w-7xl mx-auto flex items-center justify-between gap-1.5 sm:gap-2 w-full">
         {/* Brand Logo & Level */}
-        <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-2xl bg-[#A3D635] text-[#263326] flex items-center justify-center font-bold text-xl shadow-xs font-chinese shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-[#A3D635] text-[#263326] flex items-center justify-center font-bold text-base sm:text-xl shadow-xs font-chinese shrink-0">
             汉
           </div>
           <div className="flex flex-col">
-            <div className="flex items-center gap-1.5">
-              <span className="font-extrabold text-base sm:text-lg tracking-tight text-[#263326] dark:text-[#EAF5D5]">
-                Halo Chinese
+            <div className="flex items-center gap-1 sm:gap-1.5">
+              <span className="font-extrabold text-sm sm:text-lg tracking-tight text-[#263326] dark:text-[#EAF5D5]">
+                Halo<span className="hidden xs:inline"> Chinese</span>
               </span>
-              <Badge variant="lime" size="sm">
+              <Badge variant="lime" size="sm" className="px-1.5 py-0.5 text-[10px] sm:text-xs">
                 HSK {user?.currentHskLevel || 1}
               </Badge>
             </div>
-            <span className="text-[10px] text-[#647560] dark:text-[#889B84] font-medium hidden sm:inline">
+            <span className="text-[10px] text-[#647560] dark:text-[#889B84] font-medium hidden md:inline">
               Personal AI Chinese Learning
             </span>
           </div>
         </div>
 
         {/* Right side controls */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {/* Streak indicator */}
-          <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-2xl bg-[#F6FAF2] dark:bg-[#151D14] border border-[#E3EBDD] dark:border-[#2D3A2C] text-amber-600 dark:text-amber-400 text-xs font-bold shrink-0">
-            <Flame className="w-4 h-4 fill-amber-500 text-amber-500" />
+          <div className="flex items-center gap-1 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-xl sm:rounded-2xl bg-[#F6FAF2] dark:bg-[#151D14] border border-[#E3EBDD] dark:border-[#2D3A2C] text-amber-600 dark:text-amber-400 text-xs font-bold shrink-0">
+            <Flame className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-amber-500 text-amber-500" />
             <span>{user?.streakDays || 1}</span>
           </div>
 
@@ -90,7 +90,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onOpenAITutor, onOpenProfi
           {/* User Account / Admin Badge button */}
           <button
             onClick={onOpenProfile}
-            className="touch-target flex items-center gap-1.5 px-2.5 py-1.5 rounded-2xl bg-[#F6FAF2] hover:bg-[#EAF5D5] dark:bg-[#151D14] dark:hover:bg-[#202D1D] border border-[#E3EBDD] dark:border-[#2D3A2C] text-xs font-semibold text-[#263326] dark:text-[#EAF5D5] transition-colors"
+            className="flex items-center gap-1.5 p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl sm:rounded-2xl bg-[#F6FAF2] hover:bg-[#EAF5D5] dark:bg-[#151D14] dark:hover:bg-[#202D1D] border border-[#E3EBDD] dark:border-[#2D3A2C] text-xs font-semibold text-[#263326] dark:text-[#EAF5D5] transition-colors shrink-0"
             title="Tài khoản cá nhân"
           >
             {authUser?.role === 'admin' ? (
@@ -98,7 +98,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onOpenAITutor, onOpenProfi
             ) : (
               <User className="w-4 h-4 text-[#647560] dark:text-[#889B84]" />
             )}
-            <span className="max-w-[70px] sm:max-w-[100px] truncate">
+            <span className="max-w-[70px] sm:max-w-[100px] truncate hidden sm:inline">
               {authUser?.username || 'Khách'}
             </span>
           </button>
@@ -106,7 +106,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onOpenAITutor, onOpenProfi
           {/* Quick AI Tutor (desktop only, since mobile has center bottom button) */}
           <button
             onClick={onOpenAITutor}
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-[#A3D635] text-[#263326] text-xs font-bold shadow-xs hover:brightness-105 active:scale-95 transition-all"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-[#A3D635] text-[#263326] text-xs font-bold shadow-xs hover:brightness-105 active:scale-95 transition-all shrink-0"
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span>AI Tutor</span>
@@ -116,7 +116,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onOpenAITutor, onOpenProfi
           <button
             onClick={togglePinyinMode}
             title="Bật/Tắt hiển thị Pinyin"
-            className={`touch-target px-2.5 py-1.5 text-xs font-semibold rounded-2xl border transition-colors ${
+            className={`px-2 py-1 sm:px-2.5 sm:py-1.5 text-[11px] sm:text-xs font-bold rounded-xl sm:rounded-2xl border transition-colors shrink-0 ${
               user?.pinyinMode === 'above'
                 ? 'bg-[#EAF5D5] dark:bg-[#202D1D] border-[#D7EDB5] dark:border-[#355A26] text-[#355A26] dark:text-[#C2E58C]'
                 : 'bg-white dark:bg-[#1A2418] border-[#E3EBDD] dark:border-[#2D3A2C] text-[#647560]'
@@ -129,7 +129,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onOpenAITutor, onOpenProfi
           <button
             onClick={toggleCharMode}
             title="Chuyển đổi Giản thể / Phồn thể"
-            className="hidden md:inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-2xl border border-[#E3EBDD] dark:border-[#2D3A2C] bg-white dark:bg-[#1A2418] text-[#263326] dark:text-[#EAF5D5] hover:bg-[#F6FAF2] dark:hover:bg-[#202D1D] transition-colors"
+            className="hidden md:inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-2xl border border-[#E3EBDD] dark:border-[#2D3A2C] bg-white dark:bg-[#1A2418] text-[#263326] dark:text-[#EAF5D5] hover:bg-[#F6FAF2] dark:hover:bg-[#202D1D] transition-colors shrink-0"
           >
             <Languages className="w-3.5 h-3.5 text-[#647560]" />
             <span>{user?.charMode === 'simplified' ? 'Giản' : 'Phồn'}</span>
@@ -139,10 +139,10 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onOpenAITutor, onOpenProfi
           <button
             onClick={toggleTheme}
             title="Đổi giao diện Sáng / Tối"
-            className="touch-target w-10 h-10 rounded-2xl text-[#263326] dark:text-[#EAF5D5] hover:bg-[#F6FAF2] dark:hover:bg-[#202D1D] border border-[#E3EBDD] dark:border-[#2D3A2C] transition-colors"
+            className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl flex items-center justify-center text-[#263326] dark:text-[#EAF5D5] hover:bg-[#F6FAF2] dark:hover:bg-[#202D1D] border border-[#E3EBDD] dark:border-[#2D3A2C] transition-colors shrink-0"
             aria-label="Chuyển chế độ sáng/tối"
           >
-            {user?.theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-[#647560]" />}
+            {user?.theme === 'dark' ? <Sun className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" /> : <Moon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#647560]" />}
           </button>
         </div>
       </div>

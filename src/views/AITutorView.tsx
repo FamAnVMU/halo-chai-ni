@@ -446,7 +446,7 @@ export const AITutorView: React.FC<AITutorViewProps> = ({ onNavigate }) => {
   };
 
   return (
-    <div className="flex flex-col gap-3 max-w-4xl mx-auto h-[calc(100dvh-130px)] md:h-[calc(100dvh-110px)] pb-1">
+    <div className="flex flex-col gap-3 w-full max-w-4xl mx-auto overflow-x-hidden h-[calc(100dvh-130px)] md:h-[calc(100dvh-110px)] pb-1">
       {/* Top Controls Header */}
       <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-white dark:bg-[#1A2418] rounded-3xl border border-[#E3EBDD] dark:border-[#2D3A2C] shadow-xs shrink-0">
         <div className="flex items-center gap-2">

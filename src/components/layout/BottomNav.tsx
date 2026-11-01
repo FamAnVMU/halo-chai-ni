@@ -26,7 +26,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   const isProfileActive = ['profile', 'placement_test', 'stats', 'settings', 'sync_settings', 'data_backup'].includes(currentTab);
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#1A2418]/95 backdrop-blur-md border-t border-[#E3EBDD] dark:border-[#2D3A2C] px-3 pb-safe pt-1 flex items-center justify-around shadow-lg transition-colors">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#1A2418]/95 backdrop-blur-md border-t border-[#E3EBDD] dark:border-[#2D3A2C] px-2 pt-1.5 pb-[calc(max(env(safe-area-inset-bottom,0px),12px)+4px)] flex items-center justify-around shadow-lg transition-colors w-full max-w-full overflow-x-hidden">
       {/* 1. Trang chủ */}
       <button
         onClick={() => onSelectTab('home')}

@@ -715,7 +715,7 @@ export const RoadmapView: React.FC<RoadmapViewProps> = ({ onSelectLesson, onNavi
   // VIEW: MAIN ROADMAP VIEW (Dual Tabs)
   // =========================================================================
   return (
-    <div className="space-y-6 pb-20 md:pb-8 max-w-4xl mx-auto">
+    <div className="space-y-6 pb-20 md:pb-8 w-full max-w-4xl mx-auto overflow-x-hidden">
       {/* Dual Tab Mode Switcher */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>

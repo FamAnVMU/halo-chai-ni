@@ -98,7 +98,7 @@ export const LearnHubView: React.FC<LearnHubViewProps> = ({ onNavigate }) => {
   ];
 
   return (
-    <div className="flex flex-col gap-5 max-w-4xl mx-auto pb-12">
+    <div className="flex flex-col gap-4 sm:gap-5 w-full max-w-4xl mx-auto overflow-x-hidden pb-12">
       {/* Header */}
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center gap-2">

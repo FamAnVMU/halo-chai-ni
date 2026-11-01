@@ -96,7 +96,7 @@ export const ServerStatusBadge: React.FC<ServerStatusBadgeProps> = ({ onClick, c
     <button
       onClick={onClick}
       type="button"
-      className={`touch-target flex items-center gap-1.5 px-2.5 py-1.5 rounded-2xl bg-[#F6FAF2] hover:bg-[#EAF5D5] dark:bg-[#151D14] dark:hover:bg-[#202D1D] border border-[#E3EBDD] dark:border-[#2D3A2C] text-xs font-semibold text-[#263326] dark:text-[#EAF5D5] transition-all cursor-pointer ${className}`}
+      className={`flex items-center gap-1 sm:gap-1.5 px-2 py-1.5 sm:px-2.5 sm:py-1.5 rounded-xl sm:rounded-2xl bg-[#F6FAF2] hover:bg-[#EAF5D5] dark:bg-[#151D14] dark:hover:bg-[#202D1D] border border-[#E3EBDD] dark:border-[#2D3A2C] text-xs font-semibold text-[#263326] dark:text-[#EAF5D5] transition-all cursor-pointer shrink-0 ${className}`}
       title={`Trạng thái: ${badgeLabel}. Nhấn để quản lý kết nối và đồng bộ.`}
       aria-label={`Trạng thái máy chủ: ${badgeLabel}`}
     >

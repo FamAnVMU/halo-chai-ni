@@ -108,7 +108,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ user, onNavigate }) => {
   };
 
   return (
-    <div className="flex flex-col gap-5 max-w-4xl mx-auto pb-12">
+    <div className="flex flex-col gap-4 sm:gap-5 w-full max-w-4xl mx-auto overflow-x-hidden pb-12">
       {/* Hero Welcome Card */}
       <Card variant="highlight" className="p-5 sm:p-7 relative overflow-hidden">
         <div className="absolute right-2 bottom-0 translate-x-4 translate-y-6 opacity-10 pointer-events-none select-none text-[140px] font-chinese font-black leading-none text-[#355A26] dark:text-[#A3D635]">

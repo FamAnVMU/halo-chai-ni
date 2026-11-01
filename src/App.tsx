@@ -160,7 +160,7 @@ export function App() {
   ];
 
   return (
-    <div className="min-h-[100dvh] bg-[#F6FAF2] dark:bg-[#121811] text-[#263326] dark:text-[#EAF5D5] flex flex-col font-sans transition-colors duration-150">
+    <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden bg-[#F6FAF2] dark:bg-[#121811] text-[#263326] dark:text-[#EAF5D5] flex flex-col font-sans transition-colors duration-150">
       {/* Top Navigation Bar */}
       <Navbar
         user={user}
@@ -169,12 +169,12 @@ export function App() {
         onOpenServerModal={() => setIsServerModalOpen(true)}
       />
 
-      <div className="flex-1 flex max-w-7xl w-full mx-auto">
+      <div className="flex-1 flex max-w-7xl w-full mx-auto overflow-x-hidden">
         {/* Desktop Sidebar */}
         <Sidebar currentTab={currentTab} onSelectTab={handleSelectTab} />
 
         {/* Main Content View Container with mobile bottom-nav padding */}
-        <main className="flex-1 p-3.5 sm:p-5 md:p-6 lg:p-8 min-w-0 pb-24 md:pb-8">
+        <main className="flex-1 p-3 sm:p-5 md:p-6 lg:p-8 min-w-0 pb-28 md:pb-8 w-full max-w-full overflow-x-hidden">
           <Suspense fallback={
             <div className="py-24 text-center flex flex-col items-center justify-center gap-3">
               <div className="w-8 h-8 border-3 border-[#A3D635] border-t-transparent rounded-full animate-spin" />
@@ -281,7 +281,7 @@ export function App() {
             </div>
 
             <div className="text-[11px] text-[#647560] dark:text-[#889B84] text-center pt-4 border-t border-[#E3EBDD] dark:border-[#2D3A2C]">
-              Halo Chinese v3.2.2 • Mobile-First Personal AI
+              Halo Chinese v3.2.3 • Mobile-First Personal AI
             </div>
           </div>
         </div>
