@@ -19,3 +19,6 @@ halo_chinese/.env
 # Binaries
 *.exe
 halo_chinese/cloudflared.exe
+
+# Other Projects
+hi_chinese/
