@@ -7,6 +7,9 @@ import { Navbar } from './components/layout/Navbar';
 import { Sidebar, NavTab } from './components/layout/Sidebar';
 import { BottomNav } from './components/layout/BottomNav';
 import { QuickDictionaryModal } from './components/dictionary/QuickDictionaryModal';
+import { ServerConnectModal } from './components/server/ServerConnectModal';
+import { connectionManager } from './utils/connectionManager';
+import { syncEngine } from './utils/syncEngine';
 
 // Lazy-loaded Views for high performance and code-splitting
 const HomeView = lazy(() => import('./views/HomeView').then(m => ({ default: m.HomeView })));
@@ -30,6 +33,7 @@ const SettingsView = lazy(() => import('./views/SettingsView').then(m => ({ defa
 const LearnHubView = lazy(() => import('./views/LearnHubView').then(m => ({ default: m.LearnHubView })));
 const ReviewHubView = lazy(() => import('./views/ReviewHubView').then(m => ({ default: m.ReviewHubView })));
 const ProfileView = lazy(() => import('./views/ProfileView').then(m => ({ default: m.ProfileView })));
+const SyncSettingsView = lazy(() => import('./views/SyncSettingsView').then(m => ({ default: m.SyncSettingsView })));
 
 import {
   X,
@@ -49,6 +53,7 @@ import {
   Brain,
   Award,
   BookA,
+  Server,
 } from 'lucide-react';
 
 export function App() {
@@ -57,6 +62,20 @@ export function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
   const [quickLookupWord, setQuickLookupWord] = useState<string | null>(null);
+  const [isServerModalOpen, setIsServerModalOpen] = useState<boolean>(false);
+
+  // Startup Connection Check: Tự động kiểm tra kết nối Server (Non-blocking)
+  useEffect(() => {
+    connectionManager.initiateStartupCheck().then(({ ok, state }) => {
+      // Nếu server chưa được cấu hình hoặc không kết nối được và chưa chọn offline
+      if (!ok && connectionManager.getMode() !== 'offline') {
+        const cfg = connectionManager.getServerConfig();
+        if (!cfg.isConfigured || state === 'unreachable') {
+          setIsServerModalOpen(true);
+        }
+      }
+    });
+  }, []);
 
   // Global event listener for instant Quick Dictionary lookup from anywhere
   useEffect(() => {
@@ -133,6 +152,7 @@ export function App() {
     { id: 'ai_lessons', label: 'Bài học dành cho bạn', icon: Sparkles },
     { id: 'ai_memory', label: 'Bộ nhớ học tập', icon: Brain },
     { id: 'stats', label: 'Thống kê tiến độ', icon: BarChart3 },
+    { id: 'sync_settings', label: 'Kết nối Server & Đồng bộ', icon: Server },
     { id: 'settings', label: 'Cài đặt & Quản lý API', icon: Settings },
   ];
 
@@ -143,6 +163,7 @@ export function App() {
         user={user}
         onOpenAITutor={() => handleSelectTab('ai_tutor')}
         onOpenProfile={() => handleSelectTab('profile')}
+        onOpenServerModal={() => setIsServerModalOpen(true)}
       />
 
       <div className="flex-1 flex max-w-7xl w-full mx-auto">
@@ -201,6 +222,7 @@ export function App() {
                 {currentTab === 'ai_lessons' && <GeneratedLessonsView />}
                 {currentTab === 'ai_memory' && <LearnerMemoryView />}
                 {currentTab === 'stats' && <StatsView user={user} />}
+                {currentTab === 'sync_settings' && <SyncSettingsView onBack={() => handleSelectTab('home')} />}
                 {currentTab === 'settings' && <SettingsView user={user} />}
               </>
             )}
@@ -255,11 +277,19 @@ export function App() {
             </div>
 
             <div className="text-[11px] text-[#647560] dark:text-[#889B84] text-center pt-4 border-t border-[#E3EBDD] dark:border-[#2D3A2C]">
-              Halo Chinese v3.0.0 • Mobile-First Personal AI
+              Halo Chinese v3.1.0 • Mobile-First Personal AI
             </div>
           </div>
         </div>
       )}
+
+      {/* Global Server Connection & Offline Mode Modal */}
+      <ServerConnectModal
+        isOpen={isServerModalOpen}
+        onClose={() => setIsServerModalOpen(false)}
+        onProceedOffline={() => handleSelectTab('home')}
+        onOpenSyncSettings={() => handleSelectTab('sync_settings')}
+      />
 
       {/* Global Quick Dictionary Lookup Modal */}
       <QuickDictionaryModal

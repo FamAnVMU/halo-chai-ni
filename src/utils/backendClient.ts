@@ -8,6 +8,8 @@ import type {
   ConversationAnalysisReport,
   RecentAnalysisSummary
 } from '../types';
+import { connectionManager } from './connectionManager';
+import { syncEngine } from './syncEngine';
 
 export interface BackendHealth {
   status: string;
@@ -430,23 +432,12 @@ if (typeof window !== 'undefined' && !(window as any).__halo_fetch_intercepted__
 
 export class LocalBackendClient {
   public getServerHost(): string {
-    const saved = localStorage.getItem('halo_server_host');
-    if (saved) return saved;
-    if (typeof window !== 'undefined' && window.location && window.location.hostname) {
-      const host = window.location.hostname;
-      if (host && host !== 'localhost' && host !== '127.0.0.1') {
-        return `${host}:3001`;
-      }
-    }
-    return 'localhost:3001';
+    const cfg = connectionManager.getServerConfig();
+    return `${cfg.host}:${cfg.port}`;
   }
 
-  public setServerHost(host: string) {
-    let clean = host.trim().replace(/^https?:\/\//, '').replace(/\/$/, '');
-    if (!clean.includes(':')) {
-      clean = `${clean}:3001`;
-    }
-    localStorage.setItem('halo_server_host', clean);
+  public setServerHost(host: string, port = '3001') {
+    connectionManager.setServerConfig(host, port);
   }
 
   public getAuthToken(): string | null {
@@ -606,14 +597,11 @@ export class LocalBackendClient {
   }
 
   public getBaseUrl(): string {
-    const host = this.getServerHost();
-    return `http://${host}`;
+    return connectionManager.getBaseUrl();
   }
 
   public getWsUrl(): string {
-    const host = this.getServerHost();
-    const token = this.getAuthToken();
-    return token ? `ws://${host}?token=${encodeURIComponent(token)}` : `ws://${host}`;
+    return connectionManager.getWsUrl();
   }
 
   public async checkHealth(): Promise<boolean> {
@@ -2719,6 +2707,113 @@ export class LocalBackendClient {
     } catch (e: any) {
       return { success: false, error: e.message };
     }
+  }
+
+  // ==========================================
+  // SYNC & SERVER CONNECTION HELPERS (v3.1.0)
+  // ==========================================
+
+  public async testServerConnection(host?: string, port?: string) {
+    return connectionManager.testConnection(host, port);
+  }
+
+  public getConnectionState() {
+    return connectionManager.getState();
+  }
+
+  public switchToOfflineMode() {
+    connectionManager.switchToOffline();
+  }
+
+  public switchToOnlineMode() {
+    connectionManager.switchToOnline();
+  }
+
+  public async syncPush(items: any[]) {
+    try {
+      const token = this.getAuthToken();
+      const res = await fetch(`${this.getBaseUrl()}/api/sync/push`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          deviceId: connectionManager.getDeviceId(),
+          items
+        })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async syncPull(sinceSeq = 0, limit = 100) {
+    try {
+      const token = this.getAuthToken();
+      const res = await fetch(
+        `${this.getBaseUrl()}/api/sync/pull?since_seq=${sinceSeq}&limit=${limit}&device_id=${encodeURIComponent(connectionManager.getDeviceId())}`,
+        {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        }
+      );
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getSyncStatus() {
+    try {
+      const token = this.getAuthToken();
+      const res = await fetch(
+        `${this.getBaseUrl()}/api/sync/status?device_id=${encodeURIComponent(connectionManager.getDeviceId())}`,
+        {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        }
+      );
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async getSyncConflicts() {
+    try {
+      const token = this.getAuthToken();
+      const res = await fetch(`${this.getBaseUrl()}/api/sync/conflicts`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async resolveSyncConflict(conflictId: string, resolution: 'server_wins' | 'client_wins' | 'manual', manualPayload?: any) {
+    try {
+      const token = this.getAuthToken();
+      const res = await fetch(`${this.getBaseUrl()}/api/sync/resolve-conflict`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          conflictId,
+          resolution,
+          manualPayload
+        })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async recordOfflineActivity(entityType: any, entityId: string, action: 'create' | 'update' | 'delete', payload: any) {
+    return syncEngine.enqueueChange(entityType, entityId, action, payload);
   }
 }
 

@@ -34,6 +34,7 @@ import { benchmarkRunner } from './benchmarkRunner.js';
 import { GOLDEN_DATASET } from './goldenDataset.js';
 import { tokenizeChinese } from '../src/data/seedDictionary.js';
 import { authService, UserSession } from './authService.js';
+import { syncService } from './syncService.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -145,10 +146,26 @@ export const requireAdmin = (req: any, res: any, next: any) => {
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
+    app: 'Halo Chinese Backend',
+    version: '3.1.0',
+    apiVersion: 'v1',
     uptime: process.uptime(),
     timestamp: Date.now(),
+    serverTime: Date.now(),
     database: 'connected (SQLite WAL)',
     localIps: getLocalIpAddresses()
+  });
+});
+
+app.get('/api/server/test', (req, res) => {
+  res.json({
+    success: true,
+    status: 'ok',
+    app: 'Halo Chinese Backend',
+    version: '3.1.0',
+    apiVersion: 'v1',
+    serverTime: Date.now(),
+    lanAccessEnabled: isLanAccessEnabled()
   });
 });
 
@@ -266,6 +283,67 @@ app.post('/api/admin/users/:id/reset-password', requireStrictAuth, requireAdmin,
     });
   } catch (err: any) {
     res.status(400).json({ success: false, message: err.message });
+  }
+});
+
+// ==================== TWO-WAY AUTOMATIC SYNC ENGINE ====================
+app.post('/api/sync/push', authenticateUser, (req, res) => {
+  try {
+    const { deviceId, items } = req.body;
+    if (!deviceId || !Array.isArray(items)) {
+      return res.status(400).json({ success: false, message: 'Thiếu deviceId hoặc items không phải danh sách hợp lệ.' });
+    }
+    const result = syncService.handlePush(req.user.userId, deviceId, items);
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.get('/api/sync/pull', authenticateUser, (req, res) => {
+  try {
+    const deviceId = req.query.deviceId as string;
+    const sinceSeq = parseInt((req.query.sinceSeq as string) || '0', 10);
+    const limit = parseInt((req.query.limit as string) || '100', 10);
+    if (!deviceId) {
+      return res.status(400).json({ success: false, message: 'Thiếu tham số deviceId.' });
+    }
+    const result = syncService.handlePull(req.user.userId, deviceId, sinceSeq, limit);
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.get('/api/sync/status', authenticateUser, (req, res) => {
+  try {
+    const deviceId = (req.query.deviceId as string) || 'unknown_device';
+    const result = syncService.getStatus(req.user.userId, deviceId);
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.get('/api/sync/conflicts', authenticateUser, (req, res) => {
+  try {
+    const conflicts = syncService.getConflicts(req.user.userId);
+    res.json({ success: true, conflicts });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.post('/api/sync/resolve-conflict', authenticateUser, (req, res) => {
+  try {
+    const { conflictId, resolution, mergedPayload } = req.body;
+    if (!conflictId || !resolution) {
+      return res.status(400).json({ success: false, message: 'Thiếu conflictId hoặc resolution.' });
+    }
+    const success = syncService.resolveConflict(conflictId, resolution, mergedPayload);
+    res.json({ success });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 

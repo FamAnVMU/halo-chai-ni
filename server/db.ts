@@ -1082,6 +1082,54 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_srs_mastery ON srs_items(mastery_level);
   CREATE INDEX IF NOT EXISTS idx_srs_logs_item ON srs_review_logs(item_id, reviewed_at);
   CREATE INDEX IF NOT EXISTS idx_srs_logs_time ON srs_review_logs(reviewed_at);
+
+  -- ==================== SYNCHRONIZATION ENGINE & CHANGELOG ====================
+  -- Global Server Change Sequence Log for reliable 2-way incremental synchronization
+  CREATE TABLE IF NOT EXISTS sync_changelog (
+    seq INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    device_id TEXT NOT NULL,
+    entity_type TEXT NOT NULL, -- 'profile', 'srs_item', 'srs_review', 'vocab', 'grammar', 'evidence', 'chat_message', 'placement', 'history'
+    entity_id TEXT NOT NULL,
+    action TEXT NOT NULL, -- 'create', 'update', 'delete'
+    payload_json TEXT NOT NULL,
+    idempotency_key TEXT UNIQUE NOT NULL,
+    version INTEGER DEFAULT 1,
+    timestamp INTEGER NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_sync_user_seq ON sync_changelog(user_id, seq);
+  CREATE INDEX IF NOT EXISTS idx_sync_idempotency ON sync_changelog(idempotency_key);
+  CREATE INDEX IF NOT EXISTS idx_sync_entity ON sync_changelog(entity_type, entity_id);
+
+  -- Registered Sync Devices
+  CREATE TABLE IF NOT EXISTS sync_devices (
+    device_id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    device_name TEXT,
+    platform TEXT,
+    last_sync_seq INTEGER DEFAULT 0,
+    last_sync_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_sync_devices_user ON sync_devices(user_id);
+
+  -- Sync Conflict Records for auditable resolution
+  CREATE TABLE IF NOT EXISTS sync_conflicts (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    device_id TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    client_payload_json TEXT NOT NULL,
+    server_payload_json TEXT NOT NULL,
+    conflict_reason TEXT NOT NULL,
+    status TEXT DEFAULT 'pending', -- 'pending', 'resolved_client', 'resolved_server', 'resolved_merged'
+    resolution_notes TEXT,
+    created_at INTEGER NOT NULL,
+    resolved_at INTEGER
+  );
+  CREATE INDEX IF NOT EXISTS idx_sync_conflicts_user ON sync_conflicts(user_id, status);
 `);
 
 // Safe column migrations for Conversation Analysis System
@@ -1143,6 +1191,30 @@ addColumnIfNotExists('srs_items', 'knowledge_id', "TEXT");
 addColumnIfNotExists('learning_errors', 'knowledge_id', "TEXT");
 addColumnIfNotExists('learner_evidence_ledger', 'knowledge_id', "TEXT");
 addColumnIfNotExists('pronunciation_weaknesses', 'knowledge_id', "TEXT");
+
+// Synchronization & Soft-Deletion (Tombstone) Support
+addColumnIfNotExists('srs_items', 'is_deleted', "INTEGER DEFAULT 0");
+addColumnIfNotExists('srs_items', 'deleted_at', "INTEGER");
+addColumnIfNotExists('srs_items', 'user_id', "TEXT DEFAULT 'admin'");
+addColumnIfNotExists('srs_review_logs', 'user_id', "TEXT DEFAULT 'admin'");
+addColumnIfNotExists('vocabulary_memory', 'is_deleted', "INTEGER DEFAULT 0");
+addColumnIfNotExists('vocabulary_memory', 'deleted_at', "INTEGER");
+addColumnIfNotExists('vocabulary_memory', 'user_id', "TEXT DEFAULT 'admin'");
+addColumnIfNotExists('grammar_memory', 'is_deleted', "INTEGER DEFAULT 0");
+addColumnIfNotExists('grammar_memory', 'deleted_at', "INTEGER");
+addColumnIfNotExists('grammar_memory', 'user_id', "TEXT DEFAULT 'admin'");
+addColumnIfNotExists('learning_errors', 'is_deleted', "INTEGER DEFAULT 0");
+addColumnIfNotExists('learning_errors', 'deleted_at', "INTEGER");
+addColumnIfNotExists('learning_errors', 'user_id', "TEXT DEFAULT 'admin'");
+addColumnIfNotExists('learner_evidence_ledger', 'user_id', "TEXT DEFAULT 'admin'");
+addColumnIfNotExists('learning_evidences', 'user_id', "TEXT DEFAULT 'admin'");
+addColumnIfNotExists('chat_sessions', 'user_id', "TEXT DEFAULT 'admin'");
+addColumnIfNotExists('chat_sessions', 'is_deleted', "INTEGER DEFAULT 0");
+addColumnIfNotExists('placement_assessments', 'user_id', "TEXT DEFAULT 'admin'");
+addColumnIfNotExists('placement_results', 'user_id', "TEXT DEFAULT 'admin'");
+addColumnIfNotExists('learning_history', 'user_id', "TEXT DEFAULT 'admin'");
+addColumnIfNotExists('learner_profile', 'user_id', "TEXT DEFAULT 'admin'");
+addColumnIfNotExists('learner_profile', 'is_deleted', "INTEGER DEFAULT 0");
 
 // Create indexes after columns exist
 db.exec(`

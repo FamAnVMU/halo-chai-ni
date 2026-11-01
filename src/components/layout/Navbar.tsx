@@ -12,14 +12,16 @@ import type { UserProfile } from '../../types';
 import { db } from '../../db';
 import { backendClient, AuthUser } from '../../utils/backendClient';
 import { Badge } from '../ui/Badge';
+import { ServerStatusBadge } from '../server/ServerStatusBadge';
 
 interface NavbarProps {
   user: UserProfile | undefined;
   onOpenAITutor: () => void;
   onOpenProfile?: () => void;
+  onOpenServerModal?: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ user, onOpenAITutor, onOpenProfile }) => {
+export const Navbar: React.FC<NavbarProps> = ({ user, onOpenAITutor, onOpenProfile, onOpenServerModal }) => {
   const [authUser, setAuthUser] = useState<AuthUser | null>(backendClient.getStoredUser());
 
   useEffect(() => {
@@ -81,6 +83,9 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onOpenAITutor, onOpenProfi
             <Flame className="w-4 h-4 fill-amber-500 text-amber-500" />
             <span>{user?.streakDays || 1}</span>
           </div>
+
+          {/* Server Connection Status & Sync Pill */}
+          <ServerStatusBadge onClick={onOpenServerModal} />
 
           {/* User Account / Admin Badge button */}
           <button

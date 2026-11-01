@@ -13,6 +13,35 @@ import type {
   ListeningItem,
 } from '../types';
 
+export interface ClientSyncQueueItem {
+  id?: number;
+  clientQueueId: string;
+  userId: string;
+  deviceId: string;
+  entityType: string;
+  entityId: string;
+  action: 'create' | 'update' | 'delete';
+  payload: any;
+  timestamp: number;
+  version: number;
+  status: 'pending' | 'syncing' | 'synced' | 'failed' | 'conflict';
+  idempotencyKey: string;
+}
+
+export interface ClientSyncMeta {
+  key: string;
+  value: any;
+}
+
+export interface OfflineProfile {
+  id: string;
+  name: string;
+  targetHskLevel: number;
+  currentHskLevel: number;
+  createdAt: number;
+  lastUsedAt: number;
+}
+
 export class HaloChineseDatabase extends Dexie {
   users!: Table<UserProfile, string>;
   vocabularies!: Table<Vocabulary, number>;
@@ -25,6 +54,9 @@ export class HaloChineseDatabase extends Dexie {
   dailyStats!: Table<DailyLearningStat, string>;
   stories!: Table<GradedStory, string>;
   listening!: Table<ListeningItem, string>;
+  syncQueue!: Table<ClientSyncQueueItem, number>;
+  syncMeta!: Table<ClientSyncMeta, string>;
+  offlineProfiles!: Table<OfflineProfile, string>;
 
   constructor() {
     super('HaloChineseDB');
@@ -40,6 +72,23 @@ export class HaloChineseDatabase extends Dexie {
       dailyStats: 'date',
       stories: 'id, hskLevel, isRead',
       listening: 'id, hskLevel, isCompleted',
+    });
+
+    this.version(2).stores({
+      users: 'id',
+      vocabularies: '++id, simplified, traditional, hskLevel, isFavorite, isCustom',
+      srsCards: '++id, vocabId, nextReviewDate, status',
+      grammarRules: 'id, hskLevel',
+      lessons: 'id, hskLevel, chapter, lessonNumber, completed',
+      aiSessions: 'id, mode, hskLevel, createdAt, updatedAt',
+      aiMemory: 'id',
+      apiSettings: 'id',
+      dailyStats: 'date',
+      stories: 'id, hskLevel, isRead',
+      listening: 'id, hskLevel, isCompleted',
+      syncQueue: '++id, clientQueueId, userId, entityType, entityId, status, timestamp, idempotencyKey',
+      syncMeta: 'key',
+      offlineProfiles: 'id, lastUsedAt'
     });
   }
 }

@@ -16,6 +16,7 @@ import {
   Brain,
   Award,
   BookA,
+  Server,
 } from 'lucide-react';
 
 export type NavTab =
@@ -38,7 +39,8 @@ export type NavTab =
   | 'ai_lessons'
   | 'ai_memory'
   | 'stats'
-  | 'settings';
+  | 'settings'
+  | 'sync_settings';
 
 interface SidebarProps {
   currentTab: NavTab;
@@ -84,6 +86,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
         { id: 'practice', label: 'Luyện tập (11 dạng)', icon: Dumbbell },
         { id: 'ai_memory', label: 'Bộ nhớ học tập', icon: Brain },
         { id: 'stats', label: 'Thống kê tiến độ', icon: BarChart3 },
+        { id: 'sync_settings', label: 'Kết nối Server & Đồng bộ', icon: Server, highlight: true },
         { id: 'settings', label: 'Cài đặt & API Key', icon: Settings },
       ]
     }
