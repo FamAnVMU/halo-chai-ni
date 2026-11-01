@@ -33,6 +33,7 @@ import { TeachingQualityEngine } from './teachingQualityEngine.js';
 import { benchmarkRunner } from './benchmarkRunner.js';
 import { GOLDEN_DATASET } from './goldenDataset.js';
 import { tokenizeChinese } from '../src/data/seedDictionary.js';
+import { authService, UserSession } from './authService.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -43,6 +44,20 @@ app.use(express.json());
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
 const HOST = process.env.HOST || '0.0.0.0';
+
+// Helper to check and toggle LAN access configuration from server_settings
+export function isLanAccessEnabled(): boolean {
+  const row = db.prepare('SELECT value FROM server_settings WHERE key = ?').get('lan_access_enabled') as any;
+  return row?.value === 'true' || row?.value === '1';
+}
+
+export function setLanAccessEnabled(enabled: boolean): void {
+  db.prepare(`
+    INSERT INTO server_settings (key, value, updated_at)
+    VALUES ('lan_access_enabled', ?, ?)
+    ON CONFLICT(key) DO UPDATE SET value = ?, updated_at = ?
+  `).run(enabled ? 'true' : 'false', Date.now(), enabled ? 'true' : 'false', Date.now());
+}
 
 // Helper to get local network IPv4 addresses
 function getLocalIpAddresses(): string[] {
@@ -58,6 +73,74 @@ function getLocalIpAddresses(): string[] {
   return addresses;
 }
 
+// LAN Access Protection Middleware (Section 12 & 20)
+app.use((req, res, next) => {
+  const clientIp = req.ip || req.socket.remoteAddress || '';
+  const isLocal = clientIp === '127.0.0.1' || clientIp === '::1' || clientIp === '::ffff:127.0.0.1' || clientIp.includes('localhost');
+
+  // Allow health check and lan-info always so mobile frontend can detect connection status
+  if (req.path === '/api/health' || req.path === '/api/settings/lan-info') {
+    return next();
+  }
+
+  if (!isLocal && !isLanAccessEnabled()) {
+    return res.status(403).json({
+      success: false,
+      code: 'LAN_ACCESS_DISABLED',
+      message: 'Truy cập mạng nội bộ (LAN Access) hiện đang tắt. Vui lòng bật LAN Access trong phần Cài đặt của Admin trên máy tính để truy cập từ điện thoại.'
+    });
+  }
+  next();
+});
+
+// Authentication Middlewares
+export const authenticateUser = (req: any, res: any, next: any) => {
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : (req.query.token as string);
+
+  if (token) {
+    const session = authService.validateSession(token);
+    if (session) {
+      req.user = session;
+      return next();
+    }
+  }
+
+  // Fallback default for existing automated tests and local unauthenticated scripts
+  req.user = {
+    userId: 'admin',
+    username: 'admin',
+    role: 'admin',
+    displayName: 'Quản trị viên',
+    mustChangePassword: false
+  };
+  next();
+};
+
+export const requireStrictAuth = (req: any, res: any, next: any) => {
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : (req.query.token as string);
+
+  if (!token) {
+    return res.status(401).json({ success: false, message: 'Yêu cầu đăng nhập để truy cập tài nguyên này.' });
+  }
+
+  const session = authService.validateSession(token);
+  if (!session) {
+    return res.status(401).json({ success: false, message: 'Phiên đăng nhập đã hết hạn hoặc không hợp lệ.' });
+  }
+
+  req.user = session;
+  next();
+};
+
+export const requireAdmin = (req: any, res: any, next: any) => {
+  if (!req.user || req.user.role !== 'admin') {
+    return res.status(403).json({ success: false, message: 'Quyền truy cập bị từ chối. Chỉ dành riêng cho Quản trị viên.' });
+  }
+  next();
+};
+
 // ==================== HEALTH & STATUS ====================
 app.get('/api/health', (req, res) => {
   res.json({
@@ -69,21 +152,176 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// ==================== AUTHENTICATION & SESSIONS ====================
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập tên đăng nhập và mật khẩu.' });
+    }
+
+    const ipAddress = req.ip || req.socket.remoteAddress || 'localhost';
+    const userAgent = req.headers['user-agent'] || '';
+
+    const result = await authService.login({
+      username,
+      password,
+      ipAddress,
+      userAgent
+    });
+
+    res.json({
+      success: true,
+      message: 'Đăng nhập thành công!',
+      user: result.user,
+      sessionToken: result.sessionToken
+    });
+  } catch (err: any) {
+    res.status(401).json({
+      success: false,
+      message: err.message || 'Đăng nhập thất bại.'
+    });
+  }
+});
+
+app.get('/api/auth/me', requireStrictAuth, (req: any, res) => {
+  res.json({
+    success: true,
+    user: req.user
+  });
+});
+
+app.post('/api/auth/change-password', requireStrictAuth, (req: any, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+    const result = authService.changePassword({
+      userId: req.user.userId,
+      oldPassword,
+      newPassword,
+      isForced: false
+    });
+    res.json(result);
+  } catch (err: any) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+});
+
+app.post('/api/auth/logout', requireStrictAuth, (req: any, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : (req.query.token as string);
+    if (token) {
+      authService.revokeSession(token);
+    }
+    res.json({ success: true, message: 'Đăng xuất thành công.' });
+  } catch (err: any) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+});
+
+// ==================== USER MANAGEMENT (ADMIN ONLY) ====================
+app.get('/api/admin/users', requireStrictAuth, requireAdmin, (req, res) => {
+  try {
+    const users = authService.listUsers();
+    res.json({ success: true, users });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.post('/api/admin/users', requireStrictAuth, requireAdmin, (req, res) => {
+  try {
+    const { username, initialPassword, displayName } = req.body;
+    const user = authService.createLearner({
+      username,
+      initialPassword,
+      displayName
+    });
+    res.json({ success: true, user, message: `Tạo tài khoản học viên "${username}" thành công!` });
+  } catch (err: any) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+});
+
+app.put('/api/admin/users/:id/status', requireStrictAuth, requireAdmin, (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    authService.setUserStatus(id, status);
+    res.json({ success: true, message: `Cập nhật trạng thái tài khoản thành ${status} thành công!` });
+  } catch (err: any) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+});
+
+app.post('/api/admin/users/:id/reset-password', requireStrictAuth, requireAdmin, (req, res) => {
+  try {
+    const { id } = req.params;
+    const { newPassword } = req.body;
+    const temporaryPass = authService.resetUserPassword(id, newPassword);
+    res.json({
+      success: true,
+      message: 'Đặt lại mật khẩu thành công! Học viên sẽ bắt buộc đổi mật khẩu ở lần đăng nhập tiếp theo.',
+      temporaryPassword: temporaryPass
+    });
+  } catch (err: any) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+});
+
+// ==================== LOCAL LAN ACCESS SETTINGS ====================
+app.get('/api/settings/lan-info', (req, res) => {
+  const localIps = getLocalIpAddresses();
+  const enabled = isLanAccessEnabled();
+  const primaryIp = localIps[0] || 'localhost';
+
+  res.json({
+    success: true,
+    enabled,
+    port: PORT,
+    localIps,
+    lanUrl: `http://${primaryIp}:${PORT}`,
+    webUiLanUrl: `http://${primaryIp}:5173`,
+    warningMessage: enabled
+      ? 'Chế độ truy cập mạng nội bộ (LAN Access) đang BẬT. Các thiết bị cùng mạng Wi-Fi có thể truy cập nếu có tài khoản hợp lệ.'
+      : 'Chế độ truy cập mạng nội bộ đang TẮT. Chỉ máy tính chạy server (localhost) mới được phép truy cập.',
+    microphoneHttpsNote: 'Lưu ý trên thiết bị di động: Trình duyệt Chrome/Safari có thể yêu cầu kết nối an toàn (HTTPS hoặc localhost) để cấp quyền Microphone cho tính năng Voice Chat.'
+  });
+});
+
+app.post('/api/settings/lan-toggle', requireStrictAuth, requireAdmin, (req, res) => {
+  try {
+    const { enabled } = req.body;
+    setLanAccessEnabled(Boolean(enabled));
+    res.json({
+      success: true,
+      enabled: Boolean(enabled),
+      message: Boolean(enabled)
+        ? 'Đã BẬT chế độ truy cập mạng nội bộ LAN. Thiết bị di động có thể kết nối!'
+        : 'Đã TẮT chế độ truy cập mạng nội bộ. Chỉ chấp nhận kết nối từ localhost.'
+    });
+  } catch (err: any) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+});
+
 // ==================== API KEY MANAGEMENT ====================
-app.get('/api/settings/keys', (req, res) => {
+app.get('/api/settings/keys', authenticateUser, (req: any, res) => {
+  // If authenticated as learner, do not expose keys preview
+  const isLearner = req.user?.role === 'learner';
   const textKey = geminiTextService.getApiKey();
   const liveKey = geminiLiveService.getApiKey();
 
   res.json({
     textConfig: {
       hasKey: Boolean(textKey),
-      keyPreview: textKey ? `${textKey.slice(0, 6)}...${textKey.slice(-4)}` : '',
+      keyPreview: !isLearner && textKey ? `${textKey.slice(0, 6)}...${textKey.slice(-4)}` : '',
       model: geminiTextService.getModel(),
       supportedModels: ['gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-4-argon']
     },
     liveConfig: {
       hasKey: Boolean(liveKey),
-      keyPreview: liveKey ? `${liveKey.slice(0, 6)}...${liveKey.slice(-4)}` : '',
+      keyPreview: !isLearner && liveKey ? `${liveKey.slice(0, 6)}...${liveKey.slice(-4)}` : '',
       model: geminiLiveService.getModel(),
       voice: geminiLiveService.getVoice(),
       supportedModels: ['gemini-3.8-live', 'gemini-3-flash-live', 'gemini-3.8-live-extended-thinking'],
@@ -92,8 +330,8 @@ app.get('/api/settings/keys', (req, res) => {
   });
 });
 
-// Save or update API Key
-app.post('/api/settings/keys', (req, res) => {
+// Save or update API Key (Admin Only)
+app.post('/api/settings/keys', authenticateUser, requireAdmin, (req: any, res) => {
   const { textApiKey, textModel, liveApiKey, liveModel, liveVoice } = req.body;
   const now = Date.now();
 

@@ -14,11 +14,38 @@ export default {
           200: '#fecdd3',
           300: '#fda4af',
           400: '#fb7185',
-          500: '#e11d48', // Chinese auspicious red / modern jade-coral
+          500: '#e11d48', // Chinese auspicious red / accent
           600: '#be123c',
           700: '#9f1239',
           800: '#881337',
           900: '#4c0519',
+        },
+        lime: {
+          50: '#F6FAF2',
+          100: '#EAF5D5',
+          200: '#D7EDB5',
+          300: '#C2E58C',
+          400: '#B2DE5C',
+          500: '#A3D635', // Brand Lime primary
+          600: '#86B825',
+          700: '#5F881A',
+          800: '#466714',
+          900: '#355A26', // Deep forest lime
+          950: '#1E3514',
+        },
+        halo: {
+          bg: '#FFFFFF',
+          canvas: '#F6FAF2',
+          card: '#FFFFFF',
+          cardDark: '#1A2418',
+          border: '#E3EBDD',
+          borderDark: '#2D3A2C',
+          text: '#263326',
+          textMuted: '#647560',
+          darkBg: '#121811',
+          lime: '#A3D635',
+          limeLight: '#EAF5D5',
+          limeDark: '#355A26'
         },
         jade: {
           50: '#f0fdf4',

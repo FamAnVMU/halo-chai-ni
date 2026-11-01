@@ -20,6 +20,9 @@ import {
 
 export type NavTab =
   | 'home'
+  | 'learn'
+  | 'review'
+  | 'profile'
   | 'placement_test'
   | 'roadmap'
   | 'dictionary'
@@ -43,130 +46,84 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => {
-  const navItems: Array<{
-    id: NavTab;
-    label: string;
-    subLabel: string;
-    icon: React.ComponentType<{ className?: string }>;
-    highlight?: boolean;
+  const navSections: Array<{
+    title: string;
+    items: Array<{
+      id: NavTab;
+      label: string;
+      icon: React.ComponentType<{ className?: string }>;
+      highlight?: boolean;
+    }>;
   }> = [
-    { id: 'home', label: 'Trang chủ', subLabel: 'Tổng quan', icon: Home },
     {
-      id: 'placement_test',
-      label: 'Kiểm tra trình độ',
-      subLabel: 'AI Placement Test',
-      icon: Award,
-      highlight: true,
-    },
-    { id: 'roadmap', label: 'Lộ trình học', subLabel: 'HSK 1 - 6', icon: Map },
-    {
-      id: 'dictionary',
-      label: 'Từ điển tiếng Trung',
-      subLabel: 'Tra cứu & AI Phân tích',
-      icon: BookA,
-      highlight: true
-    },
-    { id: 'vocab', label: 'Từ vựng & SRS', subLabel: 'Ghi nhớ lặp lại', icon: BookOpen },
-    { id: 'grammar', label: 'Ngữ pháp', subLabel: 'Cấu trúc & Lỗi sai', icon: BookmarkCheck },
-    { id: 'practice', label: 'Luyện tập', subLabel: '11 dạng tương tác', icon: Dumbbell },
-    {
-      id: 'pronounce',
-      label: 'Luyện phát âm',
-      subLabel: 'Phòng Lab Pinyin & AI',
-      icon: Mic,
-      highlight: true
+      title: 'TỔNG QUAN',
+      items: [
+        { id: 'home', label: 'Trang chủ', icon: Home },
+        { id: 'placement_test', label: 'Đánh giá đầu vào', icon: Award, highlight: true },
+        { id: 'roadmap', label: 'Lộ trình HSK 1-6', icon: Map },
+      ]
     },
     {
-      id: 'shadowing',
-      label: 'Shadowing',
-      subLabel: 'Luyện nói nhại theo mẫu',
-      icon: Headphones,
-      highlight: true
-    },
-    { id: 'write', label: 'Luyện viết', subLabel: 'Thứ tự nét bút', icon: PenTool },
-    { id: 'reading', label: 'Luyện đọc', subLabel: 'Đọc hiểu tương tác AI', icon: BookMarked, highlight: true },
-    { id: 'listening', label: 'Nghe hiểu', subLabel: 'Luyện nghe HSK', icon: Headphones },
-    {
-      id: 'ai_tutor',
-      label: 'AI Tutor',
-      subLabel: 'Voice & Text Chat',
-      icon: BotMessageSquare,
-      highlight: true,
+      title: 'KỸ NĂNG & TRA CỨU',
+      items: [
+        { id: 'dictionary', label: 'Từ điển tiếng Trung', icon: BookA, highlight: true },
+        { id: 'vocab', label: 'Từ vựng & SRS', icon: BookOpen },
+        { id: 'grammar', label: 'Ngữ pháp HSK', icon: BookmarkCheck },
+        { id: 'pronounce', label: 'Phòng Lab Phát âm', icon: Mic, highlight: true },
+        { id: 'shadowing', label: 'Shadowing (Nói nhại)', icon: Headphones, highlight: true },
+        { id: 'write', label: 'Luyện viết chữ Hán', icon: PenTool },
+        { id: 'reading', label: 'Luyện đọc tương tác', icon: BookMarked },
+        { id: 'listening', label: 'Luyện nghe hiểu', icon: Headphones },
+      ]
     },
     {
-      id: 'ai_lessons',
-      label: 'Bài học dành cho bạn',
-      subLabel: 'AI tạo cá nhân hóa',
-      icon: Sparkles,
-      highlight: true,
-    },
-    {
-      id: 'ai_memory',
-      label: 'Bộ nhớ học tập',
-      subLabel: 'Quản lý kiến thức đã dạy',
-      icon: Brain,
-    },
-    { id: 'stats', label: 'Thống kê', subLabel: 'Tiến độ học tập', icon: BarChart3 },
-    { id: 'settings', label: 'Cài đặt', subLabel: 'API & Dữ liệu', icon: Settings },
+      title: 'AI & ÔN TẬP',
+      items: [
+        { id: 'ai_tutor', label: 'AI Tutor Voice & Text', icon: BotMessageSquare, highlight: true },
+        { id: 'ai_lessons', label: 'Bài học cá nhân hóa', icon: Sparkles },
+        { id: 'practice', label: 'Luyện tập (11 dạng)', icon: Dumbbell },
+        { id: 'ai_memory', label: 'Bộ nhớ học tập', icon: Brain },
+        { id: 'stats', label: 'Thống kê tiến độ', icon: BarChart3 },
+        { id: 'settings', label: 'Cài đặt & API Key', icon: Settings },
+      ]
+    }
   ];
 
   return (
-    <aside className="hidden md:flex flex-col w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 h-[calc(100vh-61px)] sticky top-[61px] p-3 overflow-y-auto">
-      <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 px-3 py-1 mb-1">
-        Phân Hệ Học Tập
-      </div>
-      <nav className="flex flex-col gap-1">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = currentTab === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => onSelectTab(item.id)}
-              className={`flex items-center gap-3 px-3 py-2 rounded-xl text-left transition-all ${
-                isActive
-                  ? item.highlight
-                    ? 'bg-gradient-to-r from-primary-600 to-rose-500 text-white shadow-md shadow-primary-500/25 font-semibold'
-                    : 'bg-primary-50 dark:bg-primary-950/70 text-primary-700 dark:text-primary-300 font-semibold border-l-4 border-primary-600'
-                  : item.highlight
-                  ? 'bg-gradient-to-r from-primary-50 to-rose-50 dark:from-primary-950/40 dark:to-rose-950/40 text-primary-700 dark:text-primary-300 hover:from-primary-100 hover:to-rose-100 font-medium'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 font-medium'
-              }`}
-            >
-              <div
-                className={`p-1.5 rounded-lg ${
-                  isActive && item.highlight
-                    ? 'bg-white/20'
-                    : isActive
-                    ? 'bg-primary-100 dark:bg-primary-900/60 text-primary-600 dark:text-primary-400'
-                    : 'text-slate-500 dark:text-slate-400'
+    <aside className="hidden md:flex flex-col w-64 shrink-0 border-r border-[#E3EBDD] dark:border-[#2D3A2C] bg-white/70 dark:bg-[#1A2418]/60 backdrop-blur-xs p-3.5 gap-4 overflow-y-auto select-none min-h-[calc(100dvh-60px)]">
+      {navSections.map((section) => (
+        <div key={section.title} className="flex flex-col gap-1">
+          <span className="text-[11px] font-bold text-[#647560] dark:text-[#889B84] px-2.5 py-1 tracking-wider">
+            {section.title}
+          </span>
+          {section.items.map((item) => {
+            const Icon = item.icon;
+            const isActive = currentTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => onSelectTab(item.id)}
+                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-2xl text-xs font-semibold text-left transition-all ${
+                  isActive
+                    ? 'bg-[#EAF5D5] text-[#355A26] dark:bg-[#202D1D] dark:text-[#C2E58C] shadow-xs'
+                    : 'text-[#263326] dark:text-[#EAF5D5] hover:bg-[#F6FAF2] dark:hover:bg-[#151D14]'
                 }`}
               >
-                <Icon className="w-4 h-4" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm truncate leading-tight flex items-center justify-between">
-                  <span>{item.label}</span>
-                  {item.highlight && (
-                    <span className="text-[9px] uppercase tracking-wide font-extrabold px-1.5 py-0.2 rounded bg-amber-400 text-slate-900 ml-1">
-                      AI 2-Way
-                    </span>
-                  )}
+                <div className={`p-1.5 rounded-xl ${
+                  isActive
+                    ? 'bg-[#A3D635] text-[#263326]'
+                    : item.highlight
+                    ? 'bg-[#EAF5D5] text-[#355A26] dark:bg-[#202D1D] dark:text-[#C2E58C]'
+                    : 'bg-[#F6FAF2] text-[#647560] dark:bg-[#151D14] dark:text-[#889B84]'
+                }`}>
+                  <Icon className="w-4 h-4" />
                 </div>
-                <div
-                  className={`text-[11px] truncate ${
-                    isActive && item.highlight
-                      ? 'text-white/80'
-                      : 'text-slate-400 dark:text-slate-500'
-                  }`}
-                >
-                  {item.subLabel}
-                </div>
-              </div>
-            </button>
-          );
-        })}
-      </nav>
+                <span className="truncate flex-1">{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      ))}
     </aside>
   );
 };

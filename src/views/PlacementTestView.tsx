@@ -4,7 +4,6 @@ import {
   Award,
   CheckCircle2,
   XCircle,
-  HelpCircle,
   ArrowRight,
   RotateCcw,
   Volume2,
@@ -23,13 +22,18 @@ import {
   ChevronRight,
   ShieldCheck,
   Play,
-  Pause,
-  AlertCircle
+  AlertCircle,
+  Target,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { backendClient } from '../utils/backendClient';
 import { audioService } from '../utils/audio';
 import { db } from '../db';
+import { Card } from '../components/ui/Card';
+import { Badge } from '../components/ui/Badge';
+import { Button } from '../components/ui/Button';
+import { ProgressBar } from '../components/ui/ProgressBar';
+import { BottomSheet } from '../components/ui/BottomSheet';
 import type {
   PlacementSkill,
   PlacementQuestion,
@@ -43,11 +47,18 @@ interface PlacementTestViewProps {
 }
 
 export const PlacementTestView: React.FC<PlacementTestViewProps> = ({ onNavigate }) => {
-  const [viewState, setViewState] = useState<'intro' | 'testing' | 'result' | 'history'>('intro');
+  const [viewState, setViewState] = useState<'intro' | 'survey' | 'testing' | 'result' | 'history'>('intro');
   const [loading, setLoading] = useState<boolean>(false);
   const [activeTest, setActiveTest] = useState<PlacementTestProgress | null>(null);
   const [historyList, setHistoryList] = useState<PlacementHistoryItem[]>([]);
   const [currentResult, setCurrentResult] = useState<PlacementResultReport | null>(null);
+
+  // Step 1: Onboarding Survey State
+  const [targetHsk, setTargetHsk] = useState<number>(3);
+  const [learningReason, setLearningReason] = useState<string>('giao_tiep');
+  const [dailyMinutes, setDailyMinutes] = useState<number>(30);
+  const [learningStyle, setLearningStyle] = useState<string>('ai_interactive');
+  const [pendingTestType, setPendingTestType] = useState<'full' | 'quick'>('full');
 
   // Testing interactive state
   const [selectedOption, setSelectedOption] = useState<string>('');
@@ -95,11 +106,26 @@ export const PlacementTestView: React.FC<PlacementTestViewProps> = ({ onNavigate
     }
   };
 
-  // Start new test
-  const handleStartTest = async (testType: 'full' | 'quick') => {
+  // Launch Survey before test
+  const handleOpenSurvey = (type: 'full' | 'quick') => {
+    setPendingTestType(type);
+    setViewState('survey');
+  };
+
+  // Start new test after Survey
+  const handleConfirmSurveyAndStart = async () => {
     setLoading(true);
     try {
-      const res = await backendClient.startPlacementTest(testType);
+      // Save user preferences to local Dexie profile
+      const user = await db.users.get('current_user');
+      if (user) {
+        await db.users.update(user.id, {
+          targetHskLevel: targetHsk as any,
+          dailyGoalMinutes: dailyMinutes,
+        });
+      }
+
+      const res = await backendClient.startPlacementTest(pendingTestType);
       if (res.success && res.data) {
         setActiveTest(res.data);
         resetQuestionInputs();
@@ -343,12 +369,12 @@ export const PlacementTestView: React.FC<PlacementTestViewProps> = ({ onNavigate
 
   const getSkillIcon = (skill: PlacementSkill) => {
     switch (skill) {
-      case 'vocabulary': return <BookOpen className="w-4 h-4 text-emerald-500" />;
-      case 'grammar': return <BookmarkCheck className="w-4 h-4 text-blue-500" />;
-      case 'reading': return <Layers className="w-4 h-4 text-indigo-500" />;
-      case 'listening': return <Headphones className="w-4 h-4 text-amber-500" />;
-      case 'writing': return <PenTool className="w-4 h-4 text-purple-500" />;
-      case 'communication': return <MessageSquare className="w-4 h-4 text-rose-500" />;
+      case 'vocabulary': return <BookOpen className="w-4 h-4 text-emerald-600" />;
+      case 'grammar': return <BookmarkCheck className="w-4 h-4 text-blue-600" />;
+      case 'reading': return <Layers className="w-4 h-4 text-indigo-600" />;
+      case 'listening': return <Headphones className="w-4 h-4 text-amber-600" />;
+      case 'writing': return <PenTool className="w-4 h-4 text-purple-600" />;
+      case 'communication': return <MessageSquare className="w-4 h-4 text-rose-600" />;
     }
   };
 
@@ -357,153 +383,165 @@ export const PlacementTestView: React.FC<PlacementTestViewProps> = ({ onNavigate
   // =========================================================================
   if (viewState === 'intro') {
     return (
-      <div className="space-y-6 pb-20 md:pb-8 max-w-4xl mx-auto">
+      <div className="flex flex-col gap-5 max-w-4xl mx-auto pb-16">
         {/* Header Hero */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary-800 via-primary-700 to-rose-600 text-white p-6 sm:p-8 shadow-xl shadow-primary-700/20">
-          <div className="absolute right-0 top-0 translate-x-6 -translate-y-6 opacity-10 pointer-events-none text-[150px] font-chinese font-black">
+        <Card variant="highlight" className="p-5 sm:p-7 relative overflow-hidden">
+          <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 opacity-10 pointer-events-none text-[150px] font-chinese font-black text-[#355A26] dark:text-[#A3D635]">
             测
           </div>
 
-          <div className="relative z-10 max-w-2xl">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-semibold mb-3">
-              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-              <span>Khảo Sát Năng Lực Thông Minh</span>
+          <div className="relative z-10 flex flex-col gap-3 max-w-2xl">
+            <div className="flex items-center gap-2">
+              <Badge variant="lime">
+                <Sparkles className="w-3.5 h-3.5 mr-1" />
+                Khảo Sát Năng Lực Thông Minh
+              </Badge>
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-2">
-              Kiểm Tra Trình Độ Tiếng Trung Bằng AI
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#263326] dark:text-[#EAF5D5]">
+              Đánh Giá Trình Độ Tiếng Trung Đầu Vào
             </h1>
 
-            <p className="text-sm sm:text-base text-rose-100/90 leading-relaxed mb-6">
+            <p className="text-xs sm:text-sm text-[#647560] dark:text-[#889B84] leading-relaxed">
               Hệ thống khảo thí thích ứng (Computer Adaptive Testing) đánh giá năng lực thực tế qua 6 kỹ năng độc lập. AI sẽ nhận diện điểm mạnh, điểm yếu và các lỗ hổng kiến thức để tự động biên soạn lộ trình học tối ưu dành riêng cho bạn.
             </p>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2.5 pt-2">
               {activeTest && (
-                <button
+                <Button
+                  variant="primary"
+                  size="md"
                   onClick={handleResumeTest}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-400 text-slate-950 font-bold text-sm shadow-md hover:bg-amber-300 active:scale-95 transition-all"
                 >
-                  <Play className="w-4 h-4 fill-current" />
+                  <Play className="w-4 h-4 fill-current mr-1.5" />
                   <span>Tiếp tục bài thi dở dang (Câu {activeTest.assessment.currentQuestionIndex + 1}/{activeTest.totalQuestions})</span>
-                </button>
+                </Button>
               )}
 
               {historyList.length > 0 && (
-                <button
+                <Button
+                  variant="outline"
+                  size="md"
                   onClick={() => setViewState('history')}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 text-white font-semibold text-sm backdrop-blur-md border border-white/20 transition-all"
                 >
-                  <History className="w-4 h-4" />
+                  <History className="w-4 h-4 mr-1.5" />
                   <span>Xem lịch sử ({historyList.length} lần thi)</span>
-                </button>
+                </Button>
               )}
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* 6 Core Skills Overview */}
-        <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
-          <h2 className="text-base font-bold text-slate-800 dark:text-slate-100 mb-3 flex items-center gap-2">
-            <Award className="w-5 h-5 text-primary-500" />
+        <Card variant="default" className="p-5">
+          <h2 className="text-sm font-bold text-[#263326] dark:text-[#EAF5D5] mb-3 flex items-center gap-2">
+            <Award className="w-5 h-5 text-[#355A26] dark:text-[#C2E58C]" />
             <span>6 Kỹ Năng Được Đánh Giá Độc Lập</span>
           </h2>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
             {[
-              { id: 'vocab', label: '1. Từ vựng', desc: 'Vốn từ, phân biệt từ gần nghĩa, ngữ cảnh sử dụng', icon: <BookOpen className="w-4 h-4 text-emerald-500" /> },
-              { id: 'grammar', label: '2. Ngữ pháp', desc: 'Trật tự từ, câu chữ 把/被, trợ từ 的/得/地', icon: <BookmarkCheck className="w-4 h-4 text-blue-500" /> },
-              { id: 'reading', label: '3. Đọc hiểu', desc: 'Đoạn văn ngắn, thông báo, nắm bắt ý chính & chi tiết', icon: <Layers className="w-4 h-4 text-indigo-500" /> },
-              { id: 'listening', label: '4. Nghe hiểu', desc: 'Âm thanh tự nhiên, giờ giấc, hội thoại thực tế', icon: <Headphones className="w-4 h-4 text-amber-500" /> },
-              { id: 'writing', label: '5. Khả năng viết', desc: 'Dịch thuật Việt - Trung, đặt câu theo cấu trúc', icon: <PenTool className="w-4 h-4 text-purple-500" /> },
-              { id: 'communication', label: '6. Giao tiếp', desc: 'Phản xạ đóng vai, tình huống nhà hàng, hỏi đường', icon: <MessageSquare className="w-4 h-4 text-rose-500" /> },
+              { id: 'vocab', label: '1. Từ vựng', desc: 'Vốn từ, từ gần nghĩa, ngữ cảnh sử dụng', icon: <BookOpen className="w-4 h-4 text-emerald-600" /> },
+              { id: 'grammar', label: '2. Ngữ pháp', desc: 'Trật tự câu, câu chữ 把/被, trợ từ 的/得/地', icon: <BookmarkCheck className="w-4 h-4 text-blue-600" /> },
+              { id: 'reading', label: '3. Đọc hiểu', desc: 'Đoạn văn ngắn, thông báo, ý chính & chi tiết', icon: <Layers className="w-4 h-4 text-indigo-600" /> },
+              { id: 'listening', label: '4. Nghe hiểu', desc: 'Âm thanh chuẩn, giờ giấc, hội thoại thực tế', icon: <Headphones className="w-4 h-4 text-amber-600" /> },
+              { id: 'writing', label: '5. Khả năng viết', desc: 'Dịch thuật Việt - Trung, đặt câu theo cấu trúc', icon: <PenTool className="w-4 h-4 text-purple-600" /> },
+              { id: 'communication', label: '6. Giao tiếp', desc: 'Phản xạ đóng vai, giao tiếp voice qua AI', icon: <MessageSquare className="w-4 h-4 text-rose-600" /> },
             ].map(skill => (
-              <div key={skill.id} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60 flex flex-col">
-                <div className="flex items-center gap-2 font-bold text-xs text-slate-700 dark:text-slate-200 mb-1">
+              <div key={skill.id} className="p-3 rounded-2xl bg-[#F6FAF2] dark:bg-[#151D14] border border-[#E3EBDD] dark:border-[#2D3A2C] flex flex-col">
+                <div className="flex items-center gap-2 font-bold text-xs text-[#263326] dark:text-[#EAF5D5] mb-1">
                   {skill.icon}
                   <span>{skill.label}</span>
                 </div>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
+                <p className="text-[11px] text-[#647560] dark:text-[#889B84] leading-tight">
                   {skill.desc}
                 </p>
               </div>
             ))}
           </div>
 
-          <div className="mt-4 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/50 flex items-start gap-2.5 text-xs text-amber-800 dark:text-amber-200">
-            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
+          <div className="mt-3.5 p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 flex items-start gap-2.5 text-xs text-amber-900 dark:text-amber-200">
+            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-amber-600" />
             <div>
-              <span className="font-bold">Linh hoạt theo điều kiện của bạn: </span>
+              <span className="font-bold">Linh hoạt theo hoàn cảnh: </span>
               Nếu bạn không có tai nghe hoặc không tiện bật micro, bạn có thể bấm <em>"Bỏ qua kỹ năng này"</em> khi làm bài. Kỹ năng chưa kiểm tra sẽ được ghi nhận là <strong>"Chưa có dữ liệu"</strong> chứ không bị tính điểm 0!
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Test Type Choice Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           {/* Full Test */}
-          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border-2 border-primary-500/40 hover:border-primary-500 shadow-md flex flex-col justify-between transition-all relative overflow-hidden group">
-            <div className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-primary-100 dark:bg-primary-950 text-primary-700 dark:text-primary-300 font-bold text-[10px]">
-              Khuyến nghị
+          <Card
+            variant="default"
+            className="p-5 sm:p-6 flex flex-col justify-between border-2 border-[#A3D635] relative overflow-hidden"
+          >
+            <div className="absolute top-3.5 right-3.5">
+              <Badge variant="lime" size="sm">Khuyên dùng</Badge>
             </div>
 
-            <div>
-              <div className="w-10 h-10 rounded-2xl bg-primary-50 dark:bg-primary-950/60 text-primary-600 flex items-center justify-center font-bold text-lg mb-3">
+            <div className="flex flex-col gap-2">
+              <div className="w-10 h-10 rounded-2xl bg-[#A3D635] text-[#263326] flex items-center justify-center font-bold text-lg mb-1">
                 <Award className="w-5 h-5" />
               </div>
-              <h3 className="text-lg font-extrabold text-slate-800 dark:text-slate-100 mb-1">
+              <h3 className="text-base font-bold text-[#263326] dark:text-[#EAF5D5]">
                 Kiểm Tra Toàn Diện (Full Test)
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
-                Đánh giá trọn vẹn cả 6 kỹ năng (Từ vựng, Ngữ pháp, Đọc, Nghe, Viết, Giao tiếp). Thích hợp nhất cho lần đầu kiểm tra để xác định xuất phát điểm chuẩn xác.
+              <p className="text-xs text-[#647560] dark:text-[#889B84] mb-3">
+                Đánh giá trọn vẹn cả 6 kỹ năng (Từ vựng, Ngữ pháp, Đọc, Nghe, Viết, Giao tiếp). Thích hợp nhất cho lần đầu kiểm tra để định hình xuất phát điểm chuẩn xác.
               </p>
 
-              <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300 mb-6">
+              <div className="space-y-1.5 text-xs text-[#647560] dark:text-[#889B84] mb-4">
                 <div className="flex items-center gap-2">
-                  <Clock className="w-3.5 h-3.5 text-slate-400" />
+                  <Clock className="w-3.5 h-3.5 text-[#355A26] dark:text-[#C2E58C]" />
                   <span>Thời lượng dự kiến: <strong>15 - 20 phút</strong></span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Layers className="w-3.5 h-3.5 text-slate-400" />
+                  <Layers className="w-3.5 h-3.5 text-[#355A26] dark:text-[#C2E58C]" />
                   <span>Số lượng câu hỏi: <strong>18 câu</strong> thích ứng</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>Độ tin cậy: <strong>Rất cao (Full 6 Skills)</strong></span>
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Độ tin cậy: <strong>Rất cao (Full 6 kỹ năng)</strong></span>
                 </div>
               </div>
             </div>
 
-            <button
-              onClick={() => handleStartTest('full')}
+            <Button
+              variant="primary"
+              size="lg"
+              fullWidth
+              onClick={() => handleOpenSurvey('full')}
               disabled={loading}
-              className="w-full py-3 rounded-2xl bg-gradient-to-r from-primary-600 to-rose-500 hover:from-primary-700 hover:to-rose-600 text-white font-bold text-sm shadow-md active:scale-95 transition-all flex items-center justify-center gap-2"
             >
-              <span>Bắt Đầu Kiểm Tra Toàn Diện</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
+              <span>Bắt Đầu Khảo Sát & Kiểm Tra</span>
+              <ArrowRight className="w-4 h-4 ml-1.5" />
+            </Button>
+          </Card>
 
           {/* Quick Test */}
-          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 shadow-sm flex flex-col justify-between transition-all">
-            <div>
-              <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center font-bold text-lg mb-3">
+          <Card
+            variant="default"
+            className="p-5 sm:p-6 flex flex-col justify-between"
+          >
+            <div className="flex flex-col gap-2">
+              <div className="w-10 h-10 rounded-2xl bg-[#EAF5D5] text-[#355A26] dark:bg-[#202D1D] dark:text-[#C2E58C] flex items-center justify-center font-bold text-lg mb-1">
                 <Clock className="w-5 h-5" />
               </div>
-              <h3 className="text-lg font-extrabold text-slate-800 dark:text-slate-100 mb-1">
+              <h3 className="text-base font-bold text-[#263326] dark:text-[#EAF5D5]">
                 Kiểm Tra Nhanh (Quick Test)
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
-                Chỉ tập trung vào 3 kỹ năng cốt lõi: <strong>Từ vựng, Ngữ pháp và Đọc hiểu</strong>. Dành cho khi bạn đang ở nơi ồn ào hoặc cần xác định cấp độ cấp tốc.
+              <p className="text-xs text-[#647560] dark:text-[#889B84] mb-3">
+                Chỉ tập trung vào 3 kỹ năng cốt lõi: <strong>Từ vựng, Ngữ pháp và Đọc hiểu</strong>. Dành cho khi bạn cần xác định cấp độ cấp tốc trong thời gian ngắn.
               </p>
 
-              <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300 mb-6">
+              <div className="space-y-1.5 text-xs text-[#647560] dark:text-[#889B84] mb-4">
                 <div className="flex items-center gap-2">
-                  <Clock className="w-3.5 h-3.5 text-slate-400" />
+                  <Clock className="w-3.5 h-3.5 text-[#647560]" />
                   <span>Thời lượng dự kiến: <strong>7 - 10 phút</strong></span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Layers className="w-3.5 h-3.5 text-slate-400" />
+                  <Layers className="w-3.5 h-3.5 text-[#647560]" />
                   <span>Số lượng câu hỏi: <strong>9 câu</strong> thích ứng</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -513,16 +551,158 @@ export const PlacementTestView: React.FC<PlacementTestViewProps> = ({ onNavigate
               </div>
             </div>
 
-            <button
-              onClick={() => handleStartTest('quick')}
+            <Button
+              variant="outline"
+              size="lg"
+              fullWidth
+              onClick={() => handleOpenSurvey('quick')}
               disabled={loading}
-              className="w-full py-3 rounded-2xl bg-slate-800 dark:bg-slate-700 hover:bg-slate-900 text-white font-bold text-sm shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
             >
               <span>Làm Bài Kiểm Tra Rút Gọn</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
+              <ArrowRight className="w-4 h-4 ml-1.5" />
+            </Button>
+          </Card>
         </div>
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // VIEW: 1.5. STEP 1 ONBOARDING SURVEY MODAL / SCREEN
+  // =========================================================================
+  if (viewState === 'survey') {
+    return (
+      <div className="flex flex-col gap-5 max-w-2xl mx-auto pb-16">
+        <div className="flex items-center justify-between">
+          <Badge variant="lime">Bước 1/5: Khảo sát ban đầu</Badge>
+          <button
+            onClick={() => setViewState('intro')}
+            className="text-xs font-semibold text-[#647560] hover:text-[#263326] dark:hover:text-[#EAF5D5]"
+          >
+            Quay lại
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <h2 className="text-xl font-bold text-[#263326] dark:text-[#EAF5D5]">
+            Mục Tiêu & Định Hướng Học Tập
+          </h2>
+          <p className="text-xs text-[#647560] dark:text-[#889B84]">
+            Giúp AI hiểu rõ kỳ vọng của bạn để đề xuất lộ trình và điều chỉnh độ khó bài kiểm tra thích ứng.
+          </p>
+        </div>
+
+        {/* Survey Questions */}
+        <div className="flex flex-col gap-4">
+          {/* Question 1: Target HSK */}
+          <Card className="p-4 flex flex-col gap-2.5">
+            <span className="text-xs font-bold text-[#355A26] dark:text-[#C2E58C]">
+              1. Mục tiêu HSK bạn hướng tới:
+            </span>
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+              {[1, 2, 3, 4, 5, 6].map((lvl) => (
+                <button
+                  key={lvl}
+                  onClick={() => setTargetHsk(lvl)}
+                  className={`touch-target h-11 rounded-xl text-xs font-bold border transition-all ${
+                    targetHsk === lvl
+                      ? 'bg-[#A3D635] text-[#263326] border-[#86B825] shadow-xs'
+                      : 'bg-white dark:bg-[#1A2418] border-[#E3EBDD] dark:border-[#2D3A2C] text-[#263326] dark:text-[#EAF5D5]'
+                  }`}
+                >
+                  HSK {lvl}
+                </button>
+              ))}
+            </div>
+          </Card>
+
+          {/* Question 2: Learning Reason */}
+          <Card className="p-4 flex flex-col gap-2.5">
+            <span className="text-xs font-bold text-[#355A26] dark:text-[#C2E58C]">
+              2. Lý do chính bạn học tiếng Trung:
+            </span>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              {[
+                { id: 'giao_tiep', label: 'Giao tiếp hàng ngày / Du lịch' },
+                { id: 'cong_viec', label: 'Công việc / Kinh doanh' },
+                { id: 'du_hoc', label: 'Du học / Thi chứng chỉ HSK' },
+                { id: 'so_thich', label: 'Sở thích / Xem phim, nhạc hoa' },
+              ].map((r) => (
+                <button
+                  key={r.id}
+                  onClick={() => setLearningReason(r.id)}
+                  className={`touch-target p-3 rounded-2xl text-left border transition-all ${
+                    learningReason === r.id
+                      ? 'bg-[#EAF5D5] text-[#355A26] border-[#A3D635] font-bold dark:bg-[#202D1D] dark:text-[#C2E58C]'
+                      : 'bg-white dark:bg-[#1A2418] border-[#E3EBDD] dark:border-[#2D3A2C] text-[#263326] dark:text-[#EAF5D5]'
+                  }`}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+          </Card>
+
+          {/* Question 3: Daily Minutes */}
+          <Card className="p-4 flex flex-col gap-2.5">
+            <span className="text-xs font-bold text-[#355A26] dark:text-[#C2E58C]">
+              3. Thời gian bạn có thể dành mỗi ngày:
+            </span>
+            <div className="grid grid-cols-4 gap-2">
+              {[15, 30, 45, 60].map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setDailyMinutes(m)}
+                  className={`touch-target h-11 rounded-xl text-xs font-bold border transition-all ${
+                    dailyMinutes === m
+                      ? 'bg-[#A3D635] text-[#263326] border-[#86B825] shadow-xs'
+                      : 'bg-white dark:bg-[#1A2418] border-[#E3EBDD] dark:border-[#2D3A2C] text-[#263326] dark:text-[#EAF5D5]'
+                  }`}
+                >
+                  {m} phút
+                </button>
+              ))}
+            </div>
+          </Card>
+
+          {/* Question 4: Learning Style */}
+          <Card className="p-4 flex flex-col gap-2.5">
+            <span className="text-xs font-bold text-[#355A26] dark:text-[#C2E58C]">
+              4. Phong cách học bạn yêu thích:
+            </span>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              {[
+                { id: 'ai_interactive', label: 'Tương tác & Hội thoại với AI Tutor' },
+                { id: 'flashcard_srs', label: 'Lặp lại ngắt quãng (Flashcard SRS)' },
+                { id: 'grammar_rules', label: 'Nắm vững quy tắc ngữ pháp & cấu trúc' },
+                { id: 'shadowing_audio', label: 'Nghe nói phản xạ & Shadowing nhại' },
+              ].map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => setLearningStyle(s.id)}
+                  className={`touch-target p-3 rounded-2xl text-left border transition-all ${
+                    learningStyle === s.id
+                      ? 'bg-[#EAF5D5] text-[#355A26] border-[#A3D635] font-bold dark:bg-[#202D1D] dark:text-[#C2E58C]'
+                      : 'bg-white dark:bg-[#1A2418] border-[#E3EBDD] dark:border-[#2D3A2C] text-[#263326] dark:text-[#EAF5D5]'
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </Card>
+        </div>
+
+        <Button
+          variant="primary"
+          size="lg"
+          fullWidth
+          loading={loading}
+          onClick={handleConfirmSurveyAndStart}
+        >
+          <span>Lưu Mục Tiêu & Bắt Đầu Làm Bài Thích Ứng</span>
+          <ArrowRight className="w-4 h-4 ml-1.5" />
+        </Button>
       </div>
     );
   }
@@ -534,22 +714,22 @@ export const PlacementTestView: React.FC<PlacementTestViewProps> = ({ onNavigate
     const progressPercent = Math.round((currentQIndex / activeTest.totalQuestions) * 100);
 
     return (
-      <div className="space-y-5 pb-20 md:pb-8 max-w-3xl mx-auto">
+      <div className="flex flex-col gap-4 max-w-3xl mx-auto pb-16">
         {/* Top Control Bar */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-primary-100 dark:bg-primary-950 text-primary-600 dark:text-primary-300">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2.5 rounded-2xl bg-[#EAF5D5] dark:bg-[#202D1D] text-[#355A26] dark:text-[#C2E58C]">
               {getSkillIcon(currentQuestion.skill)}
-            </span>
+            </div>
             <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-primary-600 dark:text-primary-400">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#355A26] dark:text-[#C2E58C]">
                 Phần: {getSkillLabel(currentQuestion.skill)}
               </span>
-              <h2 className="text-sm font-extrabold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <h2 className="text-sm font-bold text-[#263326] dark:text-[#EAF5D5] flex items-center gap-2">
                 <span>Câu {currentQIndex + 1}/{activeTest.totalQuestions}</span>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                  Mức độ HSK {currentQuestion.hskLevel}
-                </span>
+                <Badge variant="neutral" size="sm">
+                  HSK {currentQuestion.hskLevel}
+                </Badge>
               </h2>
             </div>
           </div>
@@ -557,13 +737,13 @@ export const PlacementTestView: React.FC<PlacementTestViewProps> = ({ onNavigate
           <div className="flex items-center gap-2">
             <button
               onClick={handleSkipSection}
-              className="text-xs font-semibold px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-rose-500 hover:border-rose-300 transition-colors"
+              className="touch-target text-xs font-semibold px-3 py-1.5 rounded-xl border border-[#E3EBDD] dark:border-[#2D3A2C] text-[#647560] hover:text-rose-500 hover:border-rose-300 transition-colors"
             >
               Bỏ qua phần này
             </button>
             <button
               onClick={() => setViewState('intro')}
-              className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 transition-colors"
+              className="touch-target text-xs font-semibold px-3 py-1.5 rounded-xl bg-white dark:bg-[#1A2418] border border-[#E3EBDD] dark:border-[#2D3A2C] text-[#263326] dark:text-[#EAF5D5] hover:bg-[#F6FAF2] transition-colors"
             >
               Lưu & Thoát
             </button>
@@ -571,79 +751,71 @@ export const PlacementTestView: React.FC<PlacementTestViewProps> = ({ onNavigate
         </div>
 
         {/* Progress Bar */}
-        <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-          <div
-            className="bg-gradient-to-r from-primary-600 to-rose-500 h-full transition-all duration-300 rounded-full"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
+        <ProgressBar progress={progressPercent} height="h-2" />
 
         {/* Question Card */}
-        <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-md">
+        <Card variant="default" className="p-5 sm:p-7 shadow-sm">
           {/* Reading Passage (if present) */}
           {currentQuestion.passage && (
-            <div className="mb-5 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700">
-              <span className="text-[11px] font-bold text-primary-600 dark:text-primary-400 block mb-1">
+            <div className="mb-5 p-4 rounded-2xl bg-[#F6FAF2] dark:bg-[#151D14] border border-[#E3EBDD] dark:border-[#2D3A2C]">
+              <span className="text-[11px] font-bold text-[#355A26] dark:text-[#C2E58C] block mb-1">
                 ĐOẠN VĂN ĐỌC HIỂU:
               </span>
-              <p className="text-base sm:text-lg leading-relaxed text-slate-800 dark:text-slate-100 font-chinese">
+              <p className="text-base sm:text-lg leading-relaxed text-[#263326] dark:text-[#EAF5D5] font-chinese">
                 {currentQuestion.passage}
               </p>
             </div>
           )}
 
-          {/* Audio Player for Listening (Audio text is NOT shown in text) */}
+          {/* Audio Player for Listening */}
           {currentQuestion.audioText && (
-            <div className="mb-6 p-5 rounded-2xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="mb-5 p-4 rounded-2xl bg-[#EAF5D5] dark:bg-[#202D1D] border border-[#D7EDB5] dark:border-[#355A26] flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-md">
-                  <Headphones className="w-6 h-6" />
+                <div className="w-11 h-11 rounded-2xl bg-[#A3D635] text-[#263326] flex items-center justify-center shrink-0">
+                  <Headphones className="w-5 h-5" />
                 </div>
                 <div>
-                  <span className="text-xs font-bold text-amber-900 dark:text-amber-200">
-                    Bấm để nghe đoạn âm thanh tiếng Trung
+                  <span className="text-xs font-bold text-[#263326] dark:text-[#EAF5D5]">
+                    Nghe đoạn âm thanh tiếng Trung
                   </span>
-                  <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                  <p className="text-[11px] text-[#647560] dark:text-[#889B84]">
                     Lần nghe: <strong>{audioPlayCount}/3 lần</strong>
                   </p>
                 </div>
               </div>
 
-              <button
+              <Button
+                size="sm"
+                variant="primary"
                 onClick={() => handlePlayAudio(currentQuestion.audioText)}
                 disabled={audioPlayCount >= 3}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm transition-all ${
-                  audioPlayCount >= 3
-                    ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                    : 'bg-amber-500 hover:bg-amber-600 text-white active:scale-95'
-                }`}
               >
-                <Volume2 className="w-4 h-4" />
-                <span>{audioPlayCount === 0 ? 'Phát âm thanh' : 'Nghe lại'}</span>
-              </button>
+                <Volume2 className="w-4 h-4 mr-1" />
+                <span>{audioPlayCount === 0 ? 'Phát âm' : 'Nghe lại'}</span>
+              </Button>
             </div>
           )}
 
           {/* Prompt */}
-          <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white leading-snug mb-6">
+          <h3 className="text-base sm:text-lg font-bold text-[#263326] dark:text-[#EAF5D5] leading-snug mb-5">
             {currentQuestion.prompt}
           </h3>
 
           {/* Multiple Choice Options */}
           {currentQuestion.options && currentQuestion.options.length > 0 && (
-            <div className="space-y-3 mb-6">
+            <div className="flex flex-col gap-2.5 mb-5">
               {currentQuestion.options.map((opt, idx) => {
                 const isSelected = selectedOption === opt;
-                let optionClass = 'border-slate-200 dark:border-slate-800 hover:border-primary-400 bg-white dark:bg-slate-850';
+                let optionClass = 'border-[#E3EBDD] dark:border-[#2D3A2C] hover:border-[#A3D635] bg-white dark:bg-[#1A2418]';
 
                 if (isAnswerSubmitted) {
                   if (opt === currentQuestion.correctAnswer) {
-                    optionClass = 'border-emerald-500 bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-100 font-bold';
+                    optionClass = 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-100 font-bold';
                   } else if (isSelected && opt !== currentQuestion.correctAnswer) {
-                    optionClass = 'border-rose-500 bg-rose-50/80 dark:bg-rose-950/40 text-rose-900 dark:text-rose-100';
+                    optionClass = 'border-rose-500 bg-rose-50 dark:bg-rose-950/40 text-rose-900 dark:text-rose-100';
                   }
                 } else if (isSelected) {
-                  optionClass = 'border-primary-500 ring-2 ring-primary-500/20 bg-primary-50/60 dark:bg-primary-950/40 text-primary-900 dark:text-primary-100 font-bold';
+                  optionClass = 'border-[#A3D635] ring-2 ring-[#A3D635]/30 bg-[#EAF5D5]/60 dark:bg-[#202D1D] text-[#355A26] dark:text-[#C2E58C] font-bold';
                 }
 
                 return (
@@ -651,11 +823,11 @@ export const PlacementTestView: React.FC<PlacementTestViewProps> = ({ onNavigate
                     key={idx}
                     disabled={isAnswerSubmitted}
                     onClick={() => setSelectedOption(opt)}
-                    className={`w-full text-left p-4 rounded-2xl border transition-all flex items-center justify-between text-sm sm:text-base ${optionClass}`}
+                    className={`touch-target w-full text-left p-3.5 sm:p-4 rounded-2xl border transition-all flex items-center justify-between text-sm sm:text-base ${optionClass}`}
                   >
                     <div className="flex items-center gap-3">
                       <span className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs ${
-                        isSelected ? 'bg-primary-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                        isSelected ? 'bg-[#A3D635] text-[#263326]' : 'bg-[#F6FAF2] dark:bg-[#151D14] text-[#647560] dark:text-[#889B84]'
                       }`}>
                         {String.fromCharCode(65 + idx)}
                       </span>
@@ -663,7 +835,7 @@ export const PlacementTestView: React.FC<PlacementTestViewProps> = ({ onNavigate
                     </div>
 
                     {isAnswerSubmitted && opt === currentQuestion.correctAnswer && (
-                      <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                      <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
                     )}
                     {isAnswerSubmitted && isSelected && opt !== currentQuestion.correctAnswer && (
                       <XCircle className="w-5 h-5 text-rose-500 shrink-0" />
@@ -676,7 +848,7 @@ export const PlacementTestView: React.FC<PlacementTestViewProps> = ({ onNavigate
 
           {/* Open-ended Writing or Communication Input */}
           {(currentQuestion.questionType === 'writing_translation' || currentQuestion.questionType === 'dialogue_response') && (
-            <div className="space-y-4 mb-6">
+            <div className="flex flex-col gap-3 mb-5">
               <div className="relative">
                 <textarea
                   rows={4}
@@ -684,21 +856,21 @@ export const PlacementTestView: React.FC<PlacementTestViewProps> = ({ onNavigate
                   value={writtenAnswer}
                   onChange={e => setWrittenAnswer(e.target.value)}
                   placeholder="Gõ câu trả lời bằng chữ Hán hoặc Pinyin tại đây..."
-                  className="w-full p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 font-chinese text-base focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                  className="w-full p-4 rounded-2xl border border-[#E3EBDD] dark:border-[#2D3A2C] bg-[#F6FAF2] dark:bg-[#151D14] text-[#263326] dark:text-[#EAF5D5] font-chinese text-base focus:ring-2 focus:ring-[#A3D635]/40 outline-none transition-all placeholder:text-[#889B84]"
                 />
 
                 {currentQuestion.questionType === 'dialogue_response' && !isAnswerSubmitted && (
                   <button
                     type="button"
                     onClick={handleToggleVoiceInput}
-                    className={`absolute right-3 bottom-3 p-2.5 rounded-xl flex items-center gap-1.5 text-xs font-bold transition-all shadow-sm ${
+                    className={`touch-target absolute right-3 bottom-3 px-3 py-1.5 rounded-xl flex items-center gap-1.5 text-xs font-bold transition-all shadow-xs ${
                       isListeningSpeech
                         ? 'bg-rose-500 text-white animate-pulse'
-                        : 'bg-white dark:bg-slate-700 text-primary-600 dark:text-primary-300 hover:bg-slate-100'
+                        : 'bg-white dark:bg-[#1A2418] text-[#355A26] dark:text-[#C2E58C] border border-[#E3EBDD]'
                     }`}
                   >
                     {isListeningSpeech ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-                    <span>{isListeningSpeech ? 'Đang nghe...' : 'Nói micro'}</span>
+                    <span>{isListeningSpeech ? 'Đang nghe...' : 'Nói mic'}</span>
                   </button>
                 )}
               </div>
@@ -708,8 +880,8 @@ export const PlacementTestView: React.FC<PlacementTestViewProps> = ({ onNavigate
               )}
 
               {currentQuestion.criteria?.focusPoints && (
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 text-xs text-slate-500 dark:text-slate-400">
-                  <span className="font-bold text-slate-700 dark:text-slate-300">Tiêu chí chấm của AI: </span>
+                <div className="p-3 rounded-2xl bg-[#F6FAF2] dark:bg-[#151D14] text-xs text-[#647560] dark:text-[#889B84]">
+                  <span className="font-bold text-[#263326] dark:text-[#EAF5D5]">Tiêu chí chấm của AI: </span>
                   {currentQuestion.criteria.focusPoints.join(' • ')}
                 </div>
               )}
@@ -718,22 +890,22 @@ export const PlacementTestView: React.FC<PlacementTestViewProps> = ({ onNavigate
 
           {/* Immediate Answer Feedback & Explanation */}
           {isAnswerSubmitted && lastAnswerFeedback && (
-            <div className={`p-4 sm:p-5 rounded-2xl mb-6 border animate-fadeIn ${
+            <div className={`p-4 rounded-2xl mb-5 border ${
               lastAnswerFeedback.isCorrect 
-                ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/50' 
-                : 'bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800/50'
+                ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800' 
+                : 'bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800'
             }`}>
               <div className="flex items-center gap-2 font-bold text-sm mb-1">
                 {lastAnswerFeedback.isCorrect ? (
                   <>
-                    <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600" />
                     <span className="text-emerald-800 dark:text-emerald-200">
                       Chính xác! (+{lastAnswerFeedback.score} điểm)
                     </span>
                   </>
                 ) : (
                   <>
-                    <XCircle className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+                    <XCircle className="w-5 h-5 text-rose-600" />
                     <span className="text-rose-800 dark:text-rose-200">
                       Chưa hoàn toàn chuẩn xác ({lastAnswerFeedback.score}/100 điểm)
                     </span>
@@ -742,40 +914,42 @@ export const PlacementTestView: React.FC<PlacementTestViewProps> = ({ onNavigate
               </div>
 
               {lastAnswerFeedback.feedback && (
-                <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-medium mb-2">
+                <p className="text-xs text-[#263326] dark:text-[#EAF5D5] font-medium mb-1.5">
                   {lastAnswerFeedback.feedback}
                 </p>
               )}
 
-              <div className="text-xs text-slate-600 dark:text-slate-400 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
-                <span className="font-bold text-slate-800 dark:text-slate-200">Giải thích: </span>
+              <div className="text-xs text-[#647560] dark:text-[#889B84] pt-1.5 border-t border-black/5 dark:border-white/5">
+                <span className="font-bold text-[#263326] dark:text-[#EAF5D5]">Giải thích: </span>
                 {lastAnswerFeedback.explanation}
               </div>
             </div>
           )}
 
           {/* Bottom Action Controls */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#E3EBDD] dark:border-[#2D3A2C]">
             {!isAnswerSubmitted ? (
-              <button
+              <Button
+                variant="primary"
+                size="lg"
                 onClick={handleSubmitAnswer}
                 disabled={loading || (currentQuestion.options ? !selectedOption : !writtenAnswer.trim())}
-                className="px-6 py-3 rounded-2xl bg-gradient-to-r from-primary-600 to-rose-500 hover:from-primary-700 hover:to-rose-600 disabled:opacity-50 text-white font-bold text-sm shadow-md active:scale-95 transition-all flex items-center gap-2"
               >
                 <span>Xác Nhận Câu Trả Lời</span>
-                <CheckCircle2 className="w-4 h-4" />
-              </button>
+                <CheckCircle2 className="w-4 h-4 ml-1.5" />
+              </Button>
             ) : (
-              <button
+              <Button
+                variant="primary"
+                size="lg"
                 onClick={handleNextQuestion}
-                className="px-6 py-3 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-sm shadow-md active:scale-95 transition-all flex items-center gap-2"
               >
                 <span>{currentQIndex + 1 >= activeTest.totalQuestions ? 'Xem Báo Cáo Kết Quả' : 'Câu Tiếp Theo'}</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
+                <ArrowRight className="w-4 h-4 ml-1.5" />
+              </Button>
             )}
           </div>
-        </div>
+        </Card>
       </div>
     );
   }
@@ -785,128 +959,119 @@ export const PlacementTestView: React.FC<PlacementTestViewProps> = ({ onNavigate
   // =========================================================================
   if (viewState === 'result' && currentResult) {
     return (
-      <div className="space-y-6 pb-20 md:pb-8 max-w-4xl mx-auto">
+      <div className="flex flex-col gap-5 max-w-4xl mx-auto pb-16">
         {/* Score & Estimated HSK Card */}
-        <div className="rounded-3xl bg-gradient-to-br from-primary-700 via-primary-600 to-rose-500 text-white p-6 sm:p-8 shadow-xl shadow-primary-700/20 relative overflow-hidden">
-          <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6">
-            <div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-semibold mb-3">
-                <Award className="w-3.5 h-3.5 text-amber-300" />
-                <span>Kết Quả Đánh Giá Năng Lực Đầu Vào</span>
+        <Card variant="highlight" className="p-5 sm:p-7 relative overflow-hidden">
+          <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-5">
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <Badge variant="lime">
+                  <Award className="w-3.5 h-3.5 mr-1" />
+                  Kết Quả Đánh Giá Năng Lực Đầu Vào
+                </Badge>
               </div>
 
-              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-1">
+              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#263326] dark:text-[#EAF5D5]">
                 Trình Độ Ước Tính: {currentResult.estimatedHskLabel}
               </h2>
 
-              <p className="text-xs sm:text-sm text-rose-100/90 max-w-lg mb-4">
+              <p className="text-xs sm:text-sm text-[#647560] dark:text-[#889B84] max-w-lg">
                 Điểm số tổng quát: <strong>{currentResult.overallScore}/100</strong> • Độ tin cậy: <strong>{currentResult.confidenceLevel === 'high' ? 'Cao' : 'Khá'}</strong>.
               </p>
 
-              <div className="inline-block text-[11px] text-rose-200/80 bg-black/20 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10">
-                * Lưu ý: Cấp độ HSK ở đây là thang đo tham chiếu nội bộ trong ứng dụng, phục vụ tối ưu hóa lộ trình cá nhân hóa.
+              <div className="text-[11px] text-[#647560] dark:text-[#889B84] bg-white/60 dark:bg-[#1A2418]/60 px-3 py-1.5 rounded-xl border border-[#D7EDB5] dark:border-[#355A26] inline-block">
+                * Thang đo HSK tham chiếu nội bộ giúp AI tối ưu bài học cá nhân hóa cho bạn.
               </div>
             </div>
 
-            {/* Circular Gauge / Stat Box */}
-            <div className="w-32 h-32 rounded-3xl bg-white/15 backdrop-blur-md border border-white/20 flex flex-col items-center justify-center p-4 text-center shrink-0">
-              <span className="text-xs font-semibold text-rose-100 uppercase tracking-wider">HSK Điểm Mốc</span>
-              <span className="text-4xl font-black font-chinese tracking-tight text-white mt-0.5">
+            {/* Stat Circle Box */}
+            <div className="w-32 h-32 rounded-3xl bg-white dark:bg-[#1A2418] border border-[#E3EBDD] dark:border-[#2D3A2C] shadow-sm flex flex-col items-center justify-center p-3 text-center shrink-0">
+              <span className="text-[11px] font-semibold text-[#647560] dark:text-[#889B84] uppercase tracking-wider">HSK Điểm Mốc</span>
+              <span className="text-3xl font-black font-chinese tracking-tight text-[#355A26] dark:text-[#A3D635] mt-0.5">
                 {currentResult.estimatedHsk}
               </span>
-              <span className="text-[11px] text-amber-300 font-bold mt-1">
+              <span className="text-[11px] text-[#263326] dark:text-[#EAF5D5] font-bold mt-0.5">
                 {currentResult.overallScore} / 100 Điểm
               </span>
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Sync to Profile CTA Banner */}
-        <div className="p-5 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-primary-500/10 border-2 border-emerald-500/40 dark:border-emerald-500/30 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <Card variant="default" className="p-5 flex flex-col sm:flex-row items-center justify-between gap-4 border-2 border-[#A3D635]">
           <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-500/20">
-              <Sparkles className="w-6 h-6" />
+            <div className="w-12 h-12 rounded-2xl bg-[#A3D635] text-[#263326] flex items-center justify-center shrink-0 shadow-xs">
+              <Sparkles className="w-6 h-6 stroke-[2.2]" />
             </div>
             <div>
-              <h3 className="text-sm sm:text-base font-extrabold text-slate-800 dark:text-slate-100">
+              <h3 className="text-sm sm:text-base font-bold text-[#263326] dark:text-[#EAF5D5]">
                 Áp Dụng Kết Quả Vào Lộ Trình Học Cá Nhân Hóa
               </h3>
-              <p className="text-xs text-slate-600 dark:text-slate-400">
-                AI sẽ cập nhật hồ sơ năng lực HSK {Math.round(currentResult.estimatedHsk)}, nạp các điểm yếu vào sổ tay lỗi sai và tự động biên soạn bài học tiếp theo.
+              <p className="text-xs text-[#647560] dark:text-[#889B84]">
+                AI sẽ cập nhật hồ sơ năng lực HSK {Math.round(currentResult.estimatedHsk)}, nạp các điểm yếu vào sổ tay lỗi sai và tự động biên soạn lộ trình tiếp theo.
               </p>
             </div>
           </div>
 
-          <button
+          <Button
+            variant={currentResult.syncedToProfile ? 'secondary' : 'primary'}
+            size="lg"
+            className="w-full sm:w-auto shrink-0"
             onClick={handleSyncToProfile}
             disabled={isSyncingProfile || currentResult.syncedToProfile}
-            className={`px-5 py-3 rounded-2xl font-bold text-sm shrink-0 shadow-md transition-all flex items-center gap-2 ${
-              currentResult.syncedToProfile
-                ? 'bg-emerald-600 text-white cursor-default'
-                : 'bg-emerald-500 hover:bg-emerald-600 text-white active:scale-95'
-            }`}
           >
             {currentResult.syncedToProfile ? (
               <>
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Đã Áp Dụng Thành Công</span>
+                <CheckCircle2 className="w-4 h-4 mr-1.5" />
+                <span>Đã Áp Dụng Lộ Trình</span>
               </>
             ) : (
               <>
-                <Sparkles className="w-4 h-4 text-amber-200" />
-                <span>{isSyncingProfile ? 'Đang đồng bộ...' : 'Sử Dụng Kết Quả Để Tạo Lộ Trình'}</span>
+                <Sparkles className="w-4 h-4 mr-1.5" />
+                <span>{isSyncingProfile ? 'Đang đồng bộ...' : 'Áp Dụng Vào Hệ Thống'}</span>
               </>
             )}
-          </button>
-        </div>
+          </Button>
+        </Card>
 
         {syncSuccessMsg && (
-          <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs font-semibold flex items-center gap-2">
+          <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 text-emerald-800 dark:text-emerald-200 text-xs font-semibold flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
             <span>{syncSuccessMsg}</span>
           </div>
         )}
 
         {/* 6 Skills Bar Chart & Breakdown */}
-        <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
-          <h3 className="text-base font-extrabold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-primary-500" />
+        <Card variant="default" className="p-5 sm:p-6">
+          <h3 className="text-sm font-bold text-[#263326] dark:text-[#EAF5D5] mb-4 flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-[#355A26] dark:text-[#C2E58C]" />
             <span>Phân Tích Chi Tiết 6 Kỹ Năng</span>
           </h3>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             {Object.values(currentResult.skillScores).map(item => {
               const isTested = item.status === 'tested';
               return (
-                <div key={item.skill} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60 flex flex-col justify-between">
+                <div key={item.skill} className="p-3.5 rounded-2xl bg-[#F6FAF2] dark:bg-[#151D14] border border-[#E3EBDD] dark:border-[#2D3A2C] flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2 font-bold text-sm text-slate-800 dark:text-slate-100">
+                      <div className="flex items-center gap-2 font-bold text-xs text-[#263326] dark:text-[#EAF5D5]">
                         {getSkillIcon(item.skill)}
                         <span>{item.label}</span>
                       </div>
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                        !isTested 
-                          ? 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-                          : item.score! >= 70
-                            ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
-                            : 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
-                      }`}>
+                      <Badge variant={!isTested ? 'neutral' : item.score! >= 70 ? 'success' : 'warning'} size="sm">
                         {isTested ? `${item.score}/100 (${item.qualitative})` : 'Chưa có dữ liệu'}
-                      </span>
+                      </Badge>
                     </div>
 
                     {/* Score Bar */}
                     {isTested && (
-                      <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden mb-2">
-                        <div
-                          className="bg-primary-500 h-full rounded-full"
-                          style={{ width: `${item.score || 0}%` }}
-                        />
+                      <div className="mb-2">
+                        <ProgressBar progress={item.score || 0} height="h-2" />
                       </div>
                     )}
 
-                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                    <p className="text-[11px] text-[#647560] dark:text-[#889B84] leading-relaxed">
                       {item.feedback}
                     </p>
                   </div>
@@ -914,62 +1079,62 @@ export const PlacementTestView: React.FC<PlacementTestViewProps> = ({ onNavigate
               );
             })}
           </div>
-        </div>
+        </Card>
 
         {/* Strengths & Weaknesses Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           {/* Strengths */}
-          <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-emerald-200/80 dark:border-emerald-800/40 shadow-sm">
-            <h4 className="text-sm font-bold text-emerald-700 dark:text-emerald-300 mb-3 flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+          <Card className="p-5 border-emerald-200 dark:border-emerald-900/60">
+            <h4 className="text-xs font-bold text-emerald-800 dark:text-emerald-300 mb-3 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
               <span>Điểm Mạnh Của Bạn</span>
             </h4>
             <ul className="space-y-2">
               {currentResult.strengths.map((s, idx) => (
-                <li key={idx} className="text-xs text-slate-700 dark:text-slate-300 flex items-start gap-2">
+                <li key={idx} className="text-xs text-[#263326] dark:text-[#EAF5D5] flex items-start gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
                   <span>{s}</span>
                 </li>
               ))}
             </ul>
-          </div>
+          </Card>
 
           {/* Weaknesses */}
-          <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-rose-200/80 dark:border-rose-800/40 shadow-sm">
-            <h4 className="text-sm font-bold text-rose-700 dark:text-rose-300 mb-3 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-rose-500" />
-              <span>Lỗ Hổng Cần Củng Cố</span>
+          <Card className="p-5 border-rose-200 dark:border-rose-900/60">
+            <h4 className="text-xs font-bold text-rose-800 dark:text-rose-300 mb-3 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-rose-600" />
+              <span>Lỗ Hổng Cần Bù Đắp</span>
             </h4>
             <ul className="space-y-2">
               {currentResult.weaknesses.map((w, idx) => (
-                <li key={idx} className="text-xs text-slate-700 dark:text-slate-300 flex items-start gap-2">
+                <li key={idx} className="text-xs text-[#263326] dark:text-[#EAF5D5] flex items-start gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1.5 shrink-0" />
                   <span>{w}</span>
                 </li>
               ))}
             </ul>
-          </div>
+          </Card>
         </div>
 
         {/* Knowledge Breakdown */}
-        <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
-          <h3 className="text-base font-extrabold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
-            <Compass className="w-5 h-5 text-indigo-500" />
+        <Card variant="default" className="p-5">
+          <h3 className="text-xs font-bold text-[#263326] dark:text-[#EAF5D5] mb-3 flex items-center gap-2">
+            <Compass className="w-4 h-4 text-[#355A26] dark:text-[#C2E58C]" />
             <span>Phân Phối Kiến Thức Theo Cấp Độ</span>
           </h3>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             {/* Mastered */}
             {currentResult.knowledgeBreakdown.mastered.length > 0 && (
               <div>
-                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 block mb-2">
+                <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 block mb-1.5">
                   ✓ ĐÃ NẮM VỮNG ({currentResult.knowledgeBreakdown.mastered.length} nội dung):
                 </span>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {currentResult.knowledgeBreakdown.mastered.map((k, idx) => (
-                    <span key={idx} className="px-3 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs font-medium">
-                      {k.item} <span className="opacity-70 text-[10px]">(HSK {k.hskLevel})</span>
-                    </span>
+                    <Badge key={idx} variant="success" size="sm">
+                      {k.item} <span className="opacity-70">(HSK {k.hskLevel})</span>
+                    </Badge>
                   ))}
                 </div>
               </div>
@@ -977,40 +1142,42 @@ export const PlacementTestView: React.FC<PlacementTestViewProps> = ({ onNavigate
 
             {/* Weak Gaps */}
             {currentResult.knowledgeBreakdown.weakGaps.length > 0 && (
-              <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
-                <span className="text-xs font-bold text-rose-600 dark:text-rose-400 block mb-2">
+              <div className="pt-2 border-t border-[#E3EBDD] dark:border-[#2D3A2C]">
+                <span className="text-xs font-bold text-rose-700 dark:text-rose-400 block mb-1.5">
                   ⚠ LỖ HỔNG CẦN BÙ ĐẮP ({currentResult.knowledgeBreakdown.weakGaps.length} nội dung):
                 </span>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {currentResult.knowledgeBreakdown.weakGaps.map((k, idx) => (
-                    <span key={idx} className="px-3 py-1 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs font-medium">
-                      {k.item} <span className="opacity-70 text-[10px]">(HSK {k.hskLevel})</span>
-                    </span>
+                    <Badge key={idx} variant="danger" size="sm">
+                      {k.item} <span className="opacity-70">(HSK {k.hskLevel})</span>
+                    </Badge>
                   ))}
                 </div>
               </div>
             )}
           </div>
-        </div>
+        </Card>
 
         {/* Bottom Actions */}
-        <div className="flex items-center justify-between pt-4">
-          <button
+        <div className="flex items-center justify-between pt-2">
+          <Button
+            variant="ghost"
+            size="md"
             onClick={() => setViewState('intro')}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs hover:bg-slate-100 transition-colors"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <RotateCcw className="w-4 h-4 mr-1.5" />
             <span>Về Màn Hình Chính</span>
-          </button>
+          </Button>
 
           {onNavigate && (
-            <button
+            <Button
+              variant="primary"
+              size="md"
               onClick={() => onNavigate('roadmap')}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-xs shadow-md active:scale-95 transition-all"
             >
               <span>Xem Lộ Trình HSK Đã Cập Nhật</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
+              <ArrowRight className="w-4 h-4 ml-1.5" />
+            </Button>
           )}
         </div>
       </div>
@@ -1018,60 +1185,63 @@ export const PlacementTestView: React.FC<PlacementTestViewProps> = ({ onNavigate
   }
 
   // =========================================================================
-  // VIEW: 4. TEST HISTORY & COMPARISON SCREEN
+  // VIEW: 4. TEST HISTORY SCREEN
   // =========================================================================
   if (viewState === 'history') {
     return (
-      <div className="space-y-6 pb-20 md:pb-8 max-w-4xl mx-auto">
+      <div className="flex flex-col gap-4 max-w-4xl mx-auto pb-16">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-extrabold text-slate-800 dark:text-slate-100">
-              Lịch Sử Khảo Sát & So Sánh Tiến Bộ
+            <h2 className="text-lg font-bold text-[#263326] dark:text-[#EAF5D5]">
+              Lịch Sử Khảo Sát & Đánh Giá
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-[#647560] dark:text-[#889B84]">
               Theo dõi sự phát triển trình độ qua từng lần kiểm tra theo thời gian
             </p>
           </div>
 
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setViewState('intro')}
-            className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs hover:bg-slate-200 transition-colors"
           >
             Quay lại
-          </button>
+          </Button>
         </div>
 
-        <div className="space-y-3">
+        <div className="flex flex-col gap-2.5">
           {historyList.map((item, idx) => (
-            <div
+            <Card
               key={item.testId}
-              className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+              className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
             >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-primary-50 dark:bg-primary-950/60 text-primary-600 dark:text-primary-300 flex items-center justify-center font-bold text-lg">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-[#EAF5D5] text-[#355A26] dark:bg-[#202D1D] dark:text-[#C2E58C] flex items-center justify-center font-bold text-base">
                   #{historyList.length - idx}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm text-slate-800 dark:text-slate-100">
+                    <span className="font-bold text-sm text-[#263326] dark:text-[#EAF5D5]">
                       Mốc HSK {item.estimatedHsk}
                     </span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                    <Badge variant="neutral" size="sm">
                       {item.testType === 'full' ? 'Toàn diện (6 kỹ năng)' : 'Rút gọn (3 kỹ năng)'}
-                    </span>
+                    </Badge>
                     {item.syncedToProfile && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" /> Đã áp dụng lộ trình
-                      </span>
+                      <Badge variant="success" size="sm">
+                        <CheckCircle2 className="w-3 h-3 mr-0.5" /> Đã áp dụng
+                      </Badge>
                     )}
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    Ngày thi: {new Date(item.startedAt).toLocaleString('vi-VN')} • Điểm số: {item.overallScore}/100 • Thời gian: {Math.round(item.durationSeconds / 60)} phút
+                  <p className="text-xs text-[#647560] dark:text-[#889B84] mt-0.5">
+                    Ngày thi: {new Date(item.startedAt).toLocaleString('vi-VN')} • Điểm số: {item.overallScore}/100 • {Math.round(item.durationSeconds / 60)} phút
                   </p>
                 </div>
               </div>
 
-              <button
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={async () => {
                   setLoading(true);
                   const res = await backendClient.getPlacementResult(item.testId);
@@ -1081,12 +1251,11 @@ export const PlacementTestView: React.FC<PlacementTestViewProps> = ({ onNavigate
                   }
                   setLoading(false);
                 }}
-                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold text-xs transition-colors flex items-center gap-1.5 self-end sm:self-center"
               >
                 <span>Xem Báo Cáo</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
+                <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            </Card>
           ))}
         </div>
       </div>

@@ -27,6 +27,9 @@ const LearnerMemoryView = lazy(() => import('./views/LearnerMemoryView').then(m 
 const PlacementTestView = lazy(() => import('./views/PlacementTestView').then(m => ({ default: m.PlacementTestView })));
 const StatsView = lazy(() => import('./views/StatsView').then(m => ({ default: m.StatsView })));
 const SettingsView = lazy(() => import('./views/SettingsView').then(m => ({ default: m.SettingsView })));
+const LearnHubView = lazy(() => import('./views/LearnHubView').then(m => ({ default: m.LearnHubView })));
+const ReviewHubView = lazy(() => import('./views/ReviewHubView').then(m => ({ default: m.ReviewHubView })));
+const ProfileView = lazy(() => import('./views/ProfileView').then(m => ({ default: m.ProfileView })));
 
 import {
   X,
@@ -134,23 +137,24 @@ export function App() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
+    <div className="min-h-[100dvh] bg-[#F6FAF2] dark:bg-[#121811] text-[#263326] dark:text-[#EAF5D5] flex flex-col font-sans transition-colors duration-150">
       {/* Top Navigation Bar */}
       <Navbar
         user={user}
         onOpenAITutor={() => handleSelectTab('ai_tutor')}
+        onOpenProfile={() => handleSelectTab('profile')}
       />
 
       <div className="flex-1 flex max-w-7xl w-full mx-auto">
-        {/* Desktop Sidebar (12 modules) */}
+        {/* Desktop Sidebar */}
         <Sidebar currentTab={currentTab} onSelectTab={handleSelectTab} />
 
-        {/* Main Content View Container */}
-        <main className="flex-1 p-4 md:p-6 lg:p-8 min-w-0">
+        {/* Main Content View Container with mobile bottom-nav padding */}
+        <main className="flex-1 p-3.5 sm:p-5 md:p-6 lg:p-8 min-w-0 pb-24 md:pb-8">
           <Suspense fallback={
             <div className="py-24 text-center flex flex-col items-center justify-center gap-3">
-              <div className="w-8 h-8 border-3 border-primary-500 border-t-transparent rounded-full animate-spin" />
-              <span className="text-xs font-semibold text-slate-400">Đang tải phân hệ...</span>
+              <div className="w-8 h-8 border-3 border-[#A3D635] border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs font-semibold text-[#647560] dark:text-[#889B84]">Đang tải phân hệ...</span>
             </div>
           }>
             {activeLesson ? (
@@ -166,6 +170,15 @@ export function App() {
               <>
                 {currentTab === 'home' && (
                   <HomeView user={user} onNavigate={handleSelectTab} />
+                )}
+                {currentTab === 'learn' && (
+                  <LearnHubView onNavigate={handleSelectTab} />
+                )}
+                {currentTab === 'review' && (
+                  <ReviewHubView onNavigate={handleSelectTab} />
+                )}
+                {currentTab === 'profile' && (
+                  <ProfileView user={user} onNavigate={handleSelectTab} />
                 )}
                 {currentTab === 'placement_test' && (
                   <PlacementTestView onNavigate={handleSelectTab} />
@@ -202,18 +215,18 @@ export function App() {
         onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
       />
 
-      {/* Mobile Drawer Menu (All 12 Modules) */}
+      {/* Mobile Drawer Menu (All Modules) */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-end">
-          <div className="w-72 bg-white dark:bg-slate-900 h-full p-5 overflow-y-auto shadow-2xl flex flex-col justify-between">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex justify-end">
+          <div className="w-72 bg-white dark:bg-[#1A2418] h-full p-5 overflow-y-auto shadow-2xl flex flex-col justify-between border-l border-[#E3EBDD] dark:border-[#2D3A2C]">
             <div className="space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-                <span className="font-bold text-sm text-slate-800 dark:text-slate-100">
+              <div className="flex items-center justify-between pb-3 border-b border-[#E3EBDD] dark:border-[#2D3A2C]">
+                <span className="font-bold text-sm text-[#263326] dark:text-[#EAF5D5]">
                   Tất Cả Phân Hệ
                 </span>
                 <button
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  className="touch-target w-8 h-8 rounded-full text-[#647560] hover:text-[#263326] dark:hover:text-[#EAF5D5]"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -227,13 +240,13 @@ export function App() {
                     <button
                       key={item.id}
                       onClick={() => handleSelectTab(item.id)}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-semibold transition-colors ${
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-2xl text-left text-xs font-semibold transition-colors ${
                         isActive
-                          ? 'bg-primary-50 dark:bg-primary-950 text-primary-600 dark:text-primary-400'
-                          : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                          ? 'bg-[#EAF5D5] text-[#355A26] dark:bg-[#202D1D] dark:text-[#C2E58C]'
+                          : 'text-[#263326] dark:text-[#EAF5D5] hover:bg-[#F6FAF2] dark:hover:bg-[#151D14]'
                       }`}
                     >
-                      <Icon className="w-4 h-4 text-slate-500" />
+                      <Icon className="w-4 h-4 text-[#647560]" />
                       <span>{item.label}</span>
                     </button>
                   );
@@ -241,8 +254,8 @@ export function App() {
               </div>
             </div>
 
-            <div className="text-[11px] text-slate-400 text-center pt-4 border-t border-slate-100 dark:border-slate-800">
-              Halo Chinese v2.8.0 • AI System Integration Audit
+            <div className="text-[11px] text-[#647560] dark:text-[#889B84] text-center pt-4 border-t border-[#E3EBDD] dark:border-[#2D3A2C]">
+              Halo Chinese v3.0.0 • Mobile-First Personal AI
             </div>
           </div>
         </div>

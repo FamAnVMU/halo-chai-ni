@@ -386,9 +386,59 @@ export interface ShadowingStats {
   recentSessions: any[];
 }
 
+export interface AuthUser {
+  id: string;
+  username: string;
+  displayName?: string;
+  role: 'admin' | 'learner';
+  status: 'active' | 'disabled';
+  mustChangePassword?: boolean;
+}
+
+export interface AuthSessionResponse {
+  success: boolean;
+  token?: string;
+  user?: AuthUser;
+  mustChangePassword?: boolean;
+  error?: string;
+}
+
+export interface LanInfoResponse {
+  lanAccessEnabled: boolean;
+  localIps: string[];
+  port: number;
+  qrCodeUrls: string[];
+}
+
+// Global fetch interceptor for transparent JWT Authorization header injection
+if (typeof window !== 'undefined' && !(window as any).__halo_fetch_intercepted__) {
+  (window as any).__halo_fetch_intercepted__ = true;
+  const originalFetch = window.fetch.bind(window);
+  window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const token = localStorage.getItem('halo_auth_token');
+    const urlStr = typeof input === 'string' ? input : (input instanceof URL ? input.toString() : (input as Request).url);
+    if (token && urlStr && (urlStr.includes(':3001') || urlStr.startsWith('/api/') || urlStr.includes('/api/'))) {
+      const headers = new Headers(init?.headers || (input instanceof Request ? input.headers : {}));
+      if (!headers.has('Authorization')) {
+        headers.set('Authorization', `Bearer ${token}`);
+      }
+      return originalFetch(input, { ...init, headers });
+    }
+    return originalFetch(input, init);
+  };
+}
+
 export class LocalBackendClient {
   public getServerHost(): string {
-    return localStorage.getItem('halo_server_host') || 'localhost:3001';
+    const saved = localStorage.getItem('halo_server_host');
+    if (saved) return saved;
+    if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+      const host = window.location.hostname;
+      if (host && host !== 'localhost' && host !== '127.0.0.1') {
+        return `${host}:3001`;
+      }
+    }
+    return 'localhost:3001';
   }
 
   public setServerHost(host: string) {
@@ -399,6 +449,162 @@ export class LocalBackendClient {
     localStorage.setItem('halo_server_host', clean);
   }
 
+  public getAuthToken(): string | null {
+    return localStorage.getItem('halo_auth_token');
+  }
+
+  public setAuthToken(token: string) {
+    localStorage.setItem('halo_auth_token', token);
+  }
+
+  public clearAuth() {
+    localStorage.removeItem('halo_auth_token');
+    localStorage.removeItem('halo_auth_user');
+  }
+
+  public getStoredUser(): AuthUser | null {
+    try {
+      const u = localStorage.getItem('halo_auth_user');
+      return u ? JSON.parse(u) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  public setStoredUser(user: AuthUser) {
+    localStorage.setItem('halo_auth_user', JSON.stringify(user));
+  }
+
+  public async login(credentials: { username: string; password: string }): Promise<AuthSessionResponse> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(credentials)
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.token) {
+        this.setAuthToken(data.token);
+        if (data.user) {
+          this.setStoredUser(data.user);
+        }
+      }
+      return data;
+    } catch (e: any) {
+      return { success: false, error: e.message || 'Lỗi kết nối máy chủ' };
+    }
+  }
+
+  public async getMe(): Promise<AuthUser | null> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/auth/me`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.user) {
+          this.setStoredUser(data.user);
+          return data.user;
+        }
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  public async changePassword(params: { currentPassword: string; newPassword: string }): Promise<{ success: boolean; error?: string; message?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/auth/change-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message || 'Lỗi đổi mật khẩu' };
+    }
+  }
+
+  public async logout(): Promise<void> {
+    try {
+      await fetch(`${this.getBaseUrl()}/api/auth/logout`, { method: 'POST' });
+    } catch {
+      // ignore
+    } finally {
+      this.clearAuth();
+    }
+  }
+
+  public async getLanInfo(): Promise<LanInfoResponse | null> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/settings/lan-info`);
+      if (res.ok) return await res.json();
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  public async toggleLan(enabled: boolean): Promise<{ success: boolean; lanAccessEnabled: boolean; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/settings/lan-toggle`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, lanAccessEnabled: false, error: e.message };
+    }
+  }
+
+  public async getAdminUsers(): Promise<{ success: boolean; users?: any[]; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/admin/users`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async setUserStatus(id: string, status: 'active' | 'disabled'): Promise<{ success: boolean; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/admin/users/${encodeURIComponent(id)}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async resetUserPassword(id: string, newPassword: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/admin/users/${encodeURIComponent(id)}/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newPassword })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  public async createLearner(params: { username: string; password: string; name?: string }): Promise<{ success: boolean; user?: any; error?: string }> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/admin/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
   public getBaseUrl(): string {
     const host = this.getServerHost();
     return `http://${host}`;
@@ -406,7 +612,8 @@ export class LocalBackendClient {
 
   public getWsUrl(): string {
     const host = this.getServerHost();
-    return `ws://${host}`;
+    const token = this.getAuthToken();
+    return token ? `ws://${host}?token=${encodeURIComponent(token)}` : `ws://${host}`;
   }
 
   public async checkHealth(): Promise<boolean> {

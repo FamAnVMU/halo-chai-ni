@@ -446,37 +446,37 @@ export const AITutorView: React.FC<AITutorViewProps> = ({ onNavigate }) => {
   };
 
   return (
-    <div className="space-y-4 pb-20 md:pb-8 max-w-4xl mx-auto h-[calc(100vh-100px)] flex flex-col">
+    <div className="flex flex-col gap-3 max-w-4xl mx-auto h-[calc(100dvh-130px)] md:h-[calc(100dvh-110px)] pb-1">
       {/* Top Controls Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm shrink-0">
+      <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-white dark:bg-[#1A2418] rounded-3xl border border-[#E3EBDD] dark:border-[#2D3A2C] shadow-xs shrink-0">
         <div className="flex items-center gap-2">
           {/* Mode switch: Text / Voice */}
-          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+          <div className="flex bg-[#F6FAF2] dark:bg-[#151D14] p-1 rounded-2xl border border-[#E3EBDD] dark:border-[#2D3A2C]">
             <button
               onClick={() => {
                 setActiveSubMode('text');
                 if (isVoiceActive) stopVoiceChat();
               }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+              className={`touch-target h-10 px-3 rounded-xl text-xs font-bold transition-all ${
                 activeSubMode === 'text'
-                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm'
-                  : 'text-slate-500'
+                  ? 'bg-white dark:bg-[#1A2418] text-[#263326] dark:text-[#EAF5D5] shadow-xs'
+                  : 'text-[#647560] dark:text-[#889B84]'
               }`}
             >
-              <MessageSquare className="w-3.5 h-3.5" />
-              <span>Text Chat (3.5 Flash Lite)</span>
+              <MessageSquare className="w-3.5 h-3.5 mr-1.5" />
+              <span>Text Chat (Flash Lite)</span>
             </button>
 
             <button
               onClick={() => setActiveSubMode('voice')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+              className={`touch-target h-10 px-3 rounded-xl text-xs font-bold transition-all ${
                 activeSubMode === 'voice'
-                  ? 'bg-gradient-to-r from-primary-600 to-rose-600 text-white shadow-sm'
-                  : 'text-slate-500'
+                  ? 'bg-[#A3D635] text-[#263326] shadow-xs'
+                  : 'text-[#647560] dark:text-[#889B84]'
               }`}
             >
-              <Radio className="w-3.5 h-3.5" />
-              <span>Voice Chat (3.8 Live API)</span>
+              <Radio className="w-3.5 h-3.5 mr-1.5 text-[#263326]" />
+              <span>Voice Chat (Live API)</span>
             </button>
           </div>
 
@@ -484,7 +484,7 @@ export const AITutorView: React.FC<AITutorViewProps> = ({ onNavigate }) => {
           <select
             value={chatMode}
             onChange={(e) => setChatMode(e.target.value as AIChatMode)}
-            className="text-xs font-semibold px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200"
+            className="touch-target h-10 text-xs font-semibold px-3 rounded-2xl border border-[#E3EBDD] dark:border-[#2D3A2C] bg-white dark:bg-[#1A2418] text-[#263326] dark:text-[#EAF5D5]"
           >
             <option value="free">Giao tiếp tự do</option>
             <option value="tutor">Giáo viên hướng dẫn (Sửa lỗi)</option>
@@ -497,7 +497,7 @@ export const AITutorView: React.FC<AITutorViewProps> = ({ onNavigate }) => {
           <select
             value={hskLevel}
             onChange={(e) => setHskLevel(Number(e.target.value) as HSKLevel)}
-            className="text-xs font-semibold px-2 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200"
+            className="touch-target h-10 text-xs font-semibold px-2.5 rounded-2xl border border-[#E3EBDD] dark:border-[#2D3A2C] bg-white dark:bg-[#1A2418] text-[#263326] dark:text-[#EAF5D5]"
           >
             <option value={1}>HSK 1</option>
             <option value={2}>HSK 2</option>
@@ -907,16 +907,17 @@ export const AITutorView: React.FC<AITutorViewProps> = ({ onNavigate }) => {
                 type="text"
                 value={inputMsg}
                 onChange={(e) => setInputMsg(e.target.value)}
-                placeholder="Nhập tiếng Trung hoặc tiếng Việt để học tập..."
-                className="flex-1 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:border-primary-500"
+                placeholder="Nhập câu tiếng Trung hoặc tiếng Việt để học tập..."
+                className="flex-1 min-h-[48px] h-12 px-4 rounded-2xl border border-[#E3EBDD] dark:border-[#2D3A2C] bg-[#F6FAF2] dark:bg-[#151D14] text-sm text-[#263326] dark:text-[#EAF5D5] focus:outline-none focus:border-[#A3D635] focus:ring-2 focus:ring-[#A3D635]/30 transition-all placeholder:text-[#889B84]"
               />
 
               <button
                 type="submit"
                 disabled={!inputMsg.trim() || isAiThinking}
-                className="p-3 rounded-2xl bg-primary-600 text-white disabled:opacity-40 hover:bg-primary-700 active:scale-95 shadow transition-all"
+                className="touch-target w-12 h-12 rounded-2xl bg-[#A3D635] text-[#263326] font-bold disabled:opacity-40 hover:brightness-105 active:scale-95 shadow-sm transition-all shrink-0"
+                aria-label="Gửi tin nhắn"
               >
-                <Send className="w-4 h-4" />
+                <Send className="w-5 h-5 stroke-[2.2]" />
               </button>
             </form>
           </div>

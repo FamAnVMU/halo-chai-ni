@@ -1,81 +1,100 @@
 import React from 'react';
 import {
   Home,
-  Map,
-  BotMessageSquare,
   BookOpen,
-  Menu,
+  BotMessageSquare,
+  RotateCcw,
+  User,
 } from 'lucide-react';
 import type { NavTab } from './Sidebar';
 
 interface BottomNavProps {
   currentTab: NavTab;
   onSelectTab: (tab: NavTab) => void;
-  onOpenMobileMenu: () => void;
+  onOpenMobileMenu?: () => void;
 }
 
 export const BottomNav: React.FC<BottomNavProps> = ({
   currentTab,
   onSelectTab,
-  onOpenMobileMenu,
 }) => {
+  // Determine which of the 5 bottom nav items is active:
+  const isHomeActive = currentTab === 'home';
+  const isLearnActive = ['learn', 'roadmap', 'dictionary', 'vocab', 'grammar', 'pronounce', 'shadowing', 'write', 'reading', 'listening'].includes(currentTab);
+  const isAiTutorActive = currentTab === 'ai_tutor';
+  const isReviewActive = ['review', 'practice', 'ai_lessons', 'ai_memory'].includes(currentTab);
+  const isProfileActive = ['profile', 'placement_test', 'stats', 'settings'].includes(currentTab);
+
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-2 py-1.5 flex items-center justify-around safe-bottom">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#1A2418]/95 backdrop-blur-md border-t border-[#E3EBDD] dark:border-[#2D3A2C] px-3 pb-safe pt-1 flex items-center justify-around shadow-lg transition-colors">
+      {/* 1. Trang chủ */}
       <button
         onClick={() => onSelectTab('home')}
-        className={`flex flex-col items-center py-1 px-2.5 rounded-lg text-xs font-medium transition-colors ${
-          currentTab === 'home'
-            ? 'text-primary-600 dark:text-primary-400 font-bold'
-            : 'text-slate-500 dark:text-slate-400'
+        className={`touch-target flex-1 flex flex-col items-center justify-center py-1 rounded-xl text-xs font-semibold transition-all select-none active:scale-95 ${
+          isHomeActive
+            ? 'text-[#355A26] dark:text-[#A3D635]'
+            : 'text-[#647560] dark:text-[#889B84]'
         }`}
       >
-        <Home className="w-5 h-5 mb-0.5" />
-        <span>Trang chủ</span>
+        <Home className={`w-5 h-5 mb-0.5 ${isHomeActive ? 'stroke-[2.5]' : 'stroke-[1.8]'}`} />
+        <span className="text-[11px]">Trang chủ</span>
       </button>
 
+      {/* 2. Học tập */}
       <button
-        onClick={() => onSelectTab('roadmap')}
-        className={`flex flex-col items-center py-1 px-2.5 rounded-lg text-xs font-medium transition-colors ${
-          currentTab === 'roadmap'
-            ? 'text-primary-600 dark:text-primary-400 font-bold'
-            : 'text-slate-500 dark:text-slate-400'
+        onClick={() => onSelectTab('learn')}
+        className={`touch-target flex-1 flex flex-col items-center justify-center py-1 rounded-xl text-xs font-semibold transition-all select-none active:scale-95 ${
+          isLearnActive
+            ? 'text-[#355A26] dark:text-[#A3D635]'
+            : 'text-[#647560] dark:text-[#889B84]'
         }`}
       >
-        <Map className="w-5 h-5 mb-0.5" />
-        <span>Lộ trình</span>
+        <BookOpen className={`w-5 h-5 mb-0.5 ${isLearnActive ? 'stroke-[2.5]' : 'stroke-[1.8]'}`} />
+        <span className="text-[11px]">Học tập</span>
       </button>
 
-      {/* Floating Center AI Tutor Button */}
+      {/* 3. AI Tutor Center Button (Prominent Lime Circle) */}
       <button
         onClick={() => onSelectTab('ai_tutor')}
-        className="flex flex-col items-center -top-4 relative group"
+        className="flex-1 flex flex-col items-center -top-4 relative group select-none active:scale-95 transition-transform"
+        aria-label="AI Tutor"
       >
-        <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-primary-600 to-rose-500 text-white flex items-center justify-center shadow-lg shadow-primary-500/30 group-active:scale-95 transition-transform">
-          <BotMessageSquare className="w-6 h-6" />
+        <div className={`w-13 h-13 rounded-full flex items-center justify-center shadow-lg transition-all ${
+          isAiTutorActive
+            ? 'bg-[#A3D635] text-[#263326] ring-4 ring-[#EAF5D5] dark:ring-[#355A26] shadow-[#A3D635]/40'
+            : 'bg-[#A3D635] text-[#263326] hover:brightness-105 shadow-[#A3D635]/30'
+        }`}>
+          <BotMessageSquare className="w-6 h-6 stroke-[2.2]" />
         </div>
-        <span className="text-[10px] font-bold mt-1 text-primary-600 dark:text-primary-400">
+        <span className="text-[10px] font-bold mt-1 text-[#355A26] dark:text-[#A3D635]">
           AI Tutor
         </span>
       </button>
 
+      {/* 4. Ôn tập */}
       <button
-        onClick={() => onSelectTab('vocab')}
-        className={`flex flex-col items-center py-1 px-2.5 rounded-lg text-xs font-medium transition-colors ${
-          currentTab === 'vocab'
-            ? 'text-primary-600 dark:text-primary-400 font-bold'
-            : 'text-slate-500 dark:text-slate-400'
+        onClick={() => onSelectTab('review')}
+        className={`touch-target flex-1 flex flex-col items-center justify-center py-1 rounded-xl text-xs font-semibold transition-all select-none active:scale-95 ${
+          isReviewActive
+            ? 'text-[#355A26] dark:text-[#A3D635]'
+            : 'text-[#647560] dark:text-[#889B84]'
         }`}
       >
-        <BookOpen className="w-5 h-5 mb-0.5" />
-        <span>Từ vựng</span>
+        <RotateCcw className={`w-5 h-5 mb-0.5 ${isReviewActive ? 'stroke-[2.5]' : 'stroke-[1.8]'}`} />
+        <span className="text-[11px]">Ôn tập</span>
       </button>
 
+      {/* 5. Cá nhân */}
       <button
-        onClick={onOpenMobileMenu}
-        className="flex flex-col items-center py-1 px-2.5 rounded-lg text-xs font-medium text-slate-500 dark:text-slate-400"
+        onClick={() => onSelectTab('profile')}
+        className={`touch-target flex-1 flex flex-col items-center justify-center py-1 rounded-xl text-xs font-semibold transition-all select-none active:scale-95 ${
+          isProfileActive
+            ? 'text-[#355A26] dark:text-[#A3D635]'
+            : 'text-[#647560] dark:text-[#889B84]'
+        }`}
       >
-        <Menu className="w-5 h-5 mb-0.5" />
-        <span>Thêm</span>
+        <User className={`w-5 h-5 mb-0.5 ${isProfileActive ? 'stroke-[2.5]' : 'stroke-[1.8]'}`} />
+        <span className="text-[11px]">Cá nhân</span>
       </button>
     </nav>
   );
