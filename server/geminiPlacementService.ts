@@ -1,6 +1,7 @@
 import { db } from './db.js';
 import { geminiTextService } from './geminiTextService.js';
 import { geminiLessonService } from './geminiLessonService.js';
+import { unifiedAIOrchestrator } from './unifiedAIOrchestrator.js';
 
 export type PlacementSkill = 'vocabulary' | 'grammar' | 'reading' | 'listening' | 'writing' | 'communication';
 
@@ -748,18 +749,28 @@ TRẢ VỀ DUY NHẤT ĐỊNH DẠNG JSON HỢP LỆ THEO CẤU TRÚC:
 }
 `;
 
+    const startPlacementCall = Date.now();
     const modelName = geminiTextService.getModel();
-    const response = await aiClient.models.generateContent({
-      model: modelName,
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-        temperature: 0.2
-      }
+    const text = await unifiedAIOrchestrator.invokeWithTimeoutAndRetry(
+      modelName,
+      'Bạn là chuyên gia khảo thí tiếng Trung (Chinese Placement Test Examiner). Chỉ trả về JSON thuần túy.',
+      prompt,
+      'json',
+      0.2,
+      20000,
+      1
+    );
+    unifiedAIOrchestrator.logAudit({
+      requestId: `req_placement_eval_${Date.now()}`,
+      taskId: 'ASSESS_PLACEMENT_TEST',
+      modelCategory: 'text_out',
+      modelId: modelName,
+      promptVersion: 'v2.8.0',
+      status: 'completed',
+      latencyMs: Date.now() - startPlacementCall
     });
 
-    const text = response.text?.trim() || '{}';
-    const parsed = JSON.parse(text);
+    const parsed = JSON.parse(text || '{}');
     return {
       score: typeof parsed.score === 'number' ? Math.max(0, Math.min(100, parsed.score)) : 50,
       feedbackVi: parsed.feedbackVi || 'Đã ghi nhận câu trả lời.'

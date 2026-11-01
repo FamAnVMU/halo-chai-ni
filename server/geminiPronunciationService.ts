@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { db } from './db.js';
 import { geminiTextService } from './geminiTextService.js';
+import { unifiedAIOrchestrator } from './unifiedAIOrchestrator.js';
 import { learningEvidenceService } from './learningEvidenceService.js';
 
 export interface PronunciationEvaluationInput {
@@ -168,14 +169,29 @@ Yêu cầu xuất JSON format:
 }
 Quy tắc: Tiếng Việt sư phạm, gần gũi, chỉ rõ lỗi âm uốn lưỡi (zh, ch, sh) vs thẳng lưỡi (z, c, s), mặt lưỡi (j, q, x) hay thanh 4 nếu có liên quan.`;
 
-        const resp = await ai.models.generateContent({
-          model: geminiTextService.getModel(),
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          config: { responseMimeType: 'application/json' }
+        const startPronCall = Date.now();
+        const targetModel = geminiTextService.getModel();
+        const cleanJson = await unifiedAIOrchestrator.invokeWithTimeoutAndRetry(
+          targetModel,
+          'Bạn là chuyên gia ngữ âm tiếng Trung của Halo Chinese. Chỉ trả về JSON thuần túy.',
+          prompt,
+          'json',
+          0.3,
+          20000,
+          1
+        );
+        unifiedAIOrchestrator.logAudit({
+          requestId: `req_pron_eval_${Date.now()}`,
+          taskId: 'ANALYZE_PRONUNCIATION',
+          modelCategory: 'text_out',
+          modelId: targetModel,
+          promptVersion: 'v2.8.0',
+          status: 'completed',
+          latencyMs: Date.now() - startPronCall
         });
 
-        if (resp.text) {
-          const parsed = JSON.parse(resp.text);
+        if (cleanJson) {
+          const parsed = JSON.parse(cleanJson);
           toneFeedbackVi = parsed.toneFeedbackVi || '';
           phoneticFeedbackVi = parsed.phoneticFeedbackVi || '';
           practiceTipVi = parsed.practiceTipVi || '';
@@ -461,14 +477,29 @@ Yêu cầu định dạng JSON:
   ]
 }`;
 
-        const resp = await ai.models.generateContent({
-          model: geminiTextService.getModel(),
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          config: { responseMimeType: 'application/json' }
+        const startDrillCall = Date.now();
+        const targetModel = geminiTextService.getModel();
+        const cleanJson = await unifiedAIOrchestrator.invokeWithTimeoutAndRetry(
+          targetModel,
+          'Bạn là chuyên gia thiết kế bài tập phát âm tiếng Trung của Halo Chinese. Chỉ trả về JSON thuần túy.',
+          prompt,
+          'json',
+          0.3,
+          20000,
+          1
+        );
+        unifiedAIOrchestrator.logAudit({
+          requestId: `req_pron_drills_${Date.now()}`,
+          taskId: 'ASSESS_SPEECH',
+          modelCategory: 'text_out',
+          modelId: targetModel,
+          promptVersion: 'v2.8.0',
+          status: 'completed',
+          latencyMs: Date.now() - startDrillCall
         });
 
-        if (resp.text) {
-          const parsed = JSON.parse(resp.text);
+        if (cleanJson) {
+          const parsed = JSON.parse(cleanJson);
           if (Array.isArray(parsed.drills) && parsed.drills.length > 0) {
             return {
               success: true,

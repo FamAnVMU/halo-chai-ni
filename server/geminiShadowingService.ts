@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { db } from './db.js';
 import { geminiTextService } from './geminiTextService.js';
+import { unifiedAIOrchestrator } from './unifiedAIOrchestrator.js';
 import { SEED_SHADOWING_LESSONS, ShadowingLessonItem } from '../src/data/seedShadowing.js';
 
 export interface ShadowingEvaluationInput {
@@ -305,19 +306,28 @@ Xuất JSON:
   "weaknesses": ["Điểm cần khắc phục 1"]
 }`;
 
-        const resp = await ai.models.generateContent({
-          model: geminiTextService.getModel(),
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          config: { responseMimeType: 'application/json' }
+        const startShadowCall = Date.now();
+        const targetModel = geminiTextService.getModel();
+        const cleanJson = await unifiedAIOrchestrator.invokeWithTimeoutAndRetry(
+          targetModel,
+          'Bạn là chuyên gia phân tích ngữ điệu Shadowing tiếng Trung của Halo Chinese. Chỉ trả về JSON thuần túy.',
+          prompt,
+          'json',
+          0.3,
+          20000,
+          1
+        );
+        unifiedAIOrchestrator.logAudit({
+          requestId: `req_shadow_eval_${Date.now()}`,
+          taskId: 'EVALUATE_SHADOWING',
+          modelCategory: 'text_out',
+          modelId: targetModel,
+          promptVersion: 'v2.8.0',
+          status: 'completed',
+          latencyMs: Date.now() - startShadowCall
         });
 
-        if (resp.text) {
-          let cleanJson = resp.text.trim();
-          if (cleanJson.startsWith('```json')) {
-            cleanJson = cleanJson.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-          } else if (cleanJson.startsWith('```')) {
-            cleanJson = cleanJson.replace(/^```\s*/, '').replace(/\s*```$/, '');
-          }
+        if (cleanJson) {
           const parsed = JSON.parse(cleanJson);
           feedbackVi = parsed.feedbackVi || '';
           fluencyTipsVi = parsed.fluencyTipsVi || '';
@@ -491,19 +501,28 @@ Yêu cầu xuất JSON format:
   ]
 }`;
 
-        const resp = await ai.models.generateContent({
-          model: geminiTextService.getModel(),
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          config: { responseMimeType: 'application/json' }
+        const startShadowCall = Date.now();
+        const targetModel = geminiTextService.getModel();
+        const cleanJson = await unifiedAIOrchestrator.invokeWithTimeoutAndRetry(
+          targetModel,
+          'Bạn là chuyên gia thiết kế giáo trình Shadowing tiếng Trung của Halo Chinese. Chỉ trả về JSON thuần túy.',
+          prompt,
+          'json',
+          0.3,
+          25000,
+          1
+        );
+        unifiedAIOrchestrator.logAudit({
+          requestId: `req_shadow_gen_${Date.now()}`,
+          taskId: 'GENERATE_SHADOWING_PASSAGE',
+          modelCategory: 'text_out',
+          modelId: targetModel,
+          promptVersion: 'v2.8.0',
+          status: 'completed',
+          latencyMs: Date.now() - startShadowCall
         });
 
-        if (resp.text) {
-          let cleanJson = resp.text.trim();
-          if (cleanJson.startsWith('```json')) {
-            cleanJson = cleanJson.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-          } else if (cleanJson.startsWith('```')) {
-            cleanJson = cleanJson.replace(/^```\s*/, '').replace(/\s*```$/, '');
-          }
+        if (cleanJson) {
           const parsed = JSON.parse(cleanJson);
           const newLesson: ShadowingLessonItem = {
             id: lessonId,

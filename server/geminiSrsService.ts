@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { db } from './db.js';
 import { geminiTextService } from './geminiTextService.js';
+import { unifiedAIOrchestrator } from './unifiedAIOrchestrator.js';
 import { learningEvidenceService } from './learningEvidenceService.js';
 
 export type SrsItemType = 'vocabulary' | 'grammar' | 'phrase' | 'error';
@@ -834,13 +835,26 @@ Hãy trả lời ĐÚNG ĐỊNH DẠNG JSON sau (không bọc trong \`\`\`json, 
 `;
 
     try {
-      const response = await client.models.generateContent({
+      const startSrsCall = Date.now();
+      const cleanJson = await unifiedAIOrchestrator.invokeWithTimeoutAndRetry(
         model,
-        contents: prompt
+        'Bạn là chuyên gia thiết kế câu hỏi ôn tập lặp lại ngắt quãng SRS tiếng Trung của Halo Chinese. Chỉ trả về JSON thuần túy.',
+        prompt,
+        'json',
+        0.3,
+        20000,
+        1
+      );
+      unifiedAIOrchestrator.logAudit({
+        requestId: `req_srs_quiz_${Date.now()}`,
+        taskId: 'SRS_HINT_GENERATION',
+        modelCategory: 'text_out',
+        modelId: model,
+        promptVersion: 'v2.8.0',
+        status: 'completed',
+        latencyMs: Date.now() - startSrsCall
       });
 
-      const text = response.text?.trim() || '';
-      const cleanJson = text.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
       const parsed = JSON.parse(cleanJson);
 
       return {

@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { db } from './db.js';
 import { geminiTextService } from './geminiTextService.js';
+import { unifiedAIOrchestrator } from './unifiedAIOrchestrator.js';
 import { learningEvidenceService } from './learningEvidenceService.js';
 import {
   SEED_DICTIONARY_ENTRIES,
@@ -436,20 +437,28 @@ Yêu cầu trả về định dạng JSON thuần túy (không bọc trong markd
   "learnerTipVi": "lời khuyên sư phạm cho người Việt khi dùng từ này trong cấu trúc tương tự"
 }`;
 
-        const resp = await ai.models.generateContent({
-          model: geminiTextService.getModel(),
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          config: { responseMimeType: 'application/json' }
+        const startDictCall = Date.now();
+        const targetModel = geminiTextService.getModel();
+        const cleanJson = await unifiedAIOrchestrator.invokeWithTimeoutAndRetry(
+          targetModel,
+          'Bạn là chuyên gia ngôn ngữ học tiếng Trung. Chỉ trả về JSON thuần túy.',
+          prompt,
+          'json',
+          0.2,
+          20000,
+          1
+        );
+        unifiedAIOrchestrator.logAudit({
+          requestId: `req_dict_context_${Date.now()}`,
+          taskId: 'EXPLAIN_VOCABULARY',
+          modelCategory: 'text_out',
+          modelId: targetModel,
+          promptVersion: 'v2.8.0',
+          status: 'completed',
+          latencyMs: Date.now() - startDictCall
         });
 
-        if (resp.text) {
-          let cleanJson = resp.text.trim();
-          if (cleanJson.startsWith('```json')) {
-            cleanJson = cleanJson.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-          } else if (cleanJson.startsWith('```')) {
-            cleanJson = cleanJson.replace(/^```\s*/, '').replace(/\s*```$/, '');
-          }
-
+        if (cleanJson) {
           const parsed = JSON.parse(cleanJson);
           return {
             sentence,
@@ -557,20 +566,28 @@ Yêu cầu trả về định dạng JSON thuần túy (không bọc trong markd
   ]
 }`;
 
-        const resp = await ai.models.generateContent({
-          model: geminiTextService.getModel(),
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          config: { responseMimeType: 'application/json' }
+        const startDictCall = Date.now();
+        const targetModel = geminiTextService.getModel();
+        const cleanJson = await unifiedAIOrchestrator.invokeWithTimeoutAndRetry(
+          targetModel,
+          'Bạn là chuyên gia ngôn ngữ học tiếng Trung. Chỉ trả về JSON thuần túy.',
+          prompt,
+          'json',
+          0.2,
+          20000,
+          1
+        );
+        unifiedAIOrchestrator.logAudit({
+          requestId: `req_dict_context_${Date.now()}`,
+          taskId: 'EXPLAIN_VOCABULARY',
+          modelCategory: 'text_out',
+          modelId: targetModel,
+          promptVersion: 'v2.8.0',
+          status: 'completed',
+          latencyMs: Date.now() - startDictCall
         });
 
-        if (resp.text) {
-          let cleanJson = resp.text.trim();
-          if (cleanJson.startsWith('```json')) {
-            cleanJson = cleanJson.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-          } else if (cleanJson.startsWith('```')) {
-            cleanJson = cleanJson.replace(/^```\s*/, '').replace(/\s*```$/, '');
-          }
-
+        if (cleanJson) {
           const parsed = JSON.parse(cleanJson);
           return {
             words: cleanWords,
@@ -657,20 +674,28 @@ Yêu cầu: ${instruction}
   "quizData": ${params.promptType === 'sentence_quiz' ? '{"questionZh": "...", "questionPinyin": "...", "options": ["A. ...", "B. ...", "C. ...", "D. ..."], "answer": "...", "explanationVi": "..."}' : 'null'}
 }`;
 
-        const resp = await ai.models.generateContent({
-          model: geminiTextService.getModel(),
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          config: { responseMimeType: 'application/json' }
+        const startDictCall = Date.now();
+        const targetModel = geminiTextService.getModel();
+        const cleanJson = await unifiedAIOrchestrator.invokeWithTimeoutAndRetry(
+          targetModel,
+          'Bạn là chuyên gia ngôn ngữ học tiếng Trung. Chỉ trả về JSON thuần túy.',
+          prompt,
+          'json',
+          0.2,
+          20000,
+          1
+        );
+        unifiedAIOrchestrator.logAudit({
+          requestId: `req_dict_context_${Date.now()}`,
+          taskId: 'EXPLAIN_VOCABULARY',
+          modelCategory: 'text_out',
+          modelId: targetModel,
+          promptVersion: 'v2.8.0',
+          status: 'completed',
+          latencyMs: Date.now() - startDictCall
         });
 
-        if (resp.text) {
-          let cleanJson = resp.text.trim();
-          if (cleanJson.startsWith('```json')) {
-            cleanJson = cleanJson.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-          } else if (cleanJson.startsWith('```')) {
-            cleanJson = cleanJson.replace(/^```\s*/, '').replace(/\s*```$/, '');
-          }
-
+        if (cleanJson) {
           const parsed = JSON.parse(cleanJson);
           return {
             word,
@@ -959,20 +984,28 @@ Yêu cầu trả về JSON thuần túy (không bọc trong markdown code fence)
   ]
 }`;
 
-      const resp = await ai.models.generateContent({
-        model: geminiTextService.getModel(),
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        config: { responseMimeType: 'application/json' }
+      const startDictCall = Date.now();
+      const targetModel = geminiTextService.getModel();
+      const cleanJson = await unifiedAIOrchestrator.invokeWithTimeoutAndRetry(
+        targetModel,
+        'Bạn là chuyên gia ngôn ngữ học tiếng Trung. Chỉ trả về JSON thuần túy.',
+        prompt,
+        'json',
+        0.2,
+        20000,
+        1
+      );
+      unifiedAIOrchestrator.logAudit({
+        requestId: `req_dict_breakdown_${Date.now()}`,
+        taskId: 'ANALYZE_SENTENCE',
+        modelCategory: 'text_out',
+        modelId: targetModel,
+        promptVersion: 'v2.8.0',
+        status: 'completed',
+        latencyMs: Date.now() - startDictCall
       });
 
-      if (resp.text) {
-        let cleanJson = resp.text.trim();
-        if (cleanJson.startsWith('```json')) {
-          cleanJson = cleanJson.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-        } else if (cleanJson.startsWith('```')) {
-          cleanJson = cleanJson.replace(/^```\s*/, '').replace(/\s*```$/, '');
-        }
-
+      if (cleanJson) {
         const parsed = JSON.parse(cleanJson);
         const now = Date.now();
         const id = `dict_ai_${now}_${Math.random().toString(36).substring(2, 6)}`;

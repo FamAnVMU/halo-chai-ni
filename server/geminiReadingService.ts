@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { db } from './db.js';
 import { geminiTextService } from './geminiTextService.js';
+import { unifiedAIOrchestrator } from './unifiedAIOrchestrator.js';
 import { learningEvidenceService } from './learningEvidenceService.js';
 import {
   SEED_READING_PASSAGES,
@@ -420,19 +421,26 @@ Trả về DUY NHẤT một chuỗi JSON hợp lệ theo cấu trúc sau (không
     `.trim();
 
     try {
-      const client = this.getClient();
+      const startReadingCall = Date.now();
       const model = geminiTextService.getModel();
-      const res = await client.models.generateContent({
+      const rawText = await unifiedAIOrchestrator.invokeWithTimeoutAndRetry(
         model,
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        'Bạn là chuyên gia biên soạn ngữ liệu đọc hiểu tiếng Trung chuẩn HSK của Halo Chinese. Chỉ trả về JSON thuần túy.',
+        prompt,
+        'json',
+        0.3,
+        25000,
+        1
+      );
+      unifiedAIOrchestrator.logAudit({
+        requestId: `req_reading_gen_${Date.now()}`,
+        taskId: 'GENERATE_READING',
+        modelCategory: 'text_out',
+        modelId: model,
+        promptVersion: 'v2.8.0',
+        status: 'completed',
+        latencyMs: Date.now() - startReadingCall
       });
-
-      let rawText = res.text?.trim() || '';
-      if (rawText.startsWith('```json')) {
-        rawText = rawText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-      } else if (rawText.startsWith('```')) {
-        rawText = rawText.replace(/^```\s*/, '').replace(/\s*```$/, '');
-      }
 
       const generated = JSON.parse(rawText);
 
@@ -554,16 +562,26 @@ Trả về định dạng JSON DUY NHẤT theo mẫu sau:
     `.trim();
 
     try {
-      const client = this.getClient();
+      const startReadingCall = Date.now();
       const model = geminiTextService.getModel();
-      const res = await client.models.generateContent({
+      const raw = await unifiedAIOrchestrator.invokeWithTimeoutAndRetry(
         model,
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        'Bạn là giám khảo chấm bài đọc hiểu tiếng Trung của Halo Chinese. Chỉ trả về JSON thuần túy.',
+        prompt,
+        'json',
+        0.2,
+        20000,
+        1
+      );
+      unifiedAIOrchestrator.logAudit({
+        requestId: `req_reading_eval_${Date.now()}`,
+        taskId: 'EVALUATE_READING_COMPREHENSION',
+        modelCategory: 'text_out',
+        modelId: model,
+        promptVersion: 'v2.8.0',
+        status: 'completed',
+        latencyMs: Date.now() - startReadingCall
       });
-
-      let raw = res.text?.trim() || '';
-      if (raw.startsWith('```json')) raw = raw.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-      else if (raw.startsWith('```')) raw = raw.replace(/^```\s*/, '').replace(/\s*```$/, '');
 
       return JSON.parse(raw);
     } catch (err: any) {
@@ -618,15 +636,29 @@ Hướng dẫn trả lời:
     `.trim();
 
     try {
-      const client = this.getClient();
+      const startReadingCall = Date.now();
       const model = geminiTextService.getModel();
-      const res = await client.models.generateContent({
+      const reply = await unifiedAIOrchestrator.invokeWithTimeoutAndRetry(
         model,
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        'Bạn là gia sư đọc hiểu tiếng Trung của Halo Chinese.',
+        prompt,
+        'text',
+        0.3,
+        20000,
+        1
+      );
+      unifiedAIOrchestrator.logAudit({
+        requestId: `req_reading_tutor_${Date.now()}`,
+        taskId: 'AI_TUTOR_CHAT',
+        modelCategory: 'text_out',
+        modelId: model,
+        promptVersion: 'v2.8.0',
+        status: 'completed',
+        latencyMs: Date.now() - startReadingCall
       });
 
       return {
-        reply: res.text?.trim() || 'Rất tiếc, AI chưa thể phản hồi câu hỏi này lúc này.',
+        reply: reply || 'Rất tiếc, AI chưa thể phản hồi câu hỏi này lúc này.',
       };
     } catch (err: any) {
       console.error('[GeminiReadingService] Lỗi khi trao đổi với AI Tutor:', err);
@@ -687,16 +719,26 @@ Trả về JSON DUY NHẤT:
     `.trim();
 
     try {
-      const client = this.getClient();
+      const startReadingCall = Date.now();
       const model = geminiTextService.getModel();
-      const res = await client.models.generateContent({
+      const raw = await unifiedAIOrchestrator.invokeWithTimeoutAndRetry(
         model,
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        'Bạn là giám khảo chấm bài đọc hiểu tiếng Trung của Halo Chinese. Chỉ trả về JSON thuần túy.',
+        prompt,
+        'json',
+        0.2,
+        20000,
+        1
+      );
+      unifiedAIOrchestrator.logAudit({
+        requestId: `req_reading_eval_${Date.now()}`,
+        taskId: 'EVALUATE_READING_COMPREHENSION',
+        modelCategory: 'text_out',
+        modelId: model,
+        promptVersion: 'v2.8.0',
+        status: 'completed',
+        latencyMs: Date.now() - startReadingCall
       });
-
-      let raw = res.text?.trim() || '';
-      if (raw.startsWith('```json')) raw = raw.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-      else if (raw.startsWith('```')) raw = raw.replace(/^```\s*/, '').replace(/\s*```$/, '');
 
       return JSON.parse(raw);
     } catch (err: any) {
